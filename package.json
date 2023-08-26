@@ -1,22 +1,33 @@
 {
   "name": "vetkd-example",
   "version": "1.0.0",
-  "main": "src/index.tsx",
   "license": "MIT",
   "scripts": {
     "start": "webpack serve --mode development",
-    "build": "webpack --mode production"
+    "build": "webpack --mode production",
+    "dfx:start": "sh dfx-start.sh",
+    "generate": "dfx generate"
   },
   "dependencies": {
+    "@dfinity/agent": "^0.19.2",
+    "@dfinity/auth-client": "^0.19",
+    "@dfinity/candid": "^0.19",
+    "@dfinity/identity": "^0.19.2",
+    "@dfinity/principal": "^0.19",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.14.6",
+    "@mui/material": "^5.14.6",
     "react": "^18.2",
-    "react-dom": "^18.2"
+    "react-dom": "^18.2",
+    "vetkd-utils": "file:ic-vetkd-utils/pkg"
   },
   "devDependencies": {
     "@babel/preset-typescript": "^7.22",
     "@types/react-dom": "^18.2",
     "html-webpack-plugin": "^5.5",
-    "tsconfig-paths-webpack-plugin": "^4.1",
     "ts-loader": "^9.4",
+    "tsconfig-paths-webpack-plugin": "^4.1",
     "typescript": "^5.2",
     "webpack": "^5.88",
     "webpack-cli": "^5.1",

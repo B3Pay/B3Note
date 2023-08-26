@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "src/backend",
+    "src/system_api",
+    "ic-vetkd-utils"
+]
