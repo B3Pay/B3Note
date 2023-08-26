@@ -1,0 +1,25 @@
+{
+  "name": "vetkd-example",
+  "version": "1.0.0",
+  "main": "src/index.tsx",
+  "license": "MIT",
+  "scripts": {
+    "start": "webpack serve --mode development",
+    "build": "webpack --mode production"
+  },
+  "dependencies": {
+    "react": "^18.2",
+    "react-dom": "^18.2"
+  },
+  "devDependencies": {
+    "@babel/preset-typescript": "^7.22",
+    "@types/react-dom": "^18.2",
+    "html-webpack-plugin": "^5.5",
+    "tsconfig-paths-webpack-plugin": "^4.1",
+    "ts-loader": "^9.4",
+    "typescript": "^5.2",
+    "webpack": "^5.88",
+    "webpack-cli": "^5.1",
+    "webpack-dev-server": "^4.15"
+  }
+}
