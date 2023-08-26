@@ -32,6 +32,10 @@ const useAuth = () => {
           setIsAuthenticating(false)
           setIsAuthenticated(true)
         },
+        onError: (err) => {
+          setIsAuthenticating(false)
+          console.error(err)
+        },
       })
     }
   }, [authClient])

@@ -1,17 +1,17 @@
 {
   "__Candid_UI": {
-    "local": "bw4dl-smaaa-aaaaa-qaacq-cai"
+    "local": "bnz7o-iuaaa-aaaaa-qaaaa-cai"
   },
   "backend": {
-    "local": "bkyz2-fmaaa-aaaaa-qaaaq-cai"
-  },
-  "frontend": {
     "local": "bd3sg-teaaa-aaaaa-qaaba-cai"
   },
-  "internet_identity": {
+  "frontend": {
     "local": "be2us-64aaa-aaaaa-qaabq-cai"
   },
-  "system_api": {
+  "internet_identity": {
     "local": "br5f7-7uaaa-aaaaa-qaaca-cai"
+  },
+  "system_api": {
+    "local": "wfdtj-lyaaa-aaaap-abakq-cai"
   }
 }

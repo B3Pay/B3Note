@@ -22,6 +22,6 @@
       "declarations": ["./src/declarations"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "src/frontend/.tsx"],
   "exclude": ["node_modules", "dist"]
 }
