@@ -9,7 +9,7 @@ export const idlFactory = ({ IDL }) => {
   return IDL.Service({
     'decrypt_text' : IDL.Func([IDL.Text, IDL.Text], [Result], []),
     'encrypted_ibe_decryption_key_for_caller' : IDL.Func(
-        [IDL.Vec(IDL.Nat8)],
+        [IDL.Vec(IDL.Nat8), IDL.Vec(IDL.Nat8)],
         [IDL.Text],
         [],
       ),

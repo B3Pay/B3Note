@@ -19,7 +19,8 @@
     "baseUrl": "./src",
     "paths": {
       "frontend": ["./src/frontend"],
-      "declarations": ["./src/declarations"]
+      "declarations": ["./src/declarations"],
+      "wasm": ["./ic-vetkd-utils/pkg"]
     }
   },
   "include": ["src", "src/frontend/.tsx"],

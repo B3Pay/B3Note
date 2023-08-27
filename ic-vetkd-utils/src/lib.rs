@@ -11,10 +11,11 @@ use ic_bls12_381::{
     hash_to_curve::{ExpandMsgXmd, HashToCurve},
     G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar,
 };
+use pairing::group::Curve;
 use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
-use std::array::TryFromSliceError;
 use std::ops::Neg;
+use std::{array::TryFromSliceError, ops::Mul};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 mod ro;
@@ -111,17 +112,17 @@ impl TransportSecretKey {
     }
 
     /// Generates a VRF proof for the given input
-    pub fn vrf_proof(&self, input: &[u8]) -> Result<Vec<u8>, String> {
+    pub fn sign(&self, input: &[u8]) -> Result<Vec<u8>, String> {
         // Hash the input to a curve point in G1
         let hashed_input = augmented_hash_to_g1(&G2Affine::generator(), input);
 
         // Compute the VRF proof by multiplying the hashed input by the secret key
-        let vrf_proof = G1Affine::from(G1Projective::from(&hashed_input) * self.secret_key);
+        let vrf_proof = hashed_input.mul(self.secret_key);
 
         // Serialize the VRF proof to a byte array
-        let proof_bytes = vrf_proof.to_compressed().to_vec();
+        let vrf_proof_bytes = vrf_proof.to_affine().to_compressed();
 
-        Ok(proof_bytes)
+        Ok(vrf_proof_bytes.to_vec())
     }
 }
 

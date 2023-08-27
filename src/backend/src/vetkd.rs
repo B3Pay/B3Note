@@ -1,15 +1,15 @@
 use ic_bls12_381::{
     hash_to_curve::{ExpandMsgXmd, HashToCurve},
-    G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar,
+    G1Affine, G1Projective, G2Affine, G2Prepared, Gt,
 };
 use std::array::TryFromSliceError;
 
 const G1AFFINE_BYTES: usize = 48; // Size of compressed form
 const G2AFFINE_BYTES: usize = 96; // Size of compressed form
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug)]
 /// Error indicating that deserializing an encrypted key failed
-pub enum EncryptedKeyDeserializationError {
+enum EncryptedKeyDeserializationError {
     /// Error indicating one or more of the points was invalid
     InvalidEncryptedKey,
 }
@@ -35,7 +35,7 @@ impl EncryptedKey {
     }
 
     /// Deserializes an encrypted key from a byte array
-    pub fn deserialize_array(
+    fn deserialize_array(
         val: &[u8; Self::BYTES],
     ) -> Result<Self, EncryptedKeyDeserializationError> {
         let c2_start = G1AFFINE_BYTES;

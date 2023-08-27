@@ -22,11 +22,103 @@ struct EncryptedText {
     public_key: Vec<u8>,
 }
 
+struct OneTimePassword {
+    time_lock: u64,
+    signature: Vec<u8>,
+    public_key: Vec<u8>,
+}
+
 type TextId = usize;
 
 thread_local! {
+    static USERS: RefCell<HashMap<String, Principal>> = RefCell::default();
+    static ONE_TIME_PASSWORD: RefCell<HashMap<Principal, OneTimePassword>> = RefCell::default();
     static ENCRYPTED_TEXTS: RefCell<HashMap<TextId, EncryptedText>> = RefCell::default();
     static SYMMETRIC_KEY: RefCell<String> = RefCell::new("b0fd33ed65d976f59718d0faab153152df34988d91eb8676210265fdff41f6d7480bcdc3ea06bd3baae7f852a12f7b7b0f264fe0bb19d582debcc5c44c00b4df71deaeec21b4af95df7589ed2e6a982cb0ffdc65b76ab8c36db4424211a74213".to_string());
+}
+
+#[query]
+fn get_caller() -> Principal {
+    debug_println_caller("get_caller");
+
+    ic_cdk::caller()
+}
+
+#[query]
+fn get_time() -> u64 {
+    debug_println_caller("get_time");
+
+    ic_cdk::api::time()
+}
+
+#[update]
+fn register_user(username: String) {
+    debug_println_caller("register_user");
+
+    let caller = ic_cdk::caller();
+
+    USERS.with(|users| {
+        let mut users = users.borrow_mut();
+
+        users.insert(username, caller);
+    });
+}
+
+#[update]
+fn set_one_time_password(public_key: String, signature: String) {
+    debug_println_caller("set_one_time_password");
+
+    let caller = ic_cdk::caller();
+
+    let signature = hex::decode(signature).expect("Invalid hex encoding");
+    let public_key = hex::decode(public_key).expect("Invalid hex encoding");
+
+    ONE_TIME_PASSWORD.with(|otp| {
+        let mut otp = otp.borrow_mut();
+
+        otp.insert(
+            caller,
+            OneTimePassword {
+                time_lock: ic_cdk::api::time() + 60 * 1_000_000_000,
+                signature,
+                public_key,
+            },
+        );
+    });
+}
+
+#[update]
+fn login_with_one_time_password(username: String, auth_code: String) -> bool {
+    debug_println_caller("login_with_one_time_password");
+
+    let caller = USERS
+        .with(|users| {
+            let users = users.borrow();
+
+            users.get(&username).ok_or("user not found").cloned()
+        })
+        .unwrap();
+
+    let one_time_password = ONE_TIME_PASSWORD
+        .with(|otp| {
+            let mut otp = otp.borrow_mut();
+
+            otp.remove(&caller).ok_or("one time password not found")
+        })
+        .unwrap();
+
+    if one_time_password.time_lock < ic_cdk::api::time() {
+        ic_cdk::trap("one time password is locked");
+    }
+
+    let auth_code = hex::decode(auth_code).expect("Invalid hex encoding");
+
+    verify_vrf_proof(
+        &one_time_password.public_key,
+        &one_time_password.signature,
+        &auth_code,
+    )
+    .expect("verification failed")
 }
 
 #[update]
@@ -37,7 +129,7 @@ async fn symmetric_key_verification_key() -> String {
         key_id: bls12_381_test_key_1(),
     };
 
-    let (response,): (VetKDPublicKeyReply,) = ic_cdk::api::call::call(
+    let (response,): (VetKDPublicKeyReply,) = ic_cdk::call(
         vetkd_system_api_canister_id(),
         "vetkd_public_key",
         (request,),
@@ -56,7 +148,7 @@ async fn symmetric_key_verification_key_for(canister_id: Option<Principal>) -> S
         key_id: bls12_381_test_key_1(),
     };
 
-    let (response,): (VetKDPublicKeyReply,) = ic_cdk::api::call::call(
+    let (response,): (VetKDPublicKeyReply,) = ic_cdk::call(
         vetkd_system_api_canister_id(),
         "vetkd_public_key",
         (request,),
@@ -78,7 +170,7 @@ async fn encrypted_symmetric_key_for_caller(encryption_public_key: Vec<u8>) -> S
         encryption_public_key,
     };
 
-    let (response,): (VetKDEncryptedKeyReply,) = ic_cdk::api::call::call(
+    let (response,): (VetKDEncryptedKeyReply,) = ic_cdk::call(
         vetkd_system_api_canister_id(),
         "vetkd_encrypted_key",
         (request,),
@@ -97,7 +189,7 @@ async fn ibe_encryption_key() -> String {
         key_id: bls12_381_test_key_1(),
     };
 
-    let (response,): (VetKDPublicKeyReply,) = ic_cdk::api::call::call(
+    let (response,): (VetKDPublicKeyReply,) = ic_cdk::call(
         vetkd_system_api_canister_id(),
         "vetkd_public_key",
         (request,),
@@ -109,17 +201,20 @@ async fn ibe_encryption_key() -> String {
 }
 
 #[update]
-async fn encrypted_ibe_decryption_key_for_caller(encryption_public_key: Vec<u8>) -> String {
+async fn encrypted_ibe_decryption_key_for_caller(
+    encryption_public_key: Vec<u8>,
+    derivation_id: Vec<u8>,
+) -> String {
     debug_println_caller("encrypted_ibe_decryption_key_for_caller");
 
     let request = VetKDEncryptedKeyRequest {
-        derivation_id: ic_cdk::caller().as_slice().to_vec(),
+        derivation_id,
         public_key_derivation_path: vec![b"ibe_encryption".to_vec()],
         key_id: bls12_381_test_key_1(),
         encryption_public_key,
     };
 
-    let (response,): (VetKDEncryptedKeyReply,) = ic_cdk::api::call::call(
+    let (response,): (VetKDEncryptedKeyReply,) = ic_cdk::call(
         vetkd_system_api_canister_id(),
         "vetkd_encrypted_key",
         (request,),
@@ -251,29 +346,20 @@ fn verify_ownership_caller(
 /// Verify a VRF proof based on ver_proof
 pub fn verify_vrf_proof(
     public_key_bytes: &[u8],
-    input: &[u8],
-    proof_bytes: &[u8],
+    signature_bytes: &[u8],
+    data_bytes: &[u8],
 ) -> Result<bool, String> {
     // Deserialize the public key
     let public_key = deserialize_g2(public_key_bytes)?;
 
     // Deserialize the proof
-    let proof = deserialize_g1(proof_bytes)?;
+    let signature = deserialize_g1(signature_bytes)?;
 
     // Hash the input to a curve point
-    let hashed_input = augmented_hash_to_g1(&G2Affine::generator(), input);
-
-    println!(
-        "proof pairing: {:?}",
-        pairing(&proof, &G2Affine::generator())
-    );
-    println!(
-        "hashed_input pairing: {:?}",
-        pairing(&hashed_input, &public_key)
-    );
+    let hashed_input = augmented_hash_to_g1(&G2Affine::generator(), data_bytes);
 
     // Verify the VRF proof
-    let result = pairing(&proof, &G2Affine::generator()) == pairing(&hashed_input, &public_key);
+    let result = pairing(&signature, &G2Affine::generator()) == pairing(&hashed_input, &public_key);
 
     Ok(result)
 }
@@ -292,7 +378,7 @@ fn verify_caller(
     let vrf_proof_bytes = hex::decode(vrf_proof_hex).expect("Invalid hex encoding");
 
     // Verify the VRF proof
-    verify_vrf_proof(&public_key_bytes, &input, &vrf_proof_bytes)
+    verify_vrf_proof(&public_key_bytes, &vrf_proof_bytes, &input)
         .map_err(|e| format!("Verification error: {:?}", e))
 }
 

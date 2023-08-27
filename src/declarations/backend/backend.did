@@ -7,7 +7,7 @@ type Result = variant { Ok : text; Err : text };
 type Result_1 = variant { Ok : bool; Err : text };
 service : {
   decrypt_text : (text, text) -> (Result);
-  encrypted_ibe_decryption_key_for_caller : (vec nat8) -> (text);
+  encrypted_ibe_decryption_key_for_caller : (vec nat8, vec nat8) -> (text);
   encrypted_symmetric_key_for_caller : (vec nat8) -> (text);
   get_encrypted_text : (vec nat8, nat64) -> (text);
   get_encrypted_texts : () -> (vec record { nat64; EncryptedText }) query;

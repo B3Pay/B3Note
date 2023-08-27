@@ -1,5 +1,10 @@
 import { AuthClient } from "@dfinity/auth-client"
-import { IDENTITY_CANISTER_ID, IS_LOCAL } from "frontend/config"
+import { Principal } from "@dfinity/principal"
+import {
+  BACKEND_CANISTER_ID,
+  IDENTITY_CANISTER_ID,
+  IS_LOCAL,
+} from "frontend/config"
 import { Backend } from "frontend/service/backend"
 import { useCallback, useEffect, useState } from "react"
 import { createManagmentActor } from "./service"
@@ -8,7 +13,7 @@ import { createBackendActor } from "./service/backend"
 const useAuth = () => {
   const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false)
   const [authClient, setAuthClient] = useState<AuthClient>()
-  const [canister, setCanister] = useState<Backend>()
+  const [backendCanister, setCanister] = useState<Backend>()
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
 
   const login = useCallback(async () => {
@@ -85,10 +90,16 @@ const useAuth = () => {
   }, [authClient])
 
   useEffect(() => {
+    if (isAuthenticating) return
     if (isAuthenticated) initActor()
+    const actor = createBackendActor()
+    setCanister(actor)
   }, [isAuthenticated, initActor])
 
-  const principal = authClient?.getIdentity().getPrincipal().toString()
+  const principal =
+    authClient?.getIdentity().getPrincipal() || Principal.anonymous()
+
+  const backendCanisterPrincipal = Principal.fromText(BACKEND_CANISTER_ID)
 
   return {
     authClient,
@@ -97,7 +108,8 @@ const useAuth = () => {
     login,
     logout,
     principal,
-    canister,
+    backendCanister,
+    backendCanisterPrincipal,
     getManagmentActor,
   }
 }

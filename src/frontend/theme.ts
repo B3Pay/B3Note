@@ -1,4 +1,4 @@
-import { pink, purple, red } from "@mui/material/colors"
+import { blue, green, grey, pink, red } from "@mui/material/colors"
 import { createTheme } from "@mui/material/styles"
 
 // A custom theme for this app
@@ -20,28 +20,30 @@ const theme = createTheme({
   },
   palette: {
     primary: {
-      main: pink[300],
-      light: pink[200],
-      dark: pink[700],
-      "100": pink[100],
-      "200": pink[200],
-      "300": pink[300],
-      "400": pink[400],
-      "500": pink[500],
-      "600": pink[600],
-      "700": pink[700],
-      "800": pink[800],
-      "900": pink[900],
+      main: blue[300],
+      light: blue[200],
+      dark: blue[700],
+      "100": blue[100],
+      "200": blue[200],
+      "300": blue[300],
+      "400": blue[400],
+      "500": blue[500],
+      "600": blue[600],
+      "700": blue[700],
+      "800": blue[800],
+      "900": blue[900],
     },
     secondary: {
-      main: purple[300],
+      main: pink[300],
     },
     error: {
-      main: red.A400,
+      main: red[300],
+    },
+    success: {
+      main: green[300],
     },
     background: {
-      // pink grey
-      default: pink[50],
+      default: grey[300],
       paper: "#fff",
     },
   },
@@ -60,32 +62,132 @@ const theme = createTheme({
         },
       },
     },
-    MuiCard: {
+    MuiTab: {
       styleOverrides: {
         root: {
-          borderStartStartRadius: "16px",
-          borderStartEndRadius: "16px",
+          backgroundColor: grey[100],
+          "&.Mui-selected": {
+            fontWeight: "bold",
+            backgroundColor: "#fff",
+          },
+          "&:first-of-type": {
+            borderStartStartRadius: "16px",
+          },
+          "&:last-of-type": {
+            borderStartEndRadius: "16px",
+          },
+        },
+      },
+    },
+    MuiCard: {
+      variants: [
+        {
+          props: { color: "primary" },
+          style: {
+            border: "2px solid",
+            borderColor: grey[700],
+            borderRadius: "4px",
+            backgroundColor: blue[50],
+          },
+        },
+        {
+          props: { color: "secondary" },
+          style: {
+            border: "2px solid",
+            borderColor: grey[700],
+            borderRadius: "4px",
+            backgroundColor: pink[50],
+          },
+        },
+      ],
+      styleOverrides: {
+        root: {
+          borderStartStartRadius: "0",
+          borderStartEndRadius: "0",
         },
       },
     },
     MuiCardHeader: {
       styleOverrides: {
+        title: {
+          textTransform: "uppercase",
+          fontWeight: "bold",
+        },
         root: {
-          padding: "8px 16px",
-          borderBottom: "1px solid",
-          borderColor: pink[200],
+          padding: "8px",
+          paddingBottom: "0",
           textAlign: "center",
         },
       },
     },
-    MuiButton: {
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          "& .MuiOutlinedInput-root": {
+            "& fieldset": {
+              borderWidth: "2px",
+              borderColor: grey[700],
+            },
+          },
+        },
+      },
       defaultProps: {
         variant: "outlined",
+        size: "small",
+        fullWidth: true,
+      },
+    },
+    MuiButton: {
+      variants: [
+        {
+          props: { variant: "contained", color: "primary" },
+          style: {
+            color: "black",
+            backgroundColor: blue[300],
+            "&:hover": {
+              backgroundColor: blue[400],
+            },
+          },
+        },
+        {
+          props: { variant: "contained", color: "secondary" },
+          style: {
+            color: "black",
+            backgroundColor: pink[300],
+            "&:hover": {
+              backgroundColor: pink[400],
+            },
+          },
+        },
+        {
+          props: { variant: "outlined", color: "primary" },
+          style: {
+            color: blue[300],
+            borderColor: blue[300],
+            "&:hover": {
+              backgroundColor: blue[50],
+            },
+          },
+        },
+        {
+          props: { variant: "outlined", color: "secondary" },
+          style: {
+            color: pink[300],
+            borderColor: pink[300],
+            "&:hover": {
+              backgroundColor: pink[50],
+            },
+          },
+        },
+      ],
+      defaultProps: {
+        variant: "contained",
         fullWidth: true,
         style: {
           fontWeight: "bold",
           fontSize: "0.8rem",
-          border: "1.5px solid",
+          border: "2px solid",
+          borderColor: grey[700],
         },
       },
     },

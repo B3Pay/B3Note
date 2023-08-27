@@ -6,6 +6,7 @@
     "start": "webpack serve --mode development",
     "build": "webpack --mode production",
     "dfx:start": "sh dfx-start.sh",
+    "deploy": "dfx deploy",
     "generate": "dfx generate"
   },
   "dependencies": {
@@ -20,7 +21,8 @@
     "@mui/material": "^5.14.6",
     "react": "^18.2",
     "react-dom": "^18.2",
-    "vetkd-utils": "file:ic-vetkd-utils/pkg"
+    "react-router-dom": "^6.15.0",
+    "vetkd-utils": "file:ic-vetkd-utils/pkg/ic-vetkd-utils-0.1.1.tgz"
   },
   "devDependencies": {
     "@babel/preset-typescript": "^7.22",

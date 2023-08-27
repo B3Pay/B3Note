@@ -13,7 +13,7 @@ export type Result_1 = { 'Ok' : boolean } |
 export interface _SERVICE {
   'decrypt_text' : ActorMethod<[string, string], Result>,
   'encrypted_ibe_decryption_key_for_caller' : ActorMethod<
-    [Uint8Array | number[]],
+    [Uint8Array | number[], Uint8Array | number[]],
     string
   >,
   'encrypted_symmetric_key_for_caller' : ActorMethod<

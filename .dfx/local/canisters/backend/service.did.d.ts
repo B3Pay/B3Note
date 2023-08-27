@@ -13,18 +13,23 @@ export type Result_1 = { 'Ok' : boolean } |
 export interface _SERVICE {
   'decrypt_text' : ActorMethod<[string, string], Result>,
   'encrypted_ibe_decryption_key_for_caller' : ActorMethod<
-    [Uint8Array | number[]],
+    [Uint8Array | number[], Uint8Array | number[]],
     string
   >,
   'encrypted_symmetric_key_for_caller' : ActorMethod<
     [Uint8Array | number[]],
     string
   >,
+  'get_caller' : ActorMethod<[], Principal>,
   'get_encrypted_text' : ActorMethod<[Uint8Array | number[], bigint], string>,
   'get_encrypted_texts' : ActorMethod<[], Array<[bigint, EncryptedText]>>,
+  'get_time' : ActorMethod<[], bigint>,
   'ibe_encryption_key' : ActorMethod<[], string>,
+  'login_with_one_time_password' : ActorMethod<[string, string], boolean>,
   'read_encrypted_text' : ActorMethod<[bigint], string>,
+  'register_user' : ActorMethod<[string], undefined>,
   'save_encrypted_text' : ActorMethod<[EncryptedText], undefined>,
+  'set_one_time_password' : ActorMethod<[string, string], undefined>,
   'symmetric_key_verification_key' : ActorMethod<[], string>,
   'symmetric_key_verification_key_for' : ActorMethod<
     [[] | [Principal]],

@@ -1,60 +1,68 @@
+import { Container, Typography } from "@mui/material"
+import Tab from "@mui/material/Tab"
+import Tabs from "@mui/material/Tabs"
 import {
-  Box,
-  Button,
-  CircularProgress,
-  Container,
-  Stack,
-  Typography,
-} from "@mui/material"
-import React from "react"
-import SectionCard from "./components/SectionCard"
-import useAuth from "./useAuthClient"
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom"
+import WithIdentity from "./WithII"
+import WithoutIdentity from "./WithoutII"
+import Section from "./components/Section"
 
-interface IdentityProps {}
+interface AppProps {}
 
-const Identity: React.FC<IdentityProps> = () => {
-  const {
-    isAuthenticated,
-    isAuthenticating,
-    canister,
-    login,
-    logout,
-    principal,
-  } = useAuth()
+const App: React.FC<AppProps> = ({}) => {
+  return (
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        <Route path="/" element={<WithoutIdentity />} />
+        <Route path="/withoutii" element={<WithoutIdentity />} />
+        <Route path="/withii" element={<WithIdentity />} />
+        <Route path="*" element={<NoMatch />} />
+      </Route>
+    </Routes>
+  )
+}
 
-  const getCode = async () => {
-    if (!canister) {
-      return
-    }
+export default App
 
-    const code = await canister.symmetric_key_verification_key()
-    console.log(code)
-  }
+interface LayoutProps {}
+
+const Layout: React.FC<LayoutProps> = () => {
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
 
   return (
     <Container maxWidth="sm" fixed>
-      <SectionCard title="Identity" description="This is the identity section">
-        {isAuthenticating ? (
-          <CircularProgress />
-        ) : isAuthenticated ? (
-          <Stack spacing={2}>
-            <Typography variant="h6">Welcome, {principal}</Typography>
-            <Button onClick={getCode} variant="contained">
-              Get Code
-            </Button>
-            <Button onClick={logout} color="error">
-              Logout
-            </Button>
-          </Stack>
-        ) : (
-          <Box>
-            <Typography variant="h6">You are not authenticated</Typography>
-            <Button onClick={login}>Login</Button>
-          </Box>
-        )}
-      </SectionCard>
+      <Tabs
+        value={pathname === "/" ? "/withoutii" : pathname}
+        onChange={(_, newValue) => navigate(newValue)}
+        variant="fullWidth"
+        indicatorColor="secondary"
+        textColor="secondary"
+      >
+        <Tab label="Without Identity" value="/withoutii" />
+        <Tab label="With Identity" value="/withii" />
+      </Tabs>
+      <Outlet />
     </Container>
   )
 }
 
-export default Identity
+function NoMatch() {
+  return (
+    <Section
+      sx={{
+        textAlign: "center",
+      }}
+    >
+      <Typography variant="h1" color="secondary">
+        404
+      </Typography>
+      <Typography>page not found</Typography>
+    </Section>
+  )
+}

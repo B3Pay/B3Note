@@ -22,12 +22,19 @@ module.exports = {
       "process.env": JSON.stringify(process.env),
     }),
   ],
+  experiments: {
+    asyncWebAssembly: true,
+  },
   module: {
     rules: [
       {
         test: /\.tsx?$/,
         use: "ts-loader",
         exclude: /node_modules/,
+      },
+      {
+        test: /\.wasm$/,
+        type: "webassembly/async", // This is the key part
       },
     ],
   },
@@ -47,6 +54,7 @@ module.exports = {
     static: {
       directory: path.join(__dirname, "dist"),
     },
+    historyApiFallback: true,
     compress: true,
     port: 9000,
   },
