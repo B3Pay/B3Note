@@ -150,6 +150,37 @@ const WithoutIdentity: React.FC<IdentityProps> = () => {
             Decrypt
           </Button>
         </Section>
+        <Section
+          title="One-time Password"
+          description="This is the one-time Password section"
+          color="info"
+          noFrame
+        >
+          <TextField
+            color="info"
+            type="text"
+            label="Encrypted"
+            value={decryptInput}
+            onChange={(e) => setDecryptInput(e.target.value)}
+          />
+          <TextField
+            color="info"
+            type="text"
+            label="Signature"
+            value={signatureInput}
+            onChange={(e) => setSignatureInput(e.target.value)}
+          />
+          <TextField
+            color="info"
+            type="password"
+            label="Password"
+            value={decryptPassword}
+            onChange={(e) => setDecryptPassword(e.target.value)}
+          />
+          <Button onClick={decrypt} variant="contained" color="info">
+            Decrypt
+          </Button>
+        </Section>
       </Stack>
     </Section>
   )

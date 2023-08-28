@@ -1,4 +1,4 @@
-import { blue, green, grey, pink, red } from "@mui/material/colors"
+import { blue, green, grey, pink, purple, red } from "@mui/material/colors"
 import { createTheme } from "@mui/material/styles"
 
 // A custom theme for this app
@@ -32,6 +32,9 @@ const theme = createTheme({
       "700": blue[700],
       "800": blue[800],
       "900": blue[900],
+    },
+    info: {
+      main: purple[300],
     },
     secondary: {
       main: pink[300],
@@ -99,6 +102,15 @@ const theme = createTheme({
             backgroundColor: pink[50],
           },
         },
+        {
+          props: { color: "info" },
+          style: {
+            border: "2px solid",
+            borderColor: grey[700],
+            borderRadius: "4px",
+            backgroundColor: purple[50],
+          },
+        },
       ],
       styleOverrides: {
         root: {
@@ -121,6 +133,59 @@ const theme = createTheme({
       },
     },
     MuiTextField: {
+      variants: [
+        {
+          props: { variant: "outlined", color: "primary" },
+          style: {
+            "& .MuiOutlinedInput-root": {
+              "& fieldset": {
+                borderColor: blue[300],
+              },
+              "&:hover fieldset": {
+                borderColor: blue[400],
+              },
+              "&.Mui-focused fieldset": {
+                borderColor: blue[500],
+              },
+            },
+          },
+        },
+        {
+          props: { variant: "outlined", color: "secondary" },
+          style: {
+            "& .MuiOutlinedInput-root": {
+              "& fieldset": {
+                borderColor: pink[300],
+              },
+              "&:hover fieldset": {
+                borderColor: pink[400],
+              },
+              "&.Mui-focused fieldset": {
+                borderColor: pink[500],
+              },
+            },
+          },
+        },
+        {
+          props: { variant: "outlined", color: "info" },
+          style: {
+            "& .MuiInputLabel-root.Mui-focused": {
+              color: purple[300],
+            },
+            "& .MuiOutlinedInput-root": {
+              "& fieldset": {
+                borderColor: purple[300],
+              },
+              "&:hover fieldset": {
+                borderColor: purple[400],
+              },
+              "&.Mui-focused fieldset": {
+                borderColor: purple[500],
+              },
+            },
+          },
+        },
+      ],
       styleOverrides: {
         root: {
           "& .MuiOutlinedInput-root": {
@@ -156,6 +221,16 @@ const theme = createTheme({
             backgroundColor: pink[300],
             "&:hover": {
               backgroundColor: pink[400],
+            },
+          },
+        },
+        {
+          props: { variant: "contained", color: "info" },
+          style: {
+            color: "black",
+            backgroundColor: purple[300],
+            "&:hover": {
+              backgroundColor: purple[400],
             },
           },
         },

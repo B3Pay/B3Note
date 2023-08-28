@@ -111,7 +111,10 @@ impl TransportSecretKey {
         Ok(hash)
     }
 
-    /// Generates a VRF proof for the given input
+    /// sign a message with the transport secret key
+    /// first hash the message to a curve point in G1
+    /// then multiply the hashed message by the secret key
+    /// return the serialized point
     pub fn sign(&self, input: &[u8]) -> Result<Vec<u8>, String> {
         // Hash the input to a curve point in G1
         let hashed_input = augmented_hash_to_g1(&G2Affine::generator(), input);

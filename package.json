@@ -4,7 +4,7 @@
   "license": "MIT",
   "scripts": {
     "start": "webpack serve --mode development",
-    "build": "webpack --mode production",
+    "build": "yarn generate && webpack --mode production",
     "dfx:start": "sh dfx-start.sh",
     "deploy": "dfx deploy",
     "generate": "dfx generate"

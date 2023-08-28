@@ -1,14 +1,13 @@
 use aes_wasm::aes256gcm;
 use candid::Principal;
 
-use ic_bls12_381::{pairing, G2Affine};
 use ic_cdk::{query, update};
 use std::{cell::RefCell, collections::HashMap, str::FromStr};
 use types::{
     CanisterId, VetKDCurve, VetKDEncryptedKeyReply, VetKDEncryptedKeyRequest, VetKDKeyId,
     VetKDPublicKeyReply, VetKDPublicKeyRequest,
 };
-use vetkd::{augmented_hash_to_g1, deserialize_g1, deserialize_g2};
+use vetkd::verify_pairing;
 
 mod types;
 mod vetkd;
@@ -27,13 +26,6 @@ thread_local! {
     static USERS: RefCell<HashMap<Principal, Vec<TextId>>> = RefCell::default();
     static ONE_TIME_PASSWORD: RefCell<HashMap<TextId, OneTimePassword>> = RefCell::default();
     static ENCRYPTED_TEXTS: RefCell<HashMap<TextId, EncryptedText>> = RefCell::default();
-}
-
-#[query]
-fn get_caller() -> Principal {
-    debug_println_caller("get_caller");
-
-    ic_cdk::caller()
 }
 
 #[query]
@@ -112,7 +104,7 @@ async fn read_with_one_time_password(
     let auth_code = hex::decode(auth_code).expect("Invalid hex encoding");
     let signature = hex::decode(signature).expect("Invalid hex encoding");
 
-    let verified = verify_vrf_proof(&one_time_password.public_key, &signature, &auth_code);
+    let verified = verify_pairing(&one_time_password.public_key, &signature, &auth_code);
 
     if !verified.unwrap() {
         ic_cdk::trap("invalid signature");
@@ -266,111 +258,61 @@ fn get_encrypted_texts() -> Vec<(TextId, String)> {
 async fn save_encrypted_text(encrypted_text: String) {
     debug_println_caller("save_encrypted_text");
 
-    ENCRYPTED_TEXTS.with(|texts| {
+    let id = ENCRYPTED_TEXTS.with(|texts| {
         let mut texts = texts.borrow_mut();
 
         let id = texts.len();
 
         texts.insert(id, encrypted_text.into());
+
+        id
+    });
+
+    USERS.with(|users| {
+        let mut users = users.borrow_mut();
+
+        let caller = ic_cdk::caller();
+
+        let ids = users.entry(caller).or_default();
+
+        ids.push(id);
     });
 }
 
 #[update]
-async fn get_encrypted_text(
-    encryption_public_key: Vec<u8>,
-    text_id: TextId,
-) -> (EncryptedText, String) {
-    debug_println_caller("get_encrypted_text");
+fn edit_encrypted_text(text_id: TextId, encrypted_text: String) {
+    debug_println_caller("edit_encrypted_text");
 
     let caller = ic_cdk::caller();
 
-    let encrypted_text = ENCRYPTED_TEXTS
-        .with(|t| t.borrow().get(&text_id).cloned())
-        .expect("text not found");
+    USERS.with(|users| {
+        let mut users = users.borrow_mut();
 
-    let request = VetKDEncryptedKeyRequest {
-        derivation_id: caller.as_slice().to_vec(),
-        public_key_derivation_path: vec![b"ibe_encryption".to_vec()],
-        key_id: bls12_381_test_key_1(),
-        encryption_public_key,
-    };
+        let ids = users.entry(caller).or_default();
 
-    let (response,): (VetKDEncryptedKeyReply,) = ic_cdk::call(
-        vetkd_system_api_canister_id(),
-        "vetkd_decrypted_key",
-        (request,),
-    )
-    .await
-    .expect("call to vetkd_decrypted_key failed");
+        if !ids.contains(&text_id) {
+            ic_cdk::trap("text not found");
+        }
+    });
 
-    (encrypted_text, hex::encode(response.encrypted_key))
+    ENCRYPTED_TEXTS.with(|texts| {
+        let mut texts = texts.borrow_mut();
+
+        texts.insert(text_id, encrypted_text.into());
+    });
 }
 
 #[update]
-async fn read_encrypted_text(text_id: TextId) -> String {
-    debug_println_caller("get_encrypted_text");
-
-    let caller = ic_cdk::caller();
-
-    let encrypted_text = ENCRYPTED_TEXTS
-        .with(|t| t.borrow().get(&text_id).cloned())
-        .expect("text not found");
-
-    let request = VetKDEncryptedKeyRequest {
-        derivation_id: caller.as_slice().to_vec(),
-        public_key_derivation_path: vec![b"ibe_encryption".to_vec()],
-        key_id: bls12_381_test_key_1(),
-        encryption_public_key: encrypted_text,
-    };
-
-    let (response,): (VetKDEncryptedKeyReply,) = ic_cdk::call(
-        vetkd_system_api_canister_id(),
-        "vetkd_decrypted_key",
-        (request,),
-    )
-    .await
-    .expect("call to vetkd_decrypted_key failed");
-
-    hex::encode(response.encrypted_key)
-}
-
-/// Verify a VRF proof based on ver_proof
-pub fn verify_vrf_proof(
-    public_key_bytes: &[u8],
-    signature_bytes: &[u8],
-    data_bytes: &[u8],
-) -> Result<bool, String> {
-    // Deserialize the public key
-    let public_key = deserialize_g2(public_key_bytes)?;
-
-    // Deserialize the proof
-    let signature = deserialize_g1(signature_bytes)?;
-
-    // Hash the input to a curve point
-    let hashed_input = augmented_hash_to_g1(&G2Affine::generator(), data_bytes);
-
-    // Verify the VRF proof
-    let result = pairing(&signature, &G2Affine::generator()) == pairing(&hashed_input, &public_key);
-
-    Ok(result)
-}
-
-#[update]
-fn verify_caller(
-    auth_code: String,
-    public_key_hex: String,
-    vrf_proof_hex: String,
-) -> Result<bool, String> {
+fn verify_caller(auth_code: String, public_key_hex: String, signature_hex: String) -> bool {
     debug_println_caller("get_caller");
 
     // Convert hex to bytes
-    let input = hex::decode(auth_code).expect("Invalid hex encoding");
+    let auth_code = hex::decode(auth_code).expect("Invalid hex encoding");
     let public_key_bytes = hex::decode(public_key_hex).expect("Invalid hex encoding");
-    let vrf_proof_bytes = hex::decode(vrf_proof_hex).expect("Invalid hex encoding");
+    let signature_bytes = hex::decode(signature_hex).expect("Invalid hex encoding");
 
-    // Verify the VRF proof
-    verify_vrf_proof(&public_key_bytes, &vrf_proof_bytes, &input)
-        .map_err(|e| format!("Verification error: {:?}", e))
+    // Verify the signature
+    verify_pairing(&public_key_bytes, &signature_bytes, &auth_code).unwrap()
 }
 
 #[update]
