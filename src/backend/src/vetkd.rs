@@ -114,6 +114,24 @@ pub fn augmented_hash_to_g1(pk: &G2Affine, data: &[u8]) -> G1Affine {
     G1Affine::from(pt)
 }
 
+pub fn augmented_hash_from_g1_to_g1(pk: &G1Affine, data: &[u8]) -> G1Affine {
+    // Adjust the domain separator to indicate that you're using G1
+    let domain_sep = b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_AUG_";
+
+    // Prepare the input for the hash-to-curve function
+    let mut signature_input = Vec::with_capacity(G1AFFINE_BYTES + data.len());
+    signature_input.extend_from_slice(&pk.to_compressed());
+    signature_input.extend_from_slice(data);
+
+    // Hash to G1
+    let pt = <G1Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(
+        signature_input,
+        domain_sep,
+    );
+
+    G1Affine::from(pt)
+}
+
 fn gt_multipairing(terms: &[(&G1Affine, &G2Prepared)]) -> Gt {
     ic_bls12_381::multi_miller_loop(terms).final_exponentiation()
 }

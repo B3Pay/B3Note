@@ -1,8 +1,8 @@
 use aes_wasm::aes256gcm;
-use candid::{CandidType, Deserialize, Principal};
+use candid::Principal;
 
-use ic_bls12_381::{pairing, G1Affine, G2Affine};
-use ic_cdk::{println, query, update};
+use ic_bls12_381::{pairing, G2Affine};
+use ic_cdk::{query, update};
 use std::{cell::RefCell, collections::HashMap, str::FromStr};
 use types::{
     CanisterId, VetKDCurve, VetKDEncryptedKeyReply, VetKDEncryptedKeyRequest, VetKDKeyId,
@@ -15,26 +15,18 @@ mod vetkd;
 
 const VETKD_SYSTEM_API_CANISTER_ID: &str = "wfdtj-lyaaa-aaaap-abakq-cai";
 
-#[derive(Default, Clone, CandidType, Deserialize)]
-struct EncryptedText {
-    time_lock: u64,
-    plain_text: String,
-    public_key: Vec<u8>,
-}
-
 struct OneTimePassword {
     time_lock: u64,
-    signature: Vec<u8>,
     public_key: Vec<u8>,
 }
 
 type TextId = usize;
+type EncryptedText = Vec<u8>;
 
 thread_local! {
-    static USERS: RefCell<HashMap<String, Principal>> = RefCell::default();
-    static ONE_TIME_PASSWORD: RefCell<HashMap<Principal, OneTimePassword>> = RefCell::default();
+    static USERS: RefCell<HashMap<Principal, Vec<TextId>>> = RefCell::default();
+    static ONE_TIME_PASSWORD: RefCell<HashMap<TextId, OneTimePassword>> = RefCell::default();
     static ENCRYPTED_TEXTS: RefCell<HashMap<TextId, EncryptedText>> = RefCell::default();
-    static SYMMETRIC_KEY: RefCell<String> = RefCell::new("b0fd33ed65d976f59718d0faab153152df34988d91eb8676210265fdff41f6d7480bcdc3ea06bd3baae7f852a12f7b7b0f264fe0bb19d582debcc5c44c00b4df71deaeec21b4af95df7589ed2e6a982cb0ffdc65b76ab8c36db4424211a74213".to_string());
 }
 
 #[query]
@@ -45,6 +37,33 @@ fn get_caller() -> Principal {
 }
 
 #[query]
+fn user_notes() -> Vec<String> {
+    debug_println_caller("user_notes");
+
+    let caller = ic_cdk::caller();
+
+    USERS.with(|users| {
+        let users = users.borrow();
+
+        users
+            .get(&caller)
+            .map(|ids| {
+                ids.iter()
+                    .filter_map(|id| {
+                        ENCRYPTED_TEXTS.with(|texts| {
+                            let texts = texts.borrow();
+
+                            texts.get(id).cloned()
+                        })
+                    })
+                    .map(|text| hex::encode(text))
+                    .collect()
+            })
+            .unwrap_or_default()
+    })
+}
+
+#[query]
 fn get_time() -> u64 {
     debug_println_caller("get_time");
 
@@ -52,35 +71,18 @@ fn get_time() -> u64 {
 }
 
 #[update]
-fn register_user(username: String) {
-    debug_println_caller("register_user");
-
-    let caller = ic_cdk::caller();
-
-    USERS.with(|users| {
-        let mut users = users.borrow_mut();
-
-        users.insert(username, caller);
-    });
-}
-
-#[update]
-fn set_one_time_password(public_key: String, signature: String) {
+fn set_one_time_password(text_id: TextId, public_key: String) {
     debug_println_caller("set_one_time_password");
 
-    let caller = ic_cdk::caller();
-
-    let signature = hex::decode(signature).expect("Invalid hex encoding");
     let public_key = hex::decode(public_key).expect("Invalid hex encoding");
 
     ONE_TIME_PASSWORD.with(|otp| {
         let mut otp = otp.borrow_mut();
 
         otp.insert(
-            caller,
+            text_id,
             OneTimePassword {
                 time_lock: ic_cdk::api::time() + 60 * 1_000_000_000,
-                signature,
                 public_key,
             },
         );
@@ -88,22 +90,18 @@ fn set_one_time_password(public_key: String, signature: String) {
 }
 
 #[update]
-fn login_with_one_time_password(username: String, auth_code: String) -> bool {
+async fn read_with_one_time_password(
+    text_id: TextId,
+    signature: String,
+    auth_code: String,
+) -> (EncryptedText, Vec<u8>) {
     debug_println_caller("login_with_one_time_password");
-
-    let caller = USERS
-        .with(|users| {
-            let users = users.borrow();
-
-            users.get(&username).ok_or("user not found").cloned()
-        })
-        .unwrap();
 
     let one_time_password = ONE_TIME_PASSWORD
         .with(|otp| {
             let mut otp = otp.borrow_mut();
 
-            otp.remove(&caller).ok_or("one time password not found")
+            otp.remove(&text_id)
         })
         .unwrap();
 
@@ -112,13 +110,38 @@ fn login_with_one_time_password(username: String, auth_code: String) -> bool {
     }
 
     let auth_code = hex::decode(auth_code).expect("Invalid hex encoding");
+    let signature = hex::decode(signature).expect("Invalid hex encoding");
 
-    verify_vrf_proof(
-        &one_time_password.public_key,
-        &one_time_password.signature,
-        &auth_code,
+    let verified = verify_vrf_proof(&one_time_password.public_key, &signature, &auth_code);
+
+    if !verified.unwrap() {
+        ic_cdk::trap("invalid signature");
+    }
+
+    let encrypted_text = ENCRYPTED_TEXTS
+        .with(|texts| {
+            let texts = texts.borrow();
+
+            texts.get(&text_id).cloned()
+        })
+        .expect("text not found");
+
+    let request = VetKDEncryptedKeyRequest {
+        derivation_id: signature,
+        public_key_derivation_path: vec![b"ibe_encryption".to_vec()],
+        key_id: bls12_381_test_key_1(),
+        encryption_public_key: one_time_password.public_key,
+    };
+
+    let (encrypted_key,): (VetKDEncryptedKeyReply,) = ic_cdk::call(
+        vetkd_system_api_canister_id(),
+        "vetkd_encrypted_key",
+        (request,),
     )
-    .expect("verification failed")
+    .await
+    .expect("call to vetkd_encrypted_key failed");
+
+    (encrypted_text, encrypted_key.encrypted_key)
 }
 
 #[update]
@@ -226,18 +249,21 @@ async fn encrypted_ibe_decryption_key_for_caller(
 }
 
 #[query]
-fn get_encrypted_texts() -> Vec<(TextId, EncryptedText)> {
+fn get_encrypted_texts() -> Vec<(TextId, String)> {
     debug_println_caller("get_encrypted_texts");
 
     ENCRYPTED_TEXTS.with(|texts| {
         let texts = texts.borrow();
 
-        texts.iter().map(|(id, text)| (*id, text.clone())).collect()
+        texts
+            .iter()
+            .map(|(id, text)| (*id, hex::encode(text)))
+            .collect()
     })
 }
 
 #[update]
-async fn save_encrypted_text(encrypted_text: EncryptedText) {
+async fn save_encrypted_text(encrypted_text: String) {
     debug_println_caller("save_encrypted_text");
 
     ENCRYPTED_TEXTS.with(|texts| {
@@ -245,12 +271,15 @@ async fn save_encrypted_text(encrypted_text: EncryptedText) {
 
         let id = texts.len();
 
-        texts.insert(id, encrypted_text);
+        texts.insert(id, encrypted_text.into());
     });
 }
 
 #[update]
-async fn get_encrypted_text(encryption_public_key: Vec<u8>, text_id: TextId) -> String {
+async fn get_encrypted_text(
+    encryption_public_key: Vec<u8>,
+    text_id: TextId,
+) -> (EncryptedText, String) {
     debug_println_caller("get_encrypted_text");
 
     let caller = ic_cdk::caller();
@@ -258,10 +287,6 @@ async fn get_encrypted_text(encryption_public_key: Vec<u8>, text_id: TextId) -> 
     let encrypted_text = ENCRYPTED_TEXTS
         .with(|t| t.borrow().get(&text_id).cloned())
         .expect("text not found");
-
-    if encrypted_text.time_lock < ic_cdk::api::time() {
-        ic_cdk::trap("text is locked");
-    }
 
     let request = VetKDEncryptedKeyRequest {
         derivation_id: caller.as_slice().to_vec(),
@@ -278,7 +303,7 @@ async fn get_encrypted_text(encryption_public_key: Vec<u8>, text_id: TextId) -> 
     .await
     .expect("call to vetkd_decrypted_key failed");
 
-    hex::encode(response.encrypted_key)
+    (encrypted_text, hex::encode(response.encrypted_key))
 }
 
 #[update]
@@ -291,15 +316,11 @@ async fn read_encrypted_text(text_id: TextId) -> String {
         .with(|t| t.borrow().get(&text_id).cloned())
         .expect("text not found");
 
-    if encrypted_text.time_lock < ic_cdk::api::time() {
-        ic_cdk::trap("text is locked");
-    }
-
     let request = VetKDEncryptedKeyRequest {
         derivation_id: caller.as_slice().to_vec(),
         public_key_derivation_path: vec![b"ibe_encryption".to_vec()],
         key_id: bls12_381_test_key_1(),
-        encryption_public_key: encrypted_text.public_key,
+        encryption_public_key: encrypted_text,
     };
 
     let (response,): (VetKDEncryptedKeyReply,) = ic_cdk::call(
@@ -311,36 +332,6 @@ async fn read_encrypted_text(text_id: TextId) -> String {
     .expect("call to vetkd_decrypted_key failed");
 
     hex::encode(response.encrypted_key)
-}
-
-pub fn verify_ownership(signature: &G1Affine, public_key: &G2Affine, message: &[u8]) -> bool {
-    let hash = augmented_hash_to_g1(public_key, message);
-
-    let pairing_check = ic_bls12_381::pairing(&signature, &G2Affine::generator())
-        == ic_bls12_381::pairing(&hash, &public_key);
-
-    pairing_check
-}
-
-#[update]
-fn verify_ownership_caller(
-    signature_hex: String,
-    public_key_hex: String,
-    message_hex: String,
-) -> bool {
-    debug_println_caller("verify_ownership_caller");
-
-    // Convert hex to bytes
-    let signature_bytes = hex::decode(signature_hex).expect("Invalid hex encoding");
-    let public_key_bytes = hex::decode(public_key_hex).expect("Invalid hex encoding");
-    let message_bytes = hex::decode(message_hex).expect("Invalid hex encoding");
-
-    // Deserialize the signature
-    let signature = deserialize_g1(&signature_bytes).unwrap();
-    let public_key = deserialize_g2(&public_key_bytes).unwrap();
-
-    // Verify the ownership
-    verify_ownership(&signature, &public_key, &message_bytes)
 }
 
 /// Verify a VRF proof based on ver_proof
@@ -408,59 +399,16 @@ pub fn decrypt_text(
     String::from_utf8(data).map_err(|e| format!("Invalid UTF-8 sequence: {:?}", e))
 }
 
-pub fn verify_signature_with_encrypted_key(message: &[u8], signature_bytes: &[u8]) -> bool {
-    // Deserialize the signature
-    todo!("deserialize the signature");
-}
-
 #[update]
-fn verify_signature_with_encrypted_key_caller(message_hex: String, signature_hex: String) -> bool {
-    debug_println_caller("verify_signature_with_encrypted_key_caller");
-
-    // Convert hex to bytes
-    let message_bytes = hex::decode(message_hex).expect("Invalid hex encoding");
-    let signature_bytes = hex::decode(signature_hex).expect("Invalid hex encoding");
-
-    // Verify the signature
-    verify_signature_with_encrypted_key(&message_bytes, &signature_bytes)
-}
-
-async fn decrypt_note(
-    encrypted_note_id: String,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-    let encrypted_text_id = encrypted_note_id.parse::<TextId>()?;
-
-    let encrypted_text = ENCRYPTED_TEXTS.with(|texts| {
-        let texts = texts.borrow();
-
-        texts.get(&encrypted_text_id).cloned()
-    });
-
-    let encrypted_text = match encrypted_text {
-        Some(encrypted_text) => encrypted_text,
-        None => return Err("invalid encrypted note ID".into()),
-    };
-
-    Ok(encrypted_text.plain_text)
-}
-
 fn save_encrypted_note(plain_text: String) -> TextId {
-    let encrypted_text_id = ENCRYPTED_TEXTS.with(|texts| {
+    ENCRYPTED_TEXTS.with(|texts| {
         let mut texts = texts.borrow_mut();
 
-        let encrypted_text = EncryptedText {
-            time_lock: ic_cdk::api::time(),
-            plain_text,
-            public_key: vec![],
-        };
-
         let id = texts.len();
-        texts.insert(id, encrypted_text);
+        texts.insert(id, plain_text.into());
 
         id
-    });
-
-    encrypted_text_id
+    })
 }
 
 fn bls12_381_test_key_1() -> VetKDKeyId {
