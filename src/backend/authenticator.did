@@ -1,4 +1,5 @@
 type Result = variant { Ok : text; Err : text };
+type UserNote = record { id : nat64; note : vec nat8 };
 service : {
   decrypt_text : (text, text) -> (Result);
   edit_encrypted_text : (nat64, text) -> ();
@@ -7,12 +8,11 @@ service : {
   get_encrypted_texts : () -> (vec record { nat64; text }) query;
   get_time : () -> (nat64) query;
   ibe_encryption_key : () -> (text);
-  read_with_one_time_password : (nat64, text, text) -> (vec nat8, vec nat8);
-  save_encrypted_note : (text) -> (nat64);
-  save_encrypted_text : (text) -> ();
+  read_with_one_time_password : (nat64, text, text, text) -> (text, text);
+  save_encrypted_text : (text) -> (nat64);
   set_one_time_password : (nat64, text) -> ();
   symmetric_key_verification_key : () -> (text);
   symmetric_key_verification_key_for : (opt principal) -> (text);
-  user_notes : () -> (vec text) query;
+  user_notes : () -> (vec UserNote) query;
   verify_caller : (text, text, text) -> (bool);
 }

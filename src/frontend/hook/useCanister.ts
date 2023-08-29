@@ -1,8 +1,8 @@
 import { Principal } from "@dfinity/principal"
-import { BACKEND_CANISTER_ID } from "frontend/config"
+import { BACKEND_CANISTER_ID } from "frontend/helper/config"
 import { Backend } from "frontend/service/backend"
 import { useEffect, useState } from "react"
-import { createBackendActor } from "./service/backend"
+import { createBackendActor } from "../service/backend"
 
 const useCanister = () => {
   const [backendCanister, setCanister] = useState<Backend>()

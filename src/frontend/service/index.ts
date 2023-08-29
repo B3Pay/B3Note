@@ -1,6 +1,6 @@
 import { HttpAgent, Identity, getManagementCanister } from "@dfinity/agent"
 import { Principal } from "@dfinity/principal"
-import { IS_LOCAL } from "frontend/config"
+import { IS_LOCAL } from "frontend/helper/config"
 
 export { createBackendActor as createBackendActor } from "./backend"
 export type { Backend } from "./backend"

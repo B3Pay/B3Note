@@ -6,9 +6,9 @@ import TextField from "@mui/material/TextField"
 import Typography from "@mui/material/Typography"
 import { useCallback, useState } from "react"
 import { IBECiphertext, TransportSecretKey } from "vetkd-utils"
-import Section from "./components/Section"
-import useAuth from "./useAuthClient"
-import { hex_decode, hex_encode } from "./utils"
+import { hex_decode, hex_encode } from "../helper/utils"
+import useAuth from "../hook/useAuthClient"
+import Section from "./Section"
 
 interface IdentityProps {}
 

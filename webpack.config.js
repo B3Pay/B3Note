@@ -1,6 +1,7 @@
 const webpack = require("webpack")
 const HtmlWebpackPlugin = require("html-webpack-plugin")
 const TsconfigPathsPlugin = require("tsconfig-paths-webpack-plugin")
+const CopyPlugin = require("copy-webpack-plugin")
 const path = require("path")
 
 module.exports = {
@@ -20,6 +21,15 @@ module.exports = {
     }),
     new webpack.DefinePlugin({
       "process.env": JSON.stringify(process.env),
+    }),
+    new CopyPlugin({
+      patterns: [
+        {
+          filter: (resourcePath) => !resourcePath.endsWith(".html"),
+          from: "./src/frontend/public",
+          to: "./",
+        },
+      ],
     }),
   ],
   experiments: {

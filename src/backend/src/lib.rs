@@ -28,8 +28,14 @@ thread_local! {
     static ENCRYPTED_TEXTS: RefCell<HashMap<TextId, EncryptedText>> = RefCell::default();
 }
 
+#[derive(candid::CandidType, candid::Deserialize)]
+pub struct UserNote {
+    pub id: TextId,
+    pub note: EncryptedText,
+}
+
 #[query]
-fn user_notes() -> Vec<String> {
+fn user_notes() -> Vec<UserNote> {
     debug_println_caller("user_notes");
 
     let caller = ic_cdk::caller();
@@ -45,10 +51,12 @@ fn user_notes() -> Vec<String> {
                         ENCRYPTED_TEXTS.with(|texts| {
                             let texts = texts.borrow();
 
-                            texts.get(id).cloned()
+                            texts.get(id).map(|note| UserNote {
+                                id: *id,
+                                note: note.clone(),
+                            })
                         })
                     })
-                    .map(|text| hex::encode(text))
                     .collect()
             })
             .unwrap_or_default()
@@ -74,7 +82,7 @@ fn set_one_time_password(text_id: TextId, public_key: String) {
         otp.insert(
             text_id,
             OneTimePassword {
-                time_lock: ic_cdk::api::time() + 60 * 1_000_000_000,
+                time_lock: ic_cdk::api::time() + 5 * 60 * 1_000_000_000,
                 public_key,
             },
         );
@@ -84,9 +92,10 @@ fn set_one_time_password(text_id: TextId, public_key: String) {
 #[update]
 async fn read_with_one_time_password(
     text_id: TextId,
+    public_key: String,
     signature: String,
     auth_code: String,
-) -> (EncryptedText, Vec<u8>) {
+) -> (String, String) {
     debug_println_caller("login_with_one_time_password");
 
     let one_time_password = ONE_TIME_PASSWORD
@@ -103,6 +112,7 @@ async fn read_with_one_time_password(
 
     let auth_code = hex::decode(auth_code).expect("Invalid hex encoding");
     let signature = hex::decode(signature).expect("Invalid hex encoding");
+    let encryption_public_key = hex::decode(public_key).expect("Invalid hex encoding");
 
     let verified = verify_pairing(&one_time_password.public_key, &signature, &auth_code);
 
@@ -122,7 +132,7 @@ async fn read_with_one_time_password(
         derivation_id: signature,
         public_key_derivation_path: vec![b"ibe_encryption".to_vec()],
         key_id: bls12_381_test_key_1(),
-        encryption_public_key: one_time_password.public_key,
+        encryption_public_key,
     };
 
     let (encrypted_key,): (VetKDEncryptedKeyReply,) = ic_cdk::call(
@@ -133,7 +143,10 @@ async fn read_with_one_time_password(
     .await
     .expect("call to vetkd_encrypted_key failed");
 
-    (encrypted_text, encrypted_key.encrypted_key)
+    (
+        hex::encode(encrypted_text),
+        hex::encode(encrypted_key.encrypted_key),
+    )
 }
 
 #[update]
@@ -255,15 +268,15 @@ fn get_encrypted_texts() -> Vec<(TextId, String)> {
 }
 
 #[update]
-async fn save_encrypted_text(encrypted_text: String) {
+async fn save_encrypted_text(encrypted_text: String) -> TextId {
     debug_println_caller("save_encrypted_text");
 
-    let id = ENCRYPTED_TEXTS.with(|texts| {
+    let text_id = ENCRYPTED_TEXTS.with(|texts| {
         let mut texts = texts.borrow_mut();
 
         let id = texts.len();
 
-        texts.insert(id, encrypted_text.into());
+        texts.insert(id, hex::decode(encrypted_text).unwrap());
 
         id
     });
@@ -275,8 +288,10 @@ async fn save_encrypted_text(encrypted_text: String) {
 
         let ids = users.entry(caller).or_default();
 
-        ids.push(id);
+        ids.push(text_id);
     });
+
+    text_id
 }
 
 #[update]
@@ -298,7 +313,7 @@ fn edit_encrypted_text(text_id: TextId, encrypted_text: String) {
     ENCRYPTED_TEXTS.with(|texts| {
         let mut texts = texts.borrow_mut();
 
-        texts.insert(text_id, encrypted_text.into());
+        texts.insert(text_id, hex::decode(encrypted_text).unwrap());
     });
 }
 
@@ -339,18 +354,6 @@ pub fn decrypt_text(
 
     // Return the decrypted data
     String::from_utf8(data).map_err(|e| format!("Invalid UTF-8 sequence: {:?}", e))
-}
-
-#[update]
-fn save_encrypted_note(plain_text: String) -> TextId {
-    ENCRYPTED_TEXTS.with(|texts| {
-        let mut texts = texts.borrow_mut();
-
-        let id = texts.len();
-        texts.insert(id, plain_text.into());
-
-        id
-    })
 }
 
 fn bls12_381_test_key_1() -> VetKDKeyId {

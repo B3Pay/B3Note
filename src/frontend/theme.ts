@@ -5,6 +5,7 @@ import { createTheme } from "@mui/material/styles"
 const theme = createTheme({
   typography: {
     fontFamily: [
+      "Gluten",
       "-apple-system",
       "BlinkMacSystemFont",
       '"Segoe UI"',
@@ -69,15 +70,21 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: grey[100],
+          borderRight: "1px solid",
+          borderColor: grey[200],
           "&.Mui-selected": {
             fontWeight: "bold",
             backgroundColor: "#fff",
+          },
+          "&:button": {
+            borderRight: "1px solid",
           },
           "&:first-of-type": {
             borderStartStartRadius: "16px",
           },
           "&:last-of-type": {
             borderStartEndRadius: "16px",
+            borderRight: "none",
           },
         },
       },
@@ -88,8 +95,8 @@ const theme = createTheme({
           props: { color: "primary" },
           style: {
             border: "2px solid",
-            borderColor: grey[700],
             borderRadius: "4px",
+            borderColor: grey[700],
             backgroundColor: blue[50],
           },
         },
@@ -97,8 +104,8 @@ const theme = createTheme({
           props: { color: "secondary" },
           style: {
             border: "2px solid",
-            borderColor: grey[700],
             borderRadius: "4px",
+            borderColor: grey[700],
             backgroundColor: pink[50],
           },
         },
@@ -106,18 +113,12 @@ const theme = createTheme({
           props: { color: "info" },
           style: {
             border: "2px solid",
-            borderColor: grey[700],
             borderRadius: "4px",
+            borderColor: grey[700],
             backgroundColor: purple[50],
           },
         },
       ],
-      styleOverrides: {
-        root: {
-          borderStartStartRadius: "0",
-          borderStartEndRadius: "0",
-        },
-      },
     },
     MuiCardHeader: {
       styleOverrides: {
@@ -126,9 +127,107 @@ const theme = createTheme({
           fontWeight: "bold",
         },
         root: {
-          padding: "8px",
           paddingBottom: "0",
           textAlign: "center",
+        },
+      },
+    },
+    MuiAccordionSummary: {
+      variants: [
+        {
+          props: { color: "primary" },
+          style: {
+            color: "black",
+            backgroundColor: blue[300],
+            "&:hover": {
+              backgroundColor: blue[400],
+            },
+          },
+        },
+        {
+          props: { color: "secondary" },
+          style: {
+            color: "black",
+            backgroundColor: pink[300],
+            "&:hover": {
+              backgroundColor: pink[400],
+            },
+          },
+        },
+        {
+          props: { color: "info" },
+          style: {
+            color: "black",
+            backgroundColor: purple[300],
+            "&:hover": {
+              backgroundColor: purple[400],
+            },
+          },
+        },
+        {
+          props: { color: "primary" },
+          style: {
+            color: blue[300],
+            borderColor: blue[300],
+            "&:hover": {
+              backgroundColor: blue[50],
+            },
+          },
+        },
+        {
+          props: { color: "secondary" },
+          style: {
+            color: pink[300],
+            borderColor: pink[300],
+            "&:hover": {
+              backgroundColor: pink[50],
+            },
+          },
+        },
+      ],
+    },
+    MuiAccordion: {
+      styleOverrides: {
+        root: {
+          borderWidth: "1px 2px",
+          "&:first-of-type": {
+            borderTop: "2px solid",
+          },
+          "&:last-of-type": {
+            borderBottom: "2px solid",
+          },
+          "&.Mui-expanded": {
+            margin: 0,
+          },
+        },
+      },
+      variants: [
+        {
+          props: { color: "primary" },
+          style: {
+            backgroundColor: blue[50],
+          },
+        },
+        {
+          props: { color: "secondary" },
+          style: {
+            backgroundColor: pink[50],
+          },
+        },
+        {
+          props: { color: "info" },
+          style: {
+            backgroundColor: purple[50],
+          },
+        },
+      ],
+      defaultProps: {
+        color: "secondary",
+        variant: "outlined",
+        style: {
+          fontWeight: "bold",
+          fontSize: "0.8rem",
+          borderColor: grey[700],
         },
       },
     },

@@ -4,11 +4,11 @@ import {
   BACKEND_CANISTER_ID,
   IDENTITY_CANISTER_ID,
   IS_LOCAL,
-} from "frontend/config"
+} from "frontend/helper/config"
 import { Backend } from "frontend/service/backend"
 import { useCallback, useEffect, useState } from "react"
-import { createManagmentActor } from "./service"
-import { createBackendActor } from "./service/backend"
+import { createManagmentActor } from "../service"
+import { createBackendActor } from "../service/backend"
 
 const useAuth = () => {
   const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false)

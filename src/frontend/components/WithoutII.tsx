@@ -2,11 +2,12 @@ import Button from "@mui/material/Button"
 import Stack from "@mui/material/Stack"
 import TextField from "@mui/material/TextField"
 import Typography from "@mui/material/Typography"
+import { hex_decode, hex_encode } from "frontend/helper/utils"
 import { useCallback, useState } from "react"
 import { IBECiphertext, TransportSecretKey } from "vetkd-utils"
-import Section from "./components/Section"
-import useCanister from "./useCanister"
-import { hex_decode, hex_encode } from "./utils"
+import useCanister from "../hook/useCanister"
+import Notes from "./Notes"
+import Section from "./Section"
 
 interface IdentityProps {}
 
@@ -57,7 +58,7 @@ const WithoutIdentity: React.FC<IdentityProps> = () => {
 
     const tsk = new TransportSecretKey(seed)
 
-    console.log({ public_key: hex_encode(tsk.public_key_g2()) })
+    console.log({ public_key: hex_encode(tsk.public_key()) })
 
     const signature = hex_decode(signatureInput)
 
@@ -87,8 +88,44 @@ const WithoutIdentity: React.FC<IdentityProps> = () => {
     console.log(decrypted)
   }, [backendCanister, signatureInput, decryptPassword, decryptInput])
 
+  const decryptWithPassword = useCallback(async () => {
+    if (!backendCanister) return
+
+    const seed = window.crypto.getRandomValues(new Uint8Array(32))
+
+    const tsk = new TransportSecretKey(seed)
+
+    const signature = hex_decode(signatureInput)
+
+    const [encrypted_note, ek_bytes_hex] =
+      await backendCanister.read_with_one_time_password(
+        BigInt(1),
+        hex_encode(tsk.public_key()),
+        hex_encode(signature),
+        decryptPassword
+      )
+
+    const pk_bytes_hex = await backendCanister.ibe_encryption_key()
+
+    const k_bytes = tsk.decrypt(
+      hex_decode(ek_bytes_hex),
+      hex_decode(pk_bytes_hex),
+      signature
+    )
+
+    const encrypted_note_hex = hex_decode(encrypted_note)
+
+    const ibe_ciphertext = IBECiphertext.deserialize(encrypted_note_hex)
+    const ibe_plaintext = ibe_ciphertext.decrypt(k_bytes)
+
+    let decrypted = new TextDecoder().decode(ibe_plaintext)
+
+    console.log(decrypted)
+  }, [backendCanister, signatureInput, decryptPassword])
+
   return (
     <Section title="Without Identity">
+      <Notes />
       <Stack spacing={2}>
         <Typography variant="body1">
           Your principal is Anonymouse(<b>{principal?.toString()}</b>)
@@ -159,25 +196,22 @@ const WithoutIdentity: React.FC<IdentityProps> = () => {
           <TextField
             color="info"
             type="text"
-            label="Encrypted"
-            value={decryptInput}
-            onChange={(e) => setDecryptInput(e.target.value)}
-          />
-          <TextField
-            color="info"
-            type="text"
             label="Signature"
             value={signatureInput}
             onChange={(e) => setSignatureInput(e.target.value)}
           />
           <TextField
             color="info"
-            type="password"
-            label="Password"
+            type="passcode"
+            label="Pass Code"
             value={decryptPassword}
             onChange={(e) => setDecryptPassword(e.target.value)}
           />
-          <Button onClick={decrypt} variant="contained" color="info">
+          <Button
+            onClick={decryptWithPassword}
+            variant="contained"
+            color="info"
+          >
             Decrypt
           </Button>
         </Section>
