@@ -1,0 +1,20 @@
+{
+  "name": "B3Note",
+  "short_name": "B3Note",
+  "description": "B3Note is a simple note taking app that uses the vetkey to encrypt and decrypt notes on blockchain.",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}

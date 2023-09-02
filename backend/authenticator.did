@@ -1,0 +1,35 @@
+type AuthenticatedSignature = record {
+  signature : vec nat8;
+  created_at : nat64;
+};
+type Result = variant { Ok : text; Err : text };
+type User = record {
+  texts : vec text;
+  signature : opt AuthenticatedSignature;
+  public_key : vec nat8;
+};
+type UserNote = record { id : text; note : vec nat8 };
+service : {
+  decrypt_text : (text, text) -> (Result);
+  edit_encrypted_text : (text, text) -> ();
+  encrypted_ibe_decryption_key_for_caller : (vec nat8) -> (text);
+  encrypted_ibe_decryption_key_for_caller_with_derivation : (
+      vec nat8,
+      vec nat8,
+    ) -> (text);
+  encrypted_symmetric_key_for_caller : (vec nat8) -> (text);
+  get_encrypted_texts : () -> (vec record { text; text }) query;
+  get_time : () -> (nat64) query;
+  get_user : () -> (User) query;
+  ibe_encryption_key : () -> (text);
+  login_with_signature : (text) -> (bool);
+  read_with_one_time_password : (text, text, text, text) -> (text, text);
+  request_two_factor_authentication : (vec nat8) -> (text);
+  save_encrypted_text : (text) -> (text);
+  set_one_time_password : (text, text) -> ();
+  set_signature : (text, text) -> ();
+  symmetric_key_verification_key : () -> (text);
+  two_factor_verification_key : () -> (text);
+  user_notes : () -> (vec UserNote) query;
+  verify_caller : (text, text, text) -> (bool);
+}

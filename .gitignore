@@ -1,6 +1,8 @@
 node_modules
 dist
 target
+.next
 .dfx
 .env
 declarations
+out

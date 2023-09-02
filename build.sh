@@ -3,7 +3,7 @@ set -e
 
 name="$1"
 package="$2"
-app_root="src/$(dirname "$0")/$name"
+app_root="$(dirname "$0")/$name"
 did_file="$app_root/$package.did"
 
 # This script generates the did file, build the project (passed as $1) and then run the ic-wasm to shrink and attach metadata.

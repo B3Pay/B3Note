@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "start": "webpack serve --mode development",
-    "build": "yarn generate && webpack --mode production",
     "dfx:start": "sh dfx-start.sh",
     "deploy": "dfx deploy",
-    "generate": "dfx generate"
+    "generate": "dfx generate",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "@dfinity/agent": "^0.19.2",
@@ -19,15 +21,24 @@
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.14.6",
     "@mui/material": "^5.14.6",
+    "@rematch/core": "^2.2.0",
+    "@rematch/loading": "^2.1.2",
+    "next": "^13.4.19",
+    "next-pwa": "^5.6.0",
     "react": "^18.2",
     "react-dom": "^18.2",
-    "react-router-dom": "^6.15.0",
+    "react-redux": "^8.1.2",
+    "react-use-clipboard": "^1.0.9",
+    "redux": "^4.2.1",
     "vetkd-utils": "file:ic-vetkd-utils/pkg/ic-vetkd-utils-0.1.1.tgz"
   },
   "devDependencies": {
     "@babel/preset-typescript": "^7.22",
+    "@types/react": "^18.2",
     "@types/react-dom": "^18.2",
+    "@types/react-redux": "^7.1.26",
     "copy-webpack-plugin": "^11.0.0",
+    "dotenv": "^16.3.1",
     "html-webpack-plugin": "^5.5",
     "ts-loader": "^9.4",
     "tsconfig-paths-webpack-plugin": "^4.1",

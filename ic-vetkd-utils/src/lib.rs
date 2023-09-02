@@ -9,7 +9,7 @@
 
 use ic_bls12_381::{
     hash_to_curve::{ExpandMsgXmd, HashToCurve},
-    G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar,
+    G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar,
 };
 use pairing::group::Curve;
 use rand::SeedableRng;
@@ -52,13 +52,6 @@ impl TransportSecretKey {
     /// Returns the serialized public key associated with this secret key
     pub fn public_key(&self) -> Vec<u8> {
         let public_key = G1Affine::generator() * self.secret_key;
-        use pairing::group::Curve;
-        public_key.to_affine().to_compressed().to_vec()
-    }
-
-    /// Returns the serialized public key associated with this secret key
-    pub fn public_key_g2(&self) -> Vec<u8> {
-        let public_key = G2Affine::generator() * self.secret_key;
         use pairing::group::Curve;
         public_key.to_affine().to_compressed().to_vec()
     }
@@ -112,20 +105,17 @@ impl TransportSecretKey {
     }
 
     /// sign a message with the transport secret key
-    /// first hash the message to a curve point in G1
+    /// first hash the message to a curve point in G2
     /// then multiply the hashed message by the secret key
     /// return the serialized point
     pub fn sign(&self, input: &[u8]) -> Result<Vec<u8>, String> {
-        // Hash the input to a curve point in G1
-        let hashed_input = augmented_hash_to_g1(&G2Affine::generator(), input);
+        let hashed_input = augmented_hash_to_g2(&G1Affine::generator(), input);
 
-        // Compute the VRF proof by multiplying the hashed input by the secret key
-        let vrf_proof = hashed_input.mul(self.secret_key);
+        let signed_input = hashed_input.mul(self.secret_key);
 
-        // Serialize the VRF proof to a byte array
-        let vrf_proof_bytes = vrf_proof.to_affine().to_compressed();
+        let signed_input_bytes = signed_input.to_affine().to_compressed();
 
-        Ok(vrf_proof_bytes.to_vec())
+        Ok(signed_input_bytes.to_vec())
     }
 }
 
@@ -368,6 +358,20 @@ impl IBECiphertext {
             Err("decryption failed".to_string())
         }
     }
+}
+
+fn augmented_hash_to_g2(pk: &G1Affine, data: &[u8]) -> G2Affine {
+    let domain_sep = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_AUG_"; // Notice G2 in domain separator
+
+    let mut signature_input = Vec::with_capacity(G1AFFINE_BYTES + data.len());
+    signature_input.extend_from_slice(&pk.to_compressed());
+    signature_input.extend_from_slice(data);
+
+    let pt = <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(
+        signature_input,
+        domain_sep,
+    );
+    G2Affine::from(pt)
 }
 
 fn augmented_hash_to_g1(pk: &G2Affine, data: &[u8]) -> G1Affine {

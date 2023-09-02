@@ -1,7 +1,7 @@
 {
   "canisters": {
     "backend": {
-      "candid": "src/backend/authenticator.did",
+      "candid": "backend/authenticator.did",
       "package": "authenticator",
       "type": "custom",
       "wasm": "target/wasm32-unknown-unknown/release/authenticator.wasm",
@@ -10,9 +10,9 @@
     "frontend": {
       "dependencies": ["backend", "system_api"],
       "frontend": {
-        "entrypoint": "src/frontend/src/index.html"
+        "entrypoint": "src/pages/index.tsx"
       },
-      "source": ["dist"],
+      "source": ["out"],
       "type": "assets"
     },
     "internet_identity": {
@@ -27,7 +27,7 @@
       "frontend": {}
     },
     "system_api": {
-      "candid": "src/system_api/vetkd_system_api.did",
+      "candid": "system_api/vetkd_system_api.did",
       "package": "vetkd_system_api",
       "type": "rust",
       "remote": {
