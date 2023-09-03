@@ -23,6 +23,10 @@ export const decyptNote = async (encryptedNote: string) => {
   store.dispatch.backend.decrypt_user_note({ encryptedNote })
 }
 
+export const gcmDecrypt = async (encryptedNote: string) => {
+  store.dispatch.backend.gcm_decrypt({ encryptedNote })
+}
+
 export const decyptWithOneTimeKey = async (
   id: Uint8Array,
   signature: string

@@ -1,4 +1,4 @@
-import { Identity } from "@dfinity/agent"
+import { Identity, randomNumber } from "@dfinity/agent"
 import { Principal } from "@dfinity/principal"
 import { createModel } from "@rematch/core"
 import { fetchNotes } from "contexts/helpers"
@@ -12,15 +12,21 @@ interface BackendState {
   backend: Backend | null
   principal: Principal | null
   notes: UserNote[]
+  secretKey: TransportSecretKey | null
+  rawKey: Uint8Array | null
   decryptedNotes: {
     [x: string]: string
   }
+  oneTimeKey: string | null
   initialized: boolean
 }
 
 const state: BackendState = {
   backend: null,
   principal: null,
+  oneTimeKey: null,
+  secretKey: null,
+  rawKey: null,
   notes: [],
   decryptedNotes: {},
   initialized: false,
@@ -34,11 +40,16 @@ const backend = createModel<RootModel>()({
       backend,
       principal,
       notes: [],
+      rawKey: null,
+      secretKey: null,
+      oneTimeKey: null,
       decryptedNotes: {},
       initialized: true,
     }),
     UNSET: () => ({ ...state, backend: null, initialized: false }),
     SET_NOTES: (state, notes) => ({ ...state, notes }),
+    SET_SECRET_KEY: (state, secretKey) => ({ ...state, secretKey }),
+    SET_RAW_KEY: (state, rawKey) => ({ ...state, rawKey }),
     SET_DECRYPTED_NOTES: (state, decryptedNotes) => ({
       ...state,
       decryptedNotes,
@@ -52,6 +63,27 @@ const backend = createModel<RootModel>()({
       let { actor, canisterId } = await createBackendActor(identity)
 
       dispatch.backend.CREATE(actor, canisterId)
+
+      const seed = window.crypto.getRandomValues(new Uint8Array(32))
+      const tsk = new TransportSecretKey(seed)
+
+      dispatch.backend.SET_SECRET_KEY(tsk)
+
+      const ek_bytes_hex = await actor.encrypted_symmetric_key_for_caller(
+        tsk.public_key()
+      )
+
+      const pk_bytes_hex = await actor.symmetric_key_verification_key()
+
+      const rawKey = tsk.decrypt_and_hash(
+        hex_decode(ek_bytes_hex),
+        hex_decode(pk_bytes_hex),
+        Principal.anonymous().toUint8Array(),
+        32,
+        new TextEncoder().encode("aes-256-gcm")
+      )
+
+      dispatch.backend.SET_RAW_KEY(rawKey) // TODO: USE THIS TO ENCRYP AND DECRYPT
     },
     fetch_user_notes: async ({}, rootState) => {
       const backend = rootState.backend.backend
@@ -89,6 +121,35 @@ const backend = createModel<RootModel>()({
       await backend.save_encrypted_text(result)
 
       fetchNotes()
+    },
+    gcm_decrypt: async (
+      { encryptedNote }: { encryptedNote: string },
+      rootState
+    ) => {
+      const { rawKey } = rootState.backend
+
+      if (!rawKey) {
+        return
+      }
+
+      const iv_and_ciphertext = hex_decode(encryptedNote)
+      const iv = iv_and_ciphertext.subarray(0, 12) // 96-bits; unique per message
+      const ciphertext = iv_and_ciphertext.subarray(12)
+      const aes_key = await window.crypto.subtle.importKey(
+        "raw",
+        rawKey,
+        "AES-GCM",
+        false,
+        ["decrypt"]
+      )
+      let decrypted = await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: iv },
+        aes_key,
+        ciphertext
+      )
+      new TextDecoder().decode(decrypted)
+
+      console.log({ decrypted })
     },
     decrypt_user_note: async (
       { encryptedNote }: { encryptedNote: string },
@@ -217,7 +278,7 @@ const backend = createModel<RootModel>()({
         const verification_key = tsk.decrypt_and_hash(
           hex_decode(ek_bytes_hex),
           hex_decode(pk_bytes_hex),
-          principal.toUint8Array(),
+          Principal.anonymous().toUint8Array(),
           32,
           new TextEncoder().encode("aes-256-gcm")
         )
@@ -226,6 +287,26 @@ const backend = createModel<RootModel>()({
       } catch (e) {
         console.log(e)
       }
+    },
+    generate_one_time_key: async ({}, rootState) => {
+      const { secretKey } = rootState.backend
+
+      if (!secretKey) {
+        return
+      }
+
+      const generate = () => {
+        const randomRandom = randomNumber()
+
+        const code = (randomRandom % 1000000).toString().padStart(6, "0")
+
+        const signature = hex_encode(secretKey.sign(hex_decode(code)))
+
+        console.log({ code, signature })
+      }
+
+      const interval = setInterval(generate, 30_000)
+      generate()
     },
     decrypt: ({ encryptedNote, k_bytes }) => {
       const ibe_ciphertext = IBECiphertext.deserialize(
@@ -242,22 +323,3 @@ const backend = createModel<RootModel>()({
 })
 
 export default backend
-
-async function aes_gcm_decrypt(ciphertext_hex, rawKey) {
-  const iv_and_ciphertext = hex_decode(ciphertext_hex)
-  const iv = iv_and_ciphertext.subarray(0, 12) // 96-bits; unique per message
-  const ciphertext = iv_and_ciphertext.subarray(12)
-  const aes_key = await window.crypto.subtle.importKey(
-    "raw",
-    rawKey,
-    "AES-GCM",
-    false,
-    ["decrypt"]
-  )
-  let decrypted = await window.crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: iv },
-    aes_key,
-    ciphertext
-  )
-  return new TextDecoder().decode(decrypted)
-}

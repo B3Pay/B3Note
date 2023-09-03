@@ -8,7 +8,6 @@ import {
 import { useCallback, useEffect, useState } from "react"
 import { Backend } from "service/backend"
 import { createManagmentActor } from "../service"
-import { createBackendActor } from "../service/backend"
 
 const useAuth = () => {
   const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false)
@@ -45,12 +44,12 @@ const useAuth = () => {
     }
   }, [authClient])
 
-  const initActor = useCallback(async () => {
-    if (!authClient) return
-    const { actor } = await createBackendActor(authClient.getIdentity())
+  // const initActor = useCallback(async () => {
+  //   if (!authClient) return
+  //   const { actor } = await createBackendActor(authClient.getIdentity())
 
-    setCanister(actor)
-  }, [authClient])
+  //   setCanister(actor)
+  // }, [authClient])
 
   const logout = () => {
     setIsAuthenticated(false)

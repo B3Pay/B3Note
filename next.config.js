@@ -61,5 +61,5 @@ module.exports = withPWA({
     ]
     return config
   },
-  reactStrictMode: true,
+  reactStrictMode: false,
 })
