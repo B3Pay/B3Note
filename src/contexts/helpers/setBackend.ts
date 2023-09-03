@@ -15,14 +15,21 @@ export const saveNote = async (note: string) => {
   store.dispatch.backend.save_user_note({ note })
 }
 
-export const setOneTimeKey = async (id: string, key: string) => {
-  store.dispatch.backend.set_one_time_key({ id, key })
+export const setOneTimeKey = async (id: Uint8Array) => {
+  store.dispatch.backend.set_one_time_signature({ id })
 }
 
-export const decyptNote = async (
-  signature: string,
-  encryptedNote: string,
-  key: string
+export const decyptNote = async (encryptedNote: string) => {
+  store.dispatch.backend.decrypt_user_note({ encryptedNote })
+}
+
+export const decyptWithOneTimeKey = async (
+  id: Uint8Array,
+  signature: string
 ) => {
-  store.dispatch.backend.decrypt_user_note({ signature, encryptedNote, key })
+  store.dispatch.backend.decrypt_with_signature({ id, signature })
+}
+
+export const requestOneTimeKey = async () => {
+  store.dispatch.backend.request_one_time_key({})
 }

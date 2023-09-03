@@ -68,11 +68,10 @@ const WithoutIdentity: React.FC<IdentityProps> = () => {
     const signature = hex_decode(signatureInput)
 
     const [encrypted_note, ek_bytes_hex] =
-      await backendCanister.read_with_one_time_password(
-        "2",
+      await backendCanister.read_with_one_time_key(
+        hex_decode("0"),
         hex_encode(tsk.public_key()),
-        hex_encode(signature),
-        decryptPassword
+        hex_encode(signature)
       )
 
     const pk_bytes_hex = await backendCanister.ibe_encryption_key()
@@ -125,7 +124,7 @@ const WithoutIdentity: React.FC<IdentityProps> = () => {
           <TextField
             color="secondary"
             type="text"
-            label="Encrypted"
+            label="Encrypted Note"
             value={decryptInput}
             onChange={(e) => setDecryptInput(e.target.value)}
           />
@@ -144,9 +143,7 @@ const WithoutIdentity: React.FC<IdentityProps> = () => {
             onChange={(e) => setDecryptPassword(e.target.value)}
           />
           <Button
-            onClick={() =>
-              decyptNote(decryptInput, signatureInput, decryptPassword)
-            }
+            onClick={() => decyptNote(decryptInput)}
             variant="contained"
             color="secondary"
           >
@@ -187,5 +184,3 @@ const WithoutIdentity: React.FC<IdentityProps> = () => {
 }
 
 export default WithoutIdentity
-
-export const config = { ssr: false }

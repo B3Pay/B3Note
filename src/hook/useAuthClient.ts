@@ -45,9 +45,9 @@ const useAuth = () => {
     }
   }, [authClient])
 
-  const initActor = useCallback(() => {
+  const initActor = useCallback(async () => {
     if (!authClient) return
-    const actor = createBackendActor(authClient.getIdentity())
+    const { actor } = await createBackendActor(authClient.getIdentity())
 
     setCanister(actor)
   }, [authClient])
@@ -89,12 +89,12 @@ const useAuth = () => {
     }
   }, [authClient])
 
-  useEffect(() => {
-    if (isAuthenticating) return
-    if (isAuthenticated) initActor()
-    const actor = createBackendActor()
-    setCanister(actor)
-  }, [isAuthenticated, initActor])
+  // useEffect(() => {
+  //   if (isAuthenticating) return
+  //   if (isAuthenticated) initActor()
+  //   const { actor } = await createBackendActor()
+  //   setCanister(actor)
+  // }, [isAuthenticated, initActor])
 
   const principal =
     authClient?.getIdentity().getPrincipal() || Principal.anonymous()

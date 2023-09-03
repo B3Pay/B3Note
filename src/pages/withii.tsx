@@ -158,5 +158,3 @@ const WithIdentity: React.FC<IdentityProps> = () => {
 }
 
 export default WithIdentity
-
-export const config = { ssr: false }

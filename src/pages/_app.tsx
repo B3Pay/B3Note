@@ -11,8 +11,8 @@ import ThemeProvider from "../theme"
 const App: React.FC<AppProps> = ({ Component, pageProps }) => {
   return (
     <Provider store={store}>
-      <LocalStorageLoader />
       <ThemeProvider>
+        <LocalStorageLoader />
         <AppContainer>
           <Header />
           <Component {...pageProps} />

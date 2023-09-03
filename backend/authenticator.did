@@ -4,29 +4,29 @@ type AuthenticatedSignature = record {
 };
 type Result = variant { Ok : text; Err : text };
 type User = record {
-  texts : vec text;
+  texts : vec vec nat8;
   signature : opt AuthenticatedSignature;
   public_key : vec nat8;
 };
-type UserNote = record { id : text; note : vec nat8 };
+type UserNote = record { id : vec nat8; note : vec nat8 };
 service : {
   decrypt_text : (text, text) -> (Result);
-  edit_encrypted_text : (text, text) -> ();
+  edit_encrypted_text : (vec nat8, text) -> ();
   encrypted_ibe_decryption_key_for_caller : (vec nat8) -> (text);
   encrypted_ibe_decryption_key_for_caller_with_derivation : (
       vec nat8,
       vec nat8,
     ) -> (text);
   encrypted_symmetric_key_for_caller : (vec nat8) -> (text);
-  get_encrypted_texts : () -> (vec record { text; text }) query;
+  get_encrypted_texts : () -> (vec record { vec nat8; text }) query;
   get_time : () -> (nat64) query;
   get_user : () -> (User) query;
   ibe_encryption_key : () -> (text);
   login_with_signature : (text) -> (bool);
-  read_with_one_time_password : (text, text, text, text) -> (text, text);
+  read_with_one_time_key : (vec nat8, text, text) -> (text, text);
   request_two_factor_authentication : (vec nat8) -> (text);
-  save_encrypted_text : (text) -> (text);
-  set_one_time_password : (text, text) -> ();
+  save_encrypted_text : (text) -> (vec nat8);
+  set_one_time_key : (vec nat8, text) -> ();
   set_signature : (text, text) -> ();
   symmetric_key_verification_key : () -> (text);
   two_factor_verification_key : () -> (text);

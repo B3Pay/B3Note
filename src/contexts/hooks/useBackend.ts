@@ -14,3 +14,17 @@ export function useBackendNotes() {
   const { notes } = useBackend()
   return notes
 }
+
+export function useDecryptedNotes() {
+  const { decryptedNotes } = useBackend()
+  return decryptedNotes
+}
+
+export function useDecryptedNoteById(id: string) {
+  const decryptedNotes = useDecryptedNotes()
+  return decryptedNotes[id]
+}
+
+export function useOneTimeKey() {
+  return { code: "", signature: "" }
+}

@@ -20,7 +20,7 @@ struct OneTimePassword {
     public_key: Vec<u8>,
 }
 
-type TextId = String;
+type TextId = Vec<u8>;
 type EncryptedText = Vec<u8>;
 
 #[derive(Clone, candid::CandidType, candid::Deserialize)]
@@ -176,9 +176,9 @@ fn set_one_time_key(text_id: TextId, public_key: String) {
 
 #[update]
 async fn read_with_one_time_key(
-    public_key: String,
+    text_id: TextId,
     signature: String,
-    auth_code: String,
+    public_key: String,
 ) -> (String, String) {
     debug_println_caller("login_with_one_time_key");
 
@@ -194,11 +194,10 @@ async fn read_with_one_time_key(
         ic_cdk::trap("one time password is locked");
     }
 
-    let auth_code = hex::decode(auth_code).expect("Invalid hex encoding");
     let signature = hex::decode(signature).expect("Invalid hex encoding");
     let encryption_public_key = hex::decode(public_key).expect("Invalid hex encoding");
 
-    let verified = verify_pairing(&one_time_key.public_key, &signature, &auth_code);
+    let verified = verify_pairing(&one_time_key.public_key, &signature, &text_id);
 
     if !verified.unwrap() {
         ic_cdk::trap("invalid signature");
@@ -213,7 +212,7 @@ async fn read_with_one_time_key(
         .expect("text not found");
 
     let request = VetKDEncryptedKeyRequest {
-        derivation_id: signature,
+        derivation_id: ic_cdk::caller().as_slice().to_vec(),
         public_key_derivation_path: vec![b"ibe_encryption".to_vec()],
         key_id: bls12_381_test_key_1(),
         encryption_public_key,
@@ -406,7 +405,7 @@ async fn save_encrypted_text(encrypted_text: String) -> TextId {
     let text_id = ENCRYPTED_TEXTS.with(|texts| {
         let mut texts = texts.borrow_mut();
 
-        let id = texts.len().to_string();
+        let id = texts.len().to_be_bytes().to_vec();
 
         texts.insert(id.clone(), hex::decode(encrypted_text).unwrap());
 
