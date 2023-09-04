@@ -1,4 +1,3 @@
-import type { UserNote } from "@declarations/backend/backend.did"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import { AccordionDetails, Button, TextField } from "@mui/material"
 import Accordion from "@mui/material/Accordion"
@@ -10,6 +9,7 @@ import {
   setOneTimeKey,
 } from "contexts/helpers"
 import { useDecryptedNoteById } from "contexts/hooks/useBackend"
+import type { UserNote } from "declarations/backend/backend.did"
 import { hex_encode } from "helper/utils"
 import { useEffect, useState } from "react"
 import Section from "./Section"

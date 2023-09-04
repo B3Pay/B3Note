@@ -1,10 +1,10 @@
+import { Identity } from "@dfinity/agent"
+import { Principal } from "@dfinity/principal"
 import {
   canisterId as backendCanisterId,
   createActor,
   type backend,
-} from "@declarations/backend"
-import { Identity } from "@dfinity/agent"
-import { Principal } from "@dfinity/principal"
+} from "declarations/backend"
 import { IS_LOCAL } from "helper/config"
 import { getHttpAgent } from "service"
 

@@ -5,3 +5,5 @@ else
 fi
 
 dfx deploy system_api --specified-id wfdtj-lyaaa-aaaap-abakq-cai
+
+cd ./frontend && yarn install && cd ..

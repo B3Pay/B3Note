@@ -1,6 +1,5 @@
 import { init, Models, RematchDispatch, RematchRootState } from "@rematch/core"
 import loadingPlugin, { ExtraModelsFromLoading } from "@rematch/loading"
-
 import backend from "./models/backend"
 import setting from "./models/setting"
 import user from "./models/user"

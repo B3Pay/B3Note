@@ -129,7 +129,7 @@ export default function createMuiTheme(
           {
             props: { variant: "elevation", color: "primary" },
             style: {
-              "& .MuiStack-root": {
+              "& .section-body": {
                 borderColor: mode === "dark" ? grey[100] : grey[700],
                 backgroundColor: mode === "dark" ? blue[900] : blue[50],
               },
@@ -138,7 +138,7 @@ export default function createMuiTheme(
           {
             props: { variant: "elevation", color: "secondary" },
             style: {
-              "& .MuiStack-root": {
+              "& .section-body": {
                 borderColor: mode === "dark" ? grey[100] : grey[700],
                 backgroundColor: mode === "dark" ? pink[900] : pink[50],
               },
@@ -147,7 +147,7 @@ export default function createMuiTheme(
           {
             props: { variant: "elevation", color: "info" },
             style: {
-              "& .MuiStack-root": {
+              "& .section-body": {
                 borderColor: mode === "dark" ? grey[100] : grey[700],
                 backgroundColor: mode === "dark" ? purple[900] : purple[50],
               },
@@ -156,7 +156,7 @@ export default function createMuiTheme(
           {
             props: { variant: "elevation", color: "success" },
             style: {
-              "& .MuiStack-root": {
+              "& .section-body": {
                 borderColor: mode === "dark" ? grey[100] : grey[700],
                 backgroundColor: mode === "dark" ? green[900] : green[50],
               },

@@ -6,19 +6,26 @@ import Address from "components/Address"
 import Notes from "components/Notes"
 import Section from "components/Section"
 import { decyptNote, saveNote } from "contexts/helpers"
+import { useBackendIsInitialized } from "contexts/hooks/useBackend"
 import { useState } from "react"
 
 interface IdentityProps {}
 
-const WithoutIdentity: React.FC<IdentityProps> = () => {
+const WithoutII: React.FC<IdentityProps> = () => {
   const [encryptInput, setEncryptInput] = useState("")
 
   const [decryptInput, setDecryptInput] = useState("")
   const [signatureInput, setSignatureInput] = useState("")
   const [decryptPassword, setDecryptPassword] = useState("")
 
+  const backendInitailized = useBackendIsInitialized()
+
   return (
-    <Section title="Without Identity">
+    <Section
+      title="Without Identity"
+      loading={!backendInitailized}
+      loadingTitle="Initializing"
+    >
       <Address address={Principal.anonymous()?.toString()}>
         Your principal is
       </Address>
@@ -82,4 +89,4 @@ const WithoutIdentity: React.FC<IdentityProps> = () => {
   )
 }
 
-export default WithoutIdentity
+export default WithoutII

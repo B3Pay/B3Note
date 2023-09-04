@@ -1,6 +1,6 @@
-import type { UserNote } from "@declarations/backend/backend.did"
 import type { Identity } from "@dfinity/agent"
 import type { Principal } from "@dfinity/principal"
+import type { UserNote } from "declarations/backend/backend.did"
 import { NonNullableProperties } from "helper/utils"
 import type { Backend } from "service"
 import type { TransportSecretKey } from "vetkd-utils"

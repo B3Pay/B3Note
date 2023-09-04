@@ -1,12 +1,9 @@
-import { Button, Stack, Typography } from "@mui/material"
 import Section from "components/Section"
-import { requestOneTimeKey } from "contexts/helpers"
-import { useOneTimeKey } from "contexts/hooks/useBackend"
+import TwoFactor from "components/TwoFactor"
 
 interface HomeProps {}
 
 const Home: React.FC<HomeProps> = ({}) => {
-  const { code, signature } = useOneTimeKey()
   return (
     <Section title="Home">
       <Section
@@ -15,20 +12,7 @@ const Home: React.FC<HomeProps> = ({}) => {
         description="This is the Authenticator section"
         noShadow
       >
-        {code ? (
-          <Stack spacing={2}>
-            <Typography variant="h5" component="div">
-              {code}
-            </Typography>
-            <Typography variant="h5" component="div">
-              {signature}
-            </Typography>
-          </Stack>
-        ) : (
-          <Button onClick={() => requestOneTimeKey()} variant="contained">
-            Request One Time Key
-          </Button>
-        )}
+        <TwoFactor />
       </Section>
     </Section>
   )

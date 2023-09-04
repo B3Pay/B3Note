@@ -1,5 +1,5 @@
-import type { UserNote } from "@declarations/backend/backend.did"
 import { createModel } from "@rematch/core"
+import type { UserNote } from "declarations/backend/backend.did"
 import type { RootModel } from "../store"
 
 interface UserState {

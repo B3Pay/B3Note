@@ -6,5 +6,6 @@ export function useLoading(): RootState["loading"] {
 }
 
 export function useGlobalLoading() {
-  return useSelector((state: RootState) => state.loading.global)
+  return true
+  // useSelector((state: RootState) => state.loading.global)
 }
