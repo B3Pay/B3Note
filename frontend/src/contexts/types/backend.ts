@@ -3,7 +3,7 @@ import type { Principal } from "@dfinity/principal"
 import type { UserNote } from "declarations/backend/backend.did"
 import { NonNullableProperties } from "helper/utils"
 import type { Backend } from "service"
-import type { TransportSecretKey } from "vetkd-utils"
+import type { IBECiphertext, TransportSecretKey } from "vetkd-utils"
 
 export interface BackendState {
   backendActor: Backend | null
@@ -12,7 +12,17 @@ export interface BackendState {
   decryptedNotes: {
     [x: string]: string
   }
-  secretKey: TransportSecretKey | null
+  transportSecretKey: TransportSecretKey | null
+  ibeCipherText: IBECiphertext | null
+  ibeDeserializer: ((arg: Uint8Array) => IBECiphertext) | null
+  ibeEncryptor:
+    | ((
+        derived_public_key_bytes: Uint8Array,
+        derivation_id: Uint8Array,
+        msg: Uint8Array,
+        seed: Uint8Array
+      ) => IBECiphertext)
+    | null
   encryptedKey: string | null
   publicKey: string | null
   rawKey: Uint8Array | null
@@ -42,6 +52,7 @@ export interface DecryptGCMNoteArgs {
 }
 
 export interface DecryptIBENoteArgs {
+  id: string
   encryptedNote: string
 }
 

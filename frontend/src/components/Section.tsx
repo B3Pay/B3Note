@@ -70,7 +70,7 @@ const Section: React.FC<SectionProps> = ({
       <Stack
         p={1}
         m={1}
-        spacing={2}
+        spacing={1}
         border="1px solid"
         borderColor={!noShadow ? "grey.400" : "transparent"}
         borderRadius={1}

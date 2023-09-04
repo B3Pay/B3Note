@@ -1,5 +1,5 @@
 import { Principal } from "@dfinity/principal"
-import { setBackend } from "contexts/helpers"
+import { initBackend } from "contexts/helpers"
 import { BACKEND_CANISTER_ID } from "helper/config"
 import { useEffect, useState } from "react"
 import { Backend } from "service/backend"
@@ -8,7 +8,7 @@ const useCanister = () => {
   const [backendCanister, setCanister] = useState<Backend>()
 
   useEffect(() => {
-    setBackend()
+    initBackend()
   }, [])
 
   const principal = Principal.anonymous()

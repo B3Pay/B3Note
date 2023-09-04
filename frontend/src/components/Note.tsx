@@ -12,6 +12,7 @@ import { useDecryptedNoteById } from "contexts/hooks/useBackend"
 import type { UserNote } from "declarations/backend/backend.did"
 import { hex_encode } from "helper/utils"
 import { useEffect, useState } from "react"
+import LoadingDots from "./LoadingDots"
 import Section from "./Section"
 
 interface NoteProps extends UserNote {}
@@ -19,18 +20,29 @@ interface NoteProps extends UserNote {}
 const Note: React.FC<NoteProps> = ({ id, note }) => {
   const [signatureInput, setSignatureInput] = useState("")
   const decryptedNote = useDecryptedNoteById(hex_encode(id))
+  const noteLoading = decryptedNote === undefined
 
   useEffect(() => {
-    decyptNote(hex_encode(note))
-  }, [note])
+    decyptNote(hex_encode(id), hex_encode(note))
+  }, [id, note])
 
   return (
-    <Accordion color="primary">
+    <Accordion
+      color="primary"
+      sx={{
+        position: "relative",
+      }}
+    >
       <AccordionSummary
+        disabled={noteLoading}
         expandIcon={<ExpandMoreIcon />}
         aria-controls="notes-content"
       >
-        <Typography>{hex_encode(id)}</Typography>
+        {noteLoading ? (
+          <LoadingDots title="Decrypting Note" />
+        ) : (
+          <Typography>{hex_encode(id)}</Typography>
+        )}
       </AccordionSummary>
       <AccordionDetails>
         <Typography

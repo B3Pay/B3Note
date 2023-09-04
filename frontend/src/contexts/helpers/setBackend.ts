@@ -1,7 +1,7 @@
 import { Identity } from "@dfinity/agent"
 import store from "../store"
 
-export const setBackend = (identity?: Identity) => {
+export const initBackend = (identity?: Identity) => {
   store.dispatch.backend.initialize({ identity })
 }
 
@@ -11,16 +11,20 @@ export const fetchNotes = async () => {
   store.dispatch.backend.fetch_user_notes({})
 }
 
-export const saveNote = async (note: string) => {
+export const saveNoteIBE = async (note: string) => {
   store.dispatch.backend.save_ibe_user_note({ note })
+}
+
+export const saveNoteGCM = async (note: string) => {
+  store.dispatch.backend.save_gcm_user_note({ note })
 }
 
 export const setOneTimeKey = async (id: Uint8Array) => {
   store.dispatch.backend.set_one_time_signature({ id })
 }
 
-export const decyptNote = async (encryptedNote: string) => {
-  store.dispatch.backend.decrypt_ibe_note({ encryptedNote })
+export const decyptNote = async (id: string, encryptedNote: string) => {
+  store.dispatch.backend.decrypt_ibe_note({ id, encryptedNote })
 }
 
 export const gcmDecrypt = async (encryptedNote: string) => {
