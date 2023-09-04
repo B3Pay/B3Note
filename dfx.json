@@ -7,20 +7,20 @@
       "wasm": "target/wasm32-unknown-unknown/release/authenticator.wasm",
       "build": "sh build.sh backend authenticator",
       "declarations": {
-        "output": "declarations/backend",
+        "output": "frontend/declarations/backend",
         "node_compatibility": true
       }
     },
     "frontend": {
       "dependencies": ["backend", "system_api"],
       "declarations": {
-        "output": "declarations/frontend",
+        "output": "frontend/declarations/frontend",
         "node_compatibility": true
       },
       "frontend": {
-        "entrypoint": "src/pages/index.tsx"
+        "entrypoint": "frontend/src/pages/index.tsx"
       },
-      "source": ["out"],
+      "source": ["frontend/out"],
       "type": "assets"
     },
     "internet_identity": {
@@ -33,7 +33,7 @@
         }
       },
       "declarations": {
-        "output": "declarations/internet_identity",
+        "output": "frontend/declarations/internet_identity",
         "node_compatibility": true
       },
       "frontend": {}
@@ -43,7 +43,7 @@
       "package": "vetkd_system_api",
       "type": "rust",
       "declarations": {
-        "output": "declarations/system_api",
+        "output": "frontend/declarations/system_api",
         "node_compatibility": true
       },
       "remote": {
@@ -59,6 +59,6 @@
       "packtool": ""
     }
   },
-  "output_env_file": ".env",
+  "output_env_file": "./frontend/.env",
   "version": 1
 }
