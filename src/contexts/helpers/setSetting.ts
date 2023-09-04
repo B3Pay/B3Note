@@ -12,11 +12,7 @@ export const setThemeMode = (mode: ThemeMode) => {
 }
 
 export const setShowSnackbar = (snackbar: boolean) =>
-  store.dispatch.setting.setShowSnackBar(snackbar)
-
-export const setShowAddress = () => store.dispatch.setting.setShowAddress()
-
-export const setShowDetails = () => store.dispatch.setting.setShowDetails()
+  store.dispatch.setting.SHOW_SNACKBAR(snackbar)
 
 export const setSnackbar = (props: SnackBarType) =>
-  store.dispatch.setting.setSnackBar(props)
+  store.dispatch.setting.SET_SNACKBAR(props)

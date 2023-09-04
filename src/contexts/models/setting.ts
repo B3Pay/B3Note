@@ -89,24 +89,6 @@ const setting = createModel<RootModel>()({
       }
     },
   },
-
-  effects: (dispatch) => ({
-    async setModal(modal: boolean) {
-      dispatch.settings.SET_MODAL(modal)
-    },
-    async setSnackBar(snackbar: SnackBarType) {
-      dispatch.settings.SET_SNACKBAR(snackbar)
-    },
-    async setShowSnackBar(showSnackBar: boolean) {
-      dispatch.settings.SHOW_SNACKBAR(showSnackBar)
-    },
-    async setShowAddress() {
-      dispatch.settings.SHOW_ADDRESS()
-    },
-    async setShowDetails() {
-      dispatch.settings.SHOW_DETAILS()
-    },
-  }),
 })
 
 export default setting

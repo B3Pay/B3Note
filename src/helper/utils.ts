@@ -7,6 +7,10 @@ export const hex_encode = (bytes: Uint8Array | number[]) =>
     ""
   )
 
+export type NonNullableProperties<T> = {
+  [K in keyof T]: NonNullable<T[K]>
+}
+
 export type LoadingKey =
   | {
       [x: string]: {
@@ -15,12 +19,12 @@ export type LoadingKey =
     }
   | { [x: string]: boolean }
 
-export function findLatestTrueKey(loadings: LoadingKey) {
+export function extractLoadingTitle(loadings: LoadingKey) {
   let latestTrueKey: string | null = null
 
   for (const [key, value] of Object.entries(loadings)) {
     if (typeof value === "object") {
-      const innerKey = findLatestTrueKey(value)
+      const innerKey = extractLoadingTitle(value)
       if (innerKey !== null) {
         latestTrueKey = innerKey
       }

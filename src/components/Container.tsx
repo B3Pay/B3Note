@@ -1,10 +1,14 @@
-import { Container } from "@mui/material"
+import { Box, Container } from "@mui/material"
+import { useBackendIsInitialized } from "contexts/hooks/useBackend"
 import { useLoading } from "contexts/hooks/useLoading"
-import { findLatestTrueKey as extractLoadingTitle } from "helper/utils"
+import { extractLoadingTitle } from "helper/utils"
+import Footer from "./Footer"
+import Header from "./Header"
 import Loading from "./Loading"
 
 const AppContainer: React.FC<React.PropsWithChildren> = ({ children }) => {
   const appLoading = useLoading()
+  const backendInitailized = useBackendIsInitialized()
 
   return (
     <Container
@@ -15,10 +19,16 @@ const AppContainer: React.FC<React.PropsWithChildren> = ({ children }) => {
         position: "relative",
       }}
     >
+      <Header />
       {appLoading.global && (
         <Loading title={extractLoadingTitle(appLoading.effects)} />
       )}
-      {children}
+      {!backendInitailized ? (
+        <Box sx={{ textAlign: "center" }}>Backend is not initialized</Box>
+      ) : (
+        children
+      )}
+      <Footer />
     </Container>
   )
 }

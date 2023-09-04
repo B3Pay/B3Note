@@ -12,7 +12,7 @@ export const fetchNotes = async () => {
 }
 
 export const saveNote = async (note: string) => {
-  store.dispatch.backend.save_user_note({ note })
+  store.dispatch.backend.save_ibe_user_note({ note })
 }
 
 export const setOneTimeKey = async (id: Uint8Array) => {
@@ -20,11 +20,11 @@ export const setOneTimeKey = async (id: Uint8Array) => {
 }
 
 export const decyptNote = async (encryptedNote: string) => {
-  store.dispatch.backend.decrypt_user_note({ encryptedNote })
+  store.dispatch.backend.decrypt_ibe_note({ encryptedNote })
 }
 
 export const gcmDecrypt = async (encryptedNote: string) => {
-  store.dispatch.backend.gcm_decrypt({ encryptedNote })
+  store.dispatch.backend.decrypt_gcm_note({ encryptedNote })
 }
 
 export const decyptWithOneTimeKey = async (

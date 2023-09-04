@@ -15,16 +15,16 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "plugins": [
       {
         "name": "next"
       }
     ],
     "paths": {
-      "*": ["./*"],
-      "wasm": ["./ic-vetkd-utils/pkg"],
-      "declarations/*": ["./declarations/*"]
+      "*": ["./src/*"],
+      "@wasm/*": ["./ic-vetkd-utils/pkg"],
+      "@declarations/*": ["./declarations/*"]
     }
   },
   "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx"],

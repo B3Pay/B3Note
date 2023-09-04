@@ -5,10 +5,18 @@
       "package": "authenticator",
       "type": "custom",
       "wasm": "target/wasm32-unknown-unknown/release/authenticator.wasm",
-      "build": "sh build.sh backend authenticator"
+      "build": "sh build.sh backend authenticator",
+      "declarations": {
+        "output": "declarations/backend",
+        "node_compatibility": true
+      }
     },
     "frontend": {
       "dependencies": ["backend", "system_api"],
+      "declarations": {
+        "output": "declarations/frontend",
+        "node_compatibility": true
+      },
       "frontend": {
         "entrypoint": "src/pages/index.tsx"
       },
@@ -24,12 +32,20 @@
           "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai"
         }
       },
+      "declarations": {
+        "output": "declarations/internet_identity",
+        "node_compatibility": true
+      },
       "frontend": {}
     },
     "system_api": {
       "candid": "system_api/vetkd_system_api.did",
       "package": "vetkd_system_api",
       "type": "rust",
+      "declarations": {
+        "output": "declarations/system_api",
+        "node_compatibility": true
+      },
       "remote": {
         "id": {
           "ic": "wfdtj-lyaaa-aaaap-abakq-cai"

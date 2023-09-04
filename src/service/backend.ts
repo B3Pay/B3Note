@@ -1,28 +1,30 @@
+import {
+  canisterId as backendCanisterId,
+  createActor,
+  type backend,
+} from "@declarations/backend"
 import { Identity } from "@dfinity/agent"
 import { Principal } from "@dfinity/principal"
-import { backend } from "declarations/backend"
+import { IS_LOCAL } from "helper/config"
 import { getHttpAgent } from "service"
 
 export async function createBackendActor(identity?: Identity) {
   // import it dynamically to avoid circular dependency
-  return import("declarations/backend").then(
-    ({ canisterId: backendCanisterId, createActor }) => {
-      console.log("creating backend actor")
-      let canisterId = Principal.fromText(backendCanisterId)
+  console.log("creating backend actor")
+  let canisterId = Principal.fromText(backendCanisterId)
 
-      if (identity) {
-        const agent = getHttpAgent(identity)
-        return {
-          actor: createActor(canisterId, {
-            agent,
-          }),
-          canisterId,
-        }
-      }
+  const agent = getHttpAgent(identity)
 
-      return { actor: createActor(canisterId), canisterId }
-    }
-  )
+  if (IS_LOCAL) {
+    agent.fetchRootKey()
+  }
+
+  return {
+    backendActor: createActor(canisterId, {
+      agent,
+    }),
+    canisterId,
+  }
 }
 
 export type Backend = typeof backend

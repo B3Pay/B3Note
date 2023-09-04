@@ -20,29 +20,13 @@ console.log("network", envList.DFX_NETWORK)
 
 envList.NEXT_PUBLIC_VERSION = version
 
-const rewriteConfig =
-  process.env.NODE_ENV === "development"
-    ? {
-        async rewrites() {
-          return [
-            {
-              source: "/api/:path*",
-              destination: "http://localhost:8080/api/:path*",
-            },
-          ]
-        },
-      }
-    : {
-        output: "export",
-      }
-
 /** @type {import('next').NextConfig} */
 module.exports = withPWA({
   env: {
     APP_VERSION: packageJson.version,
   },
   experimental: { esmExternals: true },
-  ...rewriteConfig,
+  output: "export",
   webpack: (config) => {
     config.experiments = {
       asyncWebAssembly: true,

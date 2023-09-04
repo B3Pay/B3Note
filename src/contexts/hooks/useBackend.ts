@@ -5,8 +5,12 @@ export default function useBackend(): RootState["backend"] {
   return useSelector((state: RootState) => state.backend)
 }
 
+export function useBackendIsInitialized(): boolean {
+  return useSelector((state: RootState) => state.backend.initialized)
+}
+
 export function useBackendActor() {
-  const { backend } = useBackend()
+  const { backendActor: backend } = useBackend()
   return backend
 }
 

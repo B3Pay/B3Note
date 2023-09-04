@@ -5,7 +5,7 @@ import { IS_LOCAL } from "helper/config"
 export { createBackendActor } from "./backend"
 export type { Backend } from "./backend"
 
-export function getHttpAgent(identity: Identity) {
+export function getHttpAgent(identity?: Identity) {
   return new HttpAgent({
     host: process.env.NEXT_PUBLIC_IC_HOST || "http://localhost:8080",
     identity,

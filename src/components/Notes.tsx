@@ -29,7 +29,7 @@ const Notes: React.FC<NotesProps> = ({}) => {
           notes.map((note) => <Note key={hex_encode(note.id)} {...note} />)
         ) : (
           <SimpleCard color="text.secondary" bgcolor="warning.light">
-            No notes!
+            No notes found
           </SimpleCard>
         )}
       </Box>
