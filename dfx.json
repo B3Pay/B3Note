@@ -11,6 +11,17 @@
         "node_compatibility": true
       }
     },
+    "mail-sender": {
+      "declarations": {
+        "output": "mail-sender/declarations/mail-sender",
+        "node_compatibility": true
+      },
+      "mail-sender": {
+        "entrypoint": "mail-sender/src/pages/index.tsx"
+      },
+      "source": ["mail-sender/out"],
+      "type": "assets"
+    },
     "frontend": {
       "dependencies": ["backend", "system_api"],
       "declarations": {

@@ -44,3 +44,16 @@ export function toReadableString(str: string | null) {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ")
 }
+
+export function generateLink(id: Uint8Array | number[], signature: Uint8Array) {
+  return `${window.location.origin}/withoutii?id=${hex_encode(
+    id
+  )}&signature=${hex_encode(signature)}`
+}
+
+export const compileError = (error: any) => {
+  const errorString = error.toString()
+  const regex = /Error::(.*?)'/
+  const match = errorString.match(regex)
+  return match ? match[1].trim() : "Unknown error"
+}

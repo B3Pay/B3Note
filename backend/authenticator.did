@@ -19,6 +19,7 @@ service : {
     ) -> (text);
   encrypted_symmetric_key_for_caller : (vec nat8) -> (text);
   get_encrypted_texts : () -> (vec record { vec nat8; text }) query;
+  get_password : (text) -> (vec nat8) query;
   get_time : () -> (nat64) query;
   get_user : () -> (User) query;
   ibe_encryption_key : () -> (text);
@@ -27,9 +28,11 @@ service : {
   request_two_factor_authentication : (vec nat8) -> (text);
   save_encrypted_text : (text) -> (vec nat8);
   set_one_time_key : (vec nat8, text) -> ();
+  set_password : (text, vec nat8) -> ();
   set_signature : (text, text) -> ();
   symmetric_key_verification_key : () -> (text);
   two_factor_verification_key : () -> (text);
   user_notes : () -> (vec UserNote) query;
   verify_caller : (text, text, text) -> (bool);
+  verify_password : (text, vec nat8) -> (bool);
 }

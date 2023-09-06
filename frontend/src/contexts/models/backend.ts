@@ -17,7 +17,7 @@ import type {
   SaveIBEUserNoteArgs,
   SetOneTimeSignatureArgs,
 } from "contexts/types/backend"
-import { hex_decode, hex_encode } from "helper/utils"
+import { compileError, hex_decode, hex_encode } from "helper/utils"
 import { createBackendActor } from "service"
 import { RootModel } from "../store"
 
@@ -34,7 +34,11 @@ const state: BackendState = {
   encryptedKey: null,
   publicKey: null,
   decryptedNotes: {},
+  pk_bytes_hex: null,
   initialized: false,
+  errors: {
+    decryptionError: {},
+  },
 }
 
 const backend = createModel<RootModel>()({
@@ -51,6 +55,13 @@ const backend = createModel<RootModel>()({
     SET_SECRET_KEY: (currentState, transportSecretKey) => ({
       ...currentState,
       transportSecretKey,
+    }),
+    SET_ERROR: (currentState, error) => ({
+      ...currentState,
+      errors: {
+        ...currentState.errors,
+        ...error,
+      },
     }),
     SET_KEYS: (currentState, rawKey) => ({ ...currentState, rawKey }),
     ADD_DECRYPTED_NOTE: (currentState, decryptedNote) => ({
@@ -76,6 +87,8 @@ const backend = createModel<RootModel>()({
 
           const publicKey = await backendActor.symmetric_key_verification_key()
 
+          const pk_bytes_hex = await backendActor.ibe_encryption_key()
+
           const rawKey = transportSecretKey.decrypt_and_hash(
             hex_decode(encryptedKey),
             hex_decode(publicKey),
@@ -93,6 +106,7 @@ const backend = createModel<RootModel>()({
             canisterId,
             rawKey,
             encryptedKey,
+            pk_bytes_hex,
             publicKey,
           })
         }
@@ -107,9 +121,7 @@ const backend = createModel<RootModel>()({
       dispatch.backend.SET_NOTES(notes)
     },
     save_ibe_user_note: async (args: SaveIBEUserNoteArgs) => {
-      const { backendActor, ibeEncryptor } = getBackendStates()
-
-      const pk_bytes_hex = await backendActor.ibe_encryption_key()
+      const { backendActor, pk_bytes_hex, ibeEncryptor } = getBackendStates()
 
       const message_encoded = new TextEncoder().encode(args.note)
       const seed = window.crypto.getRandomValues(new Uint8Array(32))
@@ -157,7 +169,7 @@ const backend = createModel<RootModel>()({
 
       fetchNotes()
     },
-    decrypt_gcm_note: async (args: DecryptGCMNoteArgs) => {
+    decrypt_gcm_user_note: async (args: DecryptGCMNoteArgs) => {
       const { rawKey } = getBackendStates()
 
       const iv_and_ciphertext = hex_decode(args.encryptedNote)
@@ -179,8 +191,9 @@ const backend = createModel<RootModel>()({
 
       console.log({ decrypted })
     },
-    decrypt_ibe_note: async (args: DecryptIBENoteArgs) => {
-      const { backendActor, transportSecretKey } = getBackendStates()
+    decrypt_ibe_user_note: async (args: DecryptIBENoteArgs) => {
+      const { backendActor, pk_bytes_hex, transportSecretKey } =
+        getBackendStates()
 
       console.log({ public_key: hex_encode(transportSecretKey.public_key()) })
 
@@ -188,8 +201,6 @@ const backend = createModel<RootModel>()({
         await backendActor.encrypted_ibe_decryption_key_for_caller(
           transportSecretKey.public_key()
         )
-
-      const pk_bytes_hex = await backendActor.ibe_encryption_key()
 
       const k_bytes = transportSecretKey.decrypt(
         hex_decode(ek_bytes_hex),
@@ -204,7 +215,7 @@ const backend = createModel<RootModel>()({
 
       dispatch.backend.ADD_DECRYPTED_NOTE({ [args.id]: note })
     },
-    set_one_time_signature: async (args: SetOneTimeSignatureArgs) => {
+    generate_one_time_link: async (args: SetOneTimeSignatureArgs) => {
       const { backendActor, transportSecretKey } = getBackendStates()
 
       const publicKey = hex_encode(transportSecretKey.public_key())
@@ -218,47 +229,54 @@ const backend = createModel<RootModel>()({
 
       await backendActor.set_one_time_key(args.id, publicKey)
 
-      fetchNotes()
+      return signature
     },
     decrypt_with_signature: async (args: DecryptWithSignatureArgs) => {
-      const { backendActor, transportSecretKey } = getBackendStates()
+      const {
+        backendActor,
+        pk_bytes_hex,
+        ibeDeserializer,
+        transportSecretKey,
+      } = getBackendStates()
 
-      const [encryptedNote, ek_bytes_hex] =
-        await backendActor.read_with_one_time_key(
-          args.id,
-          args.signature,
-          hex_encode(transportSecretKey.public_key())
+      try {
+        const [encryptedNote, ek_bytes_hex] =
+          await backendActor.read_with_one_time_key(
+            args.id,
+            args.signature,
+            hex_encode(transportSecretKey.public_key())
+          )
+
+        const k_bytes = transportSecretKey.decrypt(
+          hex_decode(ek_bytes_hex),
+          hex_decode(pk_bytes_hex),
+          Principal.anonymous().toUint8Array()
         )
 
-      const pk_bytes_hex = await backendActor.ibe_encryption_key()
+        const ibe_ciphertext = ibeDeserializer(hex_decode(encryptedNote))
+        const ibe_plaintext = ibe_ciphertext.decrypt(k_bytes)
 
-      const k_bytes = transportSecretKey.decrypt(
-        hex_decode(ek_bytes_hex),
-        hex_decode(pk_bytes_hex),
-        Principal.anonymous().toUint8Array()
-      )
+        let decrypted = new TextDecoder().decode(ibe_plaintext)
 
-      let note = await dispatch.backend.decrypt_ibe({
-        encryptedNote,
-        k_bytes,
-      })
-
-      console.log({ note })
+        return decrypted
+      } catch (e) {
+        dispatch.backend.SET_ERROR({
+          decryptionError: {
+            [hex_encode(args.id)]: compileError(e),
+          },
+        })
+        console.log(e)
+      }
     },
     request_one_time_key: async (args: RequestOneTimeKeyArgs) => {
-      const { backendActor, transportSecretKey } = getBackendStates()
+      const { backendActor, pk_bytes_hex, transportSecretKey } =
+        getBackendStates()
 
       try {
         const ek_bytes_hex =
           await backendActor.request_two_factor_authentication(
             transportSecretKey.public_key()
           )
-
-        console.log({ public_key: hex_encode(transportSecretKey.public_key()) })
-
-        const pk_bytes_hex = await backendActor.two_factor_verification_key()
-
-        console.log({ pk_bytes_hex })
 
         const verification_key = transportSecretKey.decrypt_and_hash(
           hex_decode(ek_bytes_hex),

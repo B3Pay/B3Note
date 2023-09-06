@@ -6,6 +6,7 @@ import {
 } from "contexts/hooks/useBackend"
 import { hex_encode } from "helper/utils"
 import { useEffect } from "react"
+import LoadingDots from "./LoadingDots"
 import Note from "./Note"
 import Section from "./Section"
 import SimpleCard from "./SimpleCard"
@@ -31,7 +32,7 @@ const Notes: React.FC<NotesProps> = ({}) => {
       <Box>
         {!backendInitailized ? (
           <SimpleCard color="text.secondary" bgcolor="warning.light">
-            Loading notes...
+            <LoadingDots title="Loading notes" />
           </SimpleCard>
         ) : notes.length === 0 ? (
           <SimpleCard color="text.secondary" bgcolor="warning.light">

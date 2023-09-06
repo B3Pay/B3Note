@@ -45,8 +45,12 @@ struct User {
     signature: Option<AuthenticatedSignature>,
 }
 
+type Username = String;
+type EncryptedHashedPassword = Vec<u8>;
+
 thread_local! {
     static USERS: RefCell<HashMap<Principal, User>> = RefCell::default();
+    static USER_PASS: RefCell<HashMap<Username, EncryptedHashedPassword>> = RefCell::default();
     static ONE_TIME_KEY: RefCell<HashMap<TextId, OneTimePassword>> = RefCell::default();
     static ENCRYPTED_TEXTS: RefCell<HashMap<TextId, EncryptedText>> = RefCell::default();
 }
@@ -55,6 +59,44 @@ thread_local! {
 pub struct UserNote {
     pub id: TextId,
     pub note: EncryptedText,
+}
+
+#[query]
+fn get_password(username: Username) -> EncryptedHashedPassword {
+    debug_println_caller("get_password");
+
+    USER_PASS.with(|users| {
+        let users = users.borrow();
+
+        users.get(&username).cloned().unwrap_or_default()
+    })
+}
+
+#[update]
+fn set_password(username: Username, password: EncryptedHashedPassword) {
+    debug_println_caller("set_password");
+
+    USER_PASS.with(|users| {
+        let mut users = users.borrow_mut();
+
+        users.insert(username, password);
+    });
+}
+
+#[update]
+fn verify_password(username: Username, password: EncryptedHashedPassword) -> bool {
+    debug_println_caller("verify_password");
+
+    let encryptedHashedPassword = get_password(username);
+
+    // let decryptedHashedPassword = decrypt_text(
+    //     hex::encode(encryptedHashedPassword),
+    //     hex::encode(symmetric_key_verification_key()),
+    // );
+
+    // verify_pairing(username, decryptedHashedPassword, &password).unwrap()
+
+    todo!("verify_password")
 }
 
 #[query]
@@ -118,10 +160,10 @@ fn set_signature(public_key: String, signature: String) {
 
         let user = users.entry(caller).or_default();
 
-        let signature = hex::decode(signature).expect("Invalid hex encoding");
+        let signature = hex::decode(signature).expect("Error::Invalid hex encoding");
 
         user.signature = Some(AuthenticatedSignature::new(signature));
-        user.public_key = hex::decode(public_key).expect("Invalid hex encoding");
+        user.public_key = hex::decode(public_key).expect("Error::Invalid hex encoding");
     });
 }
 
@@ -136,7 +178,7 @@ fn login_with_signature(auth_code: String) -> bool {
 
         let user = users.entry(caller).or_default();
 
-        let auth_code = hex::decode(auth_code).expect("Invalid hex encoding");
+        let auth_code = hex::decode(auth_code).expect("Error::Invalid hex encoding");
         if let Some(signature) = &user.signature {
             if signature.created_at + 30 * 1_000_000_000 < ic_cdk::api::time() {
                 ic_cdk::trap("signature expired");
@@ -159,7 +201,7 @@ fn login_with_signature(auth_code: String) -> bool {
 fn set_one_time_key(text_id: TextId, public_key: String) {
     debug_println_caller("set_one_time_key");
 
-    let public_key = hex::decode(public_key).expect("Invalid hex encoding");
+    let public_key = hex::decode(public_key).expect("Error::Invalid hex encoding");
 
     ONE_TIME_KEY.with(|otp| {
         let mut otp = otp.borrow_mut();
@@ -188,14 +230,14 @@ async fn read_with_one_time_key(
 
             otp.remove(&text_id)
         })
-        .unwrap();
+        .expect("Error::One time link not exists!");
 
     if one_time_key.time_lock < ic_cdk::api::time() {
-        ic_cdk::trap("one time password is locked");
+        ic_cdk::trap("one time password is expired!");
     }
 
-    let signature = hex::decode(signature).expect("Invalid hex encoding");
-    let encryption_public_key = hex::decode(public_key).expect("Invalid hex encoding");
+    let signature = hex::decode(signature).expect("Error::Invalid hex encoding");
+    let encryption_public_key = hex::decode(public_key).expect("Error::Invalid hex encoding");
 
     let verified = verify_pairing(&one_time_key.public_key, &signature, &text_id);
 
@@ -209,7 +251,7 @@ async fn read_with_one_time_key(
 
             texts.get(&text_id).cloned()
         })
-        .expect("text not found");
+        .expect("Error::Text not found");
 
     let request = VetKDEncryptedKeyRequest {
         derivation_id: ic_cdk::caller().as_slice().to_vec(),
@@ -224,7 +266,7 @@ async fn read_with_one_time_key(
         (request,),
     )
     .await
-    .expect("call to vetkd_encrypted_key failed");
+    .expect("Error::Call to vetkd_encrypted_key failed");
 
     (
         hex::encode(encrypted_text),
@@ -246,7 +288,7 @@ async fn symmetric_key_verification_key() -> String {
         (request,),
     )
     .await
-    .expect("call to vetkd_public_key failed");
+    .expect("Error::Call to vetkd_public_key failed");
 
     hex::encode(response.public_key)
 }
@@ -265,7 +307,7 @@ async fn two_factor_verification_key() -> String {
         (request,),
     )
     .await
-    .expect("call to vetkd_public_key failed");
+    .expect("Error::Call to vetkd_public_key failed");
 
     hex::encode(response.public_key)
 }
@@ -289,7 +331,7 @@ async fn request_two_factor_authentication(encryption_public_key: Vec<u8>) -> St
         (request,),
     )
     .await
-    .expect("call to vetkd_encrypted_key failed");
+    .expect("Error::Call to vetkd_encrypted_key failed");
 
     hex::encode(response.encrypted_key)
 }
@@ -313,7 +355,7 @@ async fn encrypted_symmetric_key_for_caller(encryption_public_key: Vec<u8>) -> S
         (request,),
     )
     .await
-    .expect("call to vetkd_encrypted_key failed");
+    .expect("Error::Call to vetkd_encrypted_key failed");
 
     hex::encode(response.encrypted_key)
 }
@@ -332,7 +374,7 @@ async fn ibe_encryption_key() -> String {
         (request,),
     )
     .await
-    .expect("call to vetkd_public_key failed");
+    .expect("Error::Call to vetkd_public_key failed");
 
     hex::encode(response.public_key)
 }
@@ -354,7 +396,7 @@ async fn encrypted_ibe_decryption_key_for_caller(encryption_public_key: Vec<u8>)
         (request,),
     )
     .await
-    .expect("call to vetkd_encrypted_key failed");
+    .expect("Error::Call to vetkd_encrypted_key failed");
 
     hex::encode(response.encrypted_key)
 }
@@ -379,7 +421,7 @@ async fn encrypted_ibe_decryption_key_for_caller_with_derivation(
         (request,),
     )
     .await
-    .expect("call to vetkd_encrypted_key failed");
+    .expect("Error::Call to vetkd_encrypted_key failed");
 
     hex::encode(response.encrypted_key)
 }
@@ -453,9 +495,9 @@ fn verify_caller(auth_code: String, public_key_hex: String, signature_hex: Strin
     debug_println_caller("get_caller");
 
     // Convert hex to bytes
-    let auth_code = hex::decode(auth_code).expect("Invalid hex encoding");
-    let public_key_bytes = hex::decode(public_key_hex).expect("Invalid hex encoding");
-    let signature_bytes = hex::decode(signature_hex).expect("Invalid hex encoding");
+    let auth_code = hex::decode(auth_code).expect("Error::Invalid hex encoding");
+    let public_key_bytes = hex::decode(public_key_hex).expect("Error::Invalid hex encoding");
+    let signature_bytes = hex::decode(signature_hex).expect("Error::Invalid hex encoding");
 
     // Verify the signature
     verify_pairing(&public_key_bytes, &signature_bytes, &auth_code).unwrap()
@@ -467,16 +509,16 @@ pub fn decrypt_text(
     symmetric_key_hex: String,
 ) -> Result<String, String> {
     // Convert hex to bytes
-    let encrypted_note = hex::decode(encrypted_note_hex).expect("Invalid hex encoding");
+    let encrypted_note = hex::decode(encrypted_note_hex).expect("Error::Invalid hex encoding");
     let symmetric_key: aes256gcm::Key = hex::decode(symmetric_key_hex)
-        .expect("Invalid hex encoding")
+        .expect("Error::Invalid hex encoding")
         .try_into()
-        .expect("Invalid key length");
+        .expect("Error::Invalid key length");
 
     // Extract IV (nonce) and ciphertext
     let nonce: aes256gcm::Nonce = encrypted_note[0..aes256gcm::NONCE_LEN]
         .try_into()
-        .expect("Invalid nonce length");
+        .expect("Error::Invalid nonce length");
     let ciphertext_and_tag = &encrypted_note[aes256gcm::NONCE_LEN..];
 
     // Decrypt the ciphertext
@@ -495,7 +537,7 @@ fn bls12_381_test_key_1() -> VetKDKeyId {
 }
 
 fn vetkd_system_api_canister_id() -> CanisterId {
-    CanisterId::from_str(VETKD_SYSTEM_API_CANISTER_ID).expect("failed to create canister ID")
+    CanisterId::from_str(VETKD_SYSTEM_API_CANISTER_ID).expect("Error::Failed to create canister ID")
 }
 
 fn debug_println_caller(method_name: &str) {

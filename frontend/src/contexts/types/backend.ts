@@ -5,6 +5,10 @@ import { NonNullableProperties } from "helper/utils"
 import type { Backend } from "service"
 import type { IBECiphertext, TransportSecretKey } from "vetkd-utils"
 
+export type DecryptError = {
+  [x: string]: string
+}
+
 export interface BackendState {
   backendActor: Backend | null
   canisterId: Principal | null
@@ -12,6 +16,7 @@ export interface BackendState {
   decryptedNotes: {
     [x: string]: string
   }
+  pk_bytes_hex: string | null
   transportSecretKey: TransportSecretKey | null
   ibeCipherText: IBECiphertext | null
   ibeDeserializer: ((arg: Uint8Array) => IBECiphertext) | null
@@ -27,6 +32,9 @@ export interface BackendState {
   publicKey: string | null
   rawKey: Uint8Array | null
   oneTimeKey: string | null
+  errors: {
+    decryptionError: DecryptError
+  }
   initialized: boolean
 }
 

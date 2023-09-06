@@ -3,14 +3,11 @@ import { AccordionDetails, Button, TextField } from "@mui/material"
 import Accordion from "@mui/material/Accordion"
 import AccordionSummary from "@mui/material/AccordionSummary"
 import Typography from "@mui/material/Typography"
-import {
-  decyptNote,
-  decyptWithOneTimeKey,
-  setOneTimeKey,
-} from "contexts/helpers"
+import { decyptIBENote, generateOneTimeLink } from "contexts/helpers"
 import { useDecryptedNoteById } from "contexts/hooks/useBackend"
+import { useBackendLoading } from "contexts/hooks/useLoading"
 import type { UserNote } from "declarations/backend/backend.did"
-import { hex_encode } from "helper/utils"
+import { generateLink, hex_encode } from "helper/utils"
 import { useEffect, useState } from "react"
 import LoadingDots from "./LoadingDots"
 import Section from "./Section"
@@ -18,14 +15,24 @@ import Section from "./Section"
 interface NoteProps extends UserNote {}
 
 const Note: React.FC<NoteProps> = ({ id, note }) => {
-  const [signatureInput, setSignatureInput] = useState("")
+  const [generatedLink, setGeneratedLink] = useState("")
+
   const decryptedNote = useDecryptedNoteById(hex_encode(id))
   const noteLoading = decryptedNote === undefined
 
+  const generatedLinkLoading = useBackendLoading("generate_one_time_link")
+
   useEffect(() => {
-    decyptNote(hex_encode(id), hex_encode(note))
+    decyptIBENote(hex_encode(id), hex_encode(note))
   }, [id, note])
 
+  const handleGenerateLink = async () => {
+    let signature = await generateOneTimeLink(id as Uint8Array)
+
+    let link = generateLink(id, signature)
+
+    setGeneratedLink(link)
+  }
   return (
     <Accordion
       color="primary"
@@ -53,32 +60,28 @@ const Note: React.FC<NoteProps> = ({ id, note }) => {
           {decryptedNote}
         </Typography>
         <Section
-          title="One-time Password"
-          description="This is the one-time Password section"
+          title="One-time Link"
+          description="This is the one-time link for the note above. You can share this
+          link with anyone and they will be able to see the note. This link
+          can only be used once."
           color="info"
           noShadow
         >
-          <Button
-            onClick={() => setOneTimeKey(id as Uint8Array)}
-            variant="contained"
-          >
+          {(generatedLink || generatedLinkLoading) && (
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              type="text"
+              label="Link"
+              value={generatedLink}
+              InputProps={{
+                readOnly: true,
+              }}
+            />
+          )}
+          <Button onClick={handleGenerateLink} variant="contained">
             Generate Link
-          </Button>
-          <TextField
-            color="info"
-            type="text"
-            label="Signature"
-            value={signatureInput}
-            onChange={(e) => setSignatureInput(e.target.value)}
-          />
-          <Button
-            onClick={() =>
-              decyptWithOneTimeKey(id as Uint8Array, signatureInput)
-            }
-            variant="contained"
-            color="info"
-          >
-            Decrypt
           </Button>
         </Section>
       </AccordionDetails>

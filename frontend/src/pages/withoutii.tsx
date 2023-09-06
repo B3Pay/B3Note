@@ -1,24 +1,46 @@
 import { Principal } from "@dfinity/principal"
-import Button from "@mui/material/Button"
-import Stack from "@mui/material/Stack"
-import TextField from "@mui/material/TextField"
+import { Button, TextField } from "@mui/material"
+import Alert from "@mui/material/Alert"
+import AlertTitle from "@mui/material/AlertTitle"
 import Address from "components/Address"
 import LoadingDots from "components/LoadingDots"
-import Notes from "components/Notes"
 import Section from "components/Section"
-import { saveNoteIBE } from "contexts/helpers"
+import { decyptWithSignature } from "contexts/helpers"
 import { useBackendIsInitialized } from "contexts/hooks/useBackend"
+import { useDecryptionError } from "contexts/hooks/useError"
 import { useBackendLoading } from "contexts/hooks/useLoading"
-import { useState } from "react"
+import { hex_decode } from "helper/utils"
+import { useSearchParams } from "next/navigation"
+import { useEffect, useState } from "react"
 
 interface IdentityProps {}
 
 const WithoutII: React.FC<IdentityProps> = () => {
-  const [encryptInput, setEncryptInput] = useState("")
-
-  const savingLoading = useBackendLoading("save_ibe_user_note")
-
   const backendInitailized = useBackendIsInitialized()
+  const searchParams = useSearchParams()
+
+  const [decryptedNote, setDecryptedNote] = useState<string>()
+  const [signature, setSignature] = useState("")
+  const [id, setId] = useState("")
+
+  useEffect(() => {
+    if (searchParams.has("id") && searchParams.has("signature")) {
+      setId(searchParams.get("id")!)
+      setSignature(searchParams.get("signature")!)
+    }
+  }, [searchParams])
+
+  const decryptLoading = useBackendLoading("decrypt_with_signature")
+  const decryptError = useDecryptionError(id)
+
+  const handleDecryptNote = async () => {
+    let note = await decyptWithSignature(
+      hex_decode(id as string),
+      signature as string
+    )
+
+    setDecryptedNote(note)
+  }
 
   return (
     <Section
@@ -29,31 +51,60 @@ const WithoutII: React.FC<IdentityProps> = () => {
       <Address address={Principal.anonymous()?.toString()}>
         Your principal is
       </Address>
-      <Notes />
-      <Stack spacing={2}>
+      <Section
+        title="Decrypt"
+        color="primary"
+        description="Decrypt a note with a signature."
+        noShadow
+      >
+        {decryptError && (
+          <Alert severity="error">
+            <AlertTitle>{decryptError}</AlertTitle>
+          </Alert>
+        )}
+        <TextField
+          type="text"
+          label="id"
+          value={id}
+          onChange={(e) => setId(e.target.value)}
+        />
+        <TextField
+          multiline
+          rows={4}
+          type="text"
+          label="Signature"
+          value={signature}
+          onChange={(e) => setSignature(e.target.value)}
+        />
+        <Button
+          onClick={handleDecryptNote}
+          variant="contained"
+          disabled={decryptLoading}
+        >
+          {decryptLoading ? <LoadingDots title="Decrypting" /> : "Decrypt"}
+        </Button>
+      </Section>
+      {decryptedNote && (
         <Section
-          title="New Note"
-          color="primary"
-          description="Write a new note"
+          title="Decrypted Note"
+          color="info"
+          description="This is the decrypted note. The note is only decrypted locally and is never sent to the backend. The backend is only used to verify the signature."
           noShadow
         >
           <TextField
+            fullWidth
             multiline
+            color="info"
             rows={4}
             type="text"
-            label="Message"
-            value={encryptInput}
-            onChange={(e) => setEncryptInput(e.target.value)}
+            label="Note"
+            value={decryptedNote}
+            InputProps={{
+              readOnly: true,
+            }}
           />
-          <Button
-            onClick={() => saveNoteIBE(encryptInput)}
-            variant="contained"
-            disabled={savingLoading}
-          >
-            {savingLoading ? <LoadingDots title="Saving" /> : "Save"}
-          </Button>
         </Section>
-      </Stack>
+      )}
     </Section>
   )
 }
