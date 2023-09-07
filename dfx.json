@@ -1,11 +1,22 @@
 {
   "canisters": {
-    "backend": {
-      "candid": "backend/authenticator.did",
-      "package": "authenticator",
+    "old_backend": {
+      "candid": "old_backend/old_backend.did",
+      "package": "old_backend",
       "type": "custom",
-      "wasm": "target/wasm32-unknown-unknown/release/authenticator.wasm",
-      "build": "sh build.sh backend authenticator",
+      "wasm": "target/wasm32-unknown-unknown/release/old_backend-opt.wasm",
+      "build": "sh build.sh old_backend old_backend",
+      "declarations": {
+        "output": "frontend/declarations/old_backend",
+        "node_compatibility": true
+      }
+    },
+    "backend": {
+      "candid": "backend/backend.did",
+      "package": "backend",
+      "type": "custom",
+      "wasm": "target/wasm32-unknown-unknown/release/backend-opt.wasm",
+      "build": "sh build.sh backend backend",
       "declarations": {
         "output": "frontend/declarations/backend",
         "node_compatibility": true

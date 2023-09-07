@@ -12,13 +12,13 @@ export type DecryptError = {
 export interface BackendState {
   backendActor: Backend | null
   canisterId: Principal | null
+  userIdentity: Principal
   notes: UserNote[]
   decryptedNotes: {
     [x: string]: string
   }
   pk_bytes_hex: string | null
   transportSecretKey: TransportSecretKey | null
-  ibeCipherText: IBECiphertext | null
   ibeDeserializer: ((arg: Uint8Array) => IBECiphertext) | null
   ibeEncryptor:
     | ((
@@ -33,6 +33,7 @@ export interface BackendState {
   rawKey: Uint8Array | null
   oneTimeKey: string | null
   errors: {
+    globalError: Error | null
     decryptionError: DecryptError
   }
   initialized: boolean

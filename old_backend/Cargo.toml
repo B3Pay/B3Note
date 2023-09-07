@@ -1,0 +1,23 @@
+[package]
+name = "old_backend"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+candid = "0.9.3"
+ic-cdk = "0.10.0"
+serde = "1"
+hex = "0.4"
+serde_json = "1.0.105"
+serde_bytes = "0.11.12"
+aes-wasm = "0.1.6"
+sha2 = "0.9"
+sha3 = "0.9"
+ic_bls12_381 = { version = "0.8.0", default-features = false, features = ["pairings", "alloc", "experimental"] }
+subtle = "2.5.0"
+b3_utils = { version = "0.3", features = ["logging", "stable_memory"] }

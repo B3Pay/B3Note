@@ -1,80 +1,61 @@
-use aes_wasm::aes256gcm;
-use candid::Principal;
-
-use ic_cdk::{query, update};
-use std::{cell::RefCell, collections::HashMap, str::FromStr};
-use types::{
-    CanisterId, VetKDCurve, VetKDEncryptedKeyReply, VetKDEncryptedKeyRequest, VetKDKeyId,
-    VetKDPublicKeyReply, VetKDPublicKeyRequest,
+use b3_utils::{
+    hex_string_to_vec, log,
+    logs::{export_log, export_log_messages_page, LogEntry},
+    memory::{
+        base::{timer::TimerEntry, with_base_partition, with_base_partition_mut},
+        types::DefaultVMMap,
+        with_stable_memory_mut,
+    },
+    revert, vec_to_hex_string,
+    vetkd::{verify_pairing, VetKD, VetKDManagement},
+    NanoTimeStamp, Subaccount,
 };
-use vetkd::verify_pairing;
+use ic_cdk::{init, query, update};
+use std::cell::RefCell;
 
-mod ro;
 mod types;
-mod vetkd;
-
-const VETKD_SYSTEM_API_CANISTER_ID: &str = "wfdtj-lyaaa-aaaap-abakq-cai";
-
-struct OneTimePassword {
-    time_lock: u64,
-    public_key: Vec<u8>,
-}
-
-type TextId = Vec<u8>;
-type EncryptedText = Vec<u8>;
-
-#[derive(Clone, candid::CandidType, candid::Deserialize)]
-pub struct AuthenticatedSignature {
-    pub signature: Vec<u8>,
-    pub created_at: u64,
-}
-
-impl AuthenticatedSignature {
-    pub fn new(signature: Vec<u8>) -> Self {
-        Self {
-            signature,
-            created_at: ic_cdk::api::time(),
-        }
-    }
-}
-
-#[derive(Default, Clone, candid::CandidType, candid::Deserialize)]
-struct User {
-    texts: Vec<TextId>,
-    public_key: Vec<u8>,
-    signature: Option<AuthenticatedSignature>,
-}
-
-type Username = String;
-type EncryptedHashedPassword = Vec<u8>;
+use types::*;
 
 thread_local! {
-    static USERS: RefCell<HashMap<Principal, User>> = RefCell::default();
-    static USER_PASS: RefCell<HashMap<Username, EncryptedHashedPassword>> = RefCell::default();
-    static ONE_TIME_KEY: RefCell<HashMap<TextId, OneTimePassword>> = RefCell::default();
-    static ENCRYPTED_TEXTS: RefCell<HashMap<TextId, EncryptedText>> = RefCell::default();
+    static USERS: RefCell<DefaultVMMap<Subaccount, UserData>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("users", 10).unwrap()));
+    static USER_PASS: RefCell<DefaultVMMap<UserName, EncryptedHashedPassword>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("password", 11).unwrap()));
+    static ONE_TIME_KEY: RefCell<DefaultVMMap<TextId, OneTimePassword>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("one_time_key", 12).unwrap()));
+    static ENCRYPTED_TEXTS: RefCell<DefaultVMMap<TextId, EncryptedText>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("text", 13).unwrap()));
 }
 
-#[derive(candid::CandidType, candid::Deserialize)]
-pub struct UserNote {
-    pub id: TextId,
-    pub note: EncryptedText,
+#[init]
+fn init() {
+    log_caller!("init");
+
+    let caller = ic_cdk::caller().into();
+
+    USERS.with(|users| {
+        let mut users = users.borrow_mut();
+
+        users.insert(caller, UserData::default());
+    });
 }
 
 #[query]
-fn get_password(username: Username) -> EncryptedHashedPassword {
-    debug_println_caller("get_password");
+fn get_password(username: UserName) -> EncryptedHashedPassword {
+    log_caller!("get_password");
 
-    USER_PASS.with(|users| {
+    let password = USER_PASS.with(|users| {
         let users = users.borrow();
 
-        users.get(&username).cloned().unwrap_or_default()
-    })
+        users.get(&username)
+    });
+
+    if let Some(password) = password {
+        password.clone()
+    } else {
+        ic_cdk::trap("user not found");
+    }
 }
 
 #[update]
-fn set_password(username: Username, password: EncryptedHashedPassword) {
-    debug_println_caller("set_password");
+fn set_password(username: UserName, password: EncryptedHashedPassword) {
+    log_caller!("set_password");
 
     USER_PASS.with(|users| {
         let mut users = users.borrow_mut();
@@ -84,10 +65,10 @@ fn set_password(username: Username, password: EncryptedHashedPassword) {
 }
 
 #[update]
-fn verify_password(username: Username, password: EncryptedHashedPassword) -> bool {
-    debug_println_caller("verify_password");
+fn verify_password(username: UserName, _password: EncryptedHashedPassword) -> bool {
+    log_caller!("verify_password");
 
-    let encryptedHashedPassword = get_password(username);
+    let _encrypted_hashed_password = get_password(username);
 
     // let decryptedHashedPassword = decrypt_text(
     //     hex::encode(encryptedHashedPassword),
@@ -100,23 +81,29 @@ fn verify_password(username: Username, password: EncryptedHashedPassword) -> boo
 }
 
 #[query]
-fn get_user() -> User {
-    debug_println_caller("get_user");
+fn get_user_data() -> UserData {
+    log_caller!("get_user");
 
-    let caller = ic_cdk::caller();
+    let caller = ic_cdk::caller().into();
 
-    USERS.with(|users| {
+    let user = USERS.with(|users| {
         let users = users.borrow();
 
-        users.get(&caller).cloned().unwrap_or_default()
-    })
+        users.get(&caller)
+    });
+
+    if let Some(user) = user {
+        user.clone()
+    } else {
+        ic_cdk::trap("user not found");
+    }
 }
 
 #[query]
-fn user_notes() -> Vec<UserNote> {
-    debug_println_caller("user_notes");
+fn user_notes() -> Vec<UserText> {
+    log_caller!("user_notes");
 
-    let caller = ic_cdk::caller();
+    let caller = ic_cdk::caller().into();
 
     USERS.with(|users| {
         let users = users.borrow();
@@ -130,7 +117,7 @@ fn user_notes() -> Vec<UserNote> {
                         ENCRYPTED_TEXTS.with(|texts| {
                             let texts = texts.borrow();
 
-                            texts.get(id).map(|note| UserNote {
+                            texts.get(id).map(|note| UserText {
                                 id: id.to_owned(),
                                 note: note.clone(),
                             })
@@ -144,53 +131,74 @@ fn user_notes() -> Vec<UserNote> {
 
 #[query]
 fn get_time() -> u64 {
-    debug_println_caller("get_time");
+    log_caller!("get_time");
 
     ic_cdk::api::time()
 }
 
 #[update]
-fn set_signature(public_key: String, signature: String) {
-    debug_println_caller("set_signature");
+fn set_signature(public_key: String, signature: String) -> NanoTimeStamp {
+    log_caller!("set_signature");
+
+    let signature = hex_string_to_vec(signature).unwrap_or_else(revert);
+    let public_key = hex_string_to_vec(public_key).unwrap_or_else(revert);
 
     USERS.with(|users| {
         let mut users = users.borrow_mut();
 
-        let caller = ic_cdk::caller();
+        let caller = ic_cdk::caller().into();
 
-        let user = users.entry(caller).or_default();
+        // get user or create new one
+        let mut user_data = if let Some(user) = users.get(&caller) {
+            user
+        } else {
+            users.insert(caller.clone(), UserData::default());
+            users.get(&caller).unwrap()
+        };
 
-        let signature = hex::decode(signature).expect("Error::Invalid hex encoding");
+        let auth = AuthenticatedSignature::new(signature);
 
-        user.signature = Some(AuthenticatedSignature::new(signature));
-        user.public_key = hex::decode(public_key).expect("Error::Invalid hex encoding");
-    });
+        user_data.signature = Some(auth.clone());
+        user_data.public_key = public_key;
+
+        auth.created_at
+    })
 }
 
 #[update]
 fn login_with_signature(auth_code: String) -> bool {
-    debug_println_caller("login_with_signature");
+    log_caller!("login_with_signature");
 
-    let caller = ic_cdk::caller();
+    let auth_code = hex_string_to_vec(auth_code).unwrap_or_else(revert);
+
+    let caller = ic_cdk::caller().into();
 
     USERS.with(|users| {
-        let mut users = users.borrow_mut();
+        let users = users.borrow_mut();
 
-        let user = users.entry(caller).or_default();
+        let user = users.get(&caller).unwrap_or_else(|| {
+            ic_cdk::trap("user not found");
+        });
 
-        let auth_code = hex::decode(auth_code).expect("Error::Invalid hex encoding");
         if let Some(signature) = &user.signature {
-            if signature.created_at + 30 * 1_000_000_000 < ic_cdk::api::time() {
+            if signature.created_at.add_secs(30).has_passed() {
                 ic_cdk::trap("signature expired");
             }
 
             let verified = verify_pairing(&user.public_key, &signature.signature, &auth_code);
 
-            if !verified.unwrap() {
-                ic_cdk::trap("invalid signature");
-            }
+            match verified {
+                Ok(verified) => {
+                    if !verified {
+                        ic_cdk::trap("invalid signature");
+                    }
 
-            true
+                    return true;
+                }
+                Err(_) => {
+                    ic_cdk::trap("invalid signature");
+                }
+            }
         } else {
             ic_cdk::trap("signature not set");
         }
@@ -199,9 +207,9 @@ fn login_with_signature(auth_code: String) -> bool {
 
 #[update]
 fn set_one_time_key(text_id: TextId, public_key: String) {
-    debug_println_caller("set_one_time_key");
+    log_caller!("set_one_time_key");
 
-    let public_key = hex::decode(public_key).expect("Error::Invalid hex encoding");
+    let public_key = hex_string_to_vec(public_key).unwrap_or_else(revert);
 
     ONE_TIME_KEY.with(|otp| {
         let mut otp = otp.borrow_mut();
@@ -222,7 +230,7 @@ async fn read_with_one_time_key(
     signature: String,
     public_key: String,
 ) -> (String, String) {
-    debug_println_caller("login_with_one_time_key");
+    log_caller!("login_with_one_time_key");
 
     let one_time_key = ONE_TIME_KEY
         .with(|otp| {
@@ -236,10 +244,10 @@ async fn read_with_one_time_key(
         ic_cdk::trap("one time password is expired!");
     }
 
-    let signature = hex::decode(signature).expect("Error::Invalid hex encoding");
-    let encryption_public_key = hex::decode(public_key).expect("Error::Invalid hex encoding");
+    let signature = hex_string_to_vec(&signature).unwrap_or_else(revert);
+    let encryption_public_key = hex_string_to_vec(&public_key).unwrap_or_else(revert);
 
-    let verified = verify_pairing(&one_time_key.public_key, &signature, &text_id);
+    let verified = verify_pairing(&one_time_key.public_key, &signature, &text_id.0);
 
     if !verified.unwrap() {
         ic_cdk::trap("invalid signature");
@@ -249,207 +257,141 @@ async fn read_with_one_time_key(
         .with(|texts| {
             let texts = texts.borrow();
 
-            texts.get(&text_id).cloned()
+            texts.get(&text_id)
         })
         .expect("Error::Text not found");
 
-    let request = VetKDEncryptedKeyRequest {
-        derivation_id: ic_cdk::caller().as_slice().to_vec(),
-        public_key_derivation_path: vec![b"ibe_encryption".to_vec()],
-        key_id: bls12_381_test_key_1(),
-        encryption_public_key,
-    };
+    let encrypted_key = VetKD::new(ic_cdk::caller().into())
+        .request_encrypted_key(vec![b"ibe_encryption".to_vec()], encryption_public_key)
+        .await
+        .unwrap_or_else(revert);
 
-    let (encrypted_key,): (VetKDEncryptedKeyReply,) = ic_cdk::call(
-        vetkd_system_api_canister_id(),
-        "vetkd_encrypted_key",
-        (request,),
-    )
-    .await
-    .expect("Error::Call to vetkd_encrypted_key failed");
+    let encrypted_text = vec_to_hex_string(encrypted_text.0);
+    let encrypted_key = vec_to_hex_string(encrypted_key);
 
-    (
-        hex::encode(encrypted_text),
-        hex::encode(encrypted_key.encrypted_key),
-    )
+    (encrypted_text, encrypted_key)
 }
 
 #[update]
 async fn symmetric_key_verification_key() -> String {
-    let request = VetKDPublicKeyRequest {
-        canister_id: None,
-        derivation_path: vec![b"symmetric_key".to_vec()],
-        key_id: bls12_381_test_key_1(),
-    };
+    log_caller!("symmetric_key_verification_key");
 
-    let (response,): (VetKDPublicKeyReply,) = ic_cdk::call(
-        vetkd_system_api_canister_id(),
-        "vetkd_public_key",
-        (request,),
-    )
-    .await
-    .expect("Error::Call to vetkd_public_key failed");
+    let response = VetKDManagement(None)
+        .request_public_key(vec![b"symmetric_key".to_vec()])
+        .await
+        .unwrap_or_else(revert);
 
-    hex::encode(response.public_key)
-}
-
-#[update]
-async fn two_factor_verification_key() -> String {
-    let request = VetKDPublicKeyRequest {
-        canister_id: None,
-        derivation_path: vec![b"two_factor_authentication".to_vec()],
-        key_id: bls12_381_test_key_1(),
-    };
-
-    let (response,): (VetKDPublicKeyReply,) = ic_cdk::call(
-        vetkd_system_api_canister_id(),
-        "vetkd_public_key",
-        (request,),
-    )
-    .await
-    .expect("Error::Call to vetkd_public_key failed");
-
-    hex::encode(response.public_key)
-}
-
-#[update]
-async fn request_two_factor_authentication(encryption_public_key: Vec<u8>) -> String {
-    debug_println_caller("request_two_factor_authentication");
-
-    let derivation_id = ic_cdk::caller().as_slice().to_vec();
-
-    let request = VetKDEncryptedKeyRequest {
-        derivation_id,
-        public_key_derivation_path: vec![b"two_factor_authentication".to_vec()],
-        key_id: bls12_381_test_key_1(),
-        encryption_public_key,
-    };
-
-    let (response,): (VetKDEncryptedKeyReply,) = ic_cdk::call(
-        vetkd_system_api_canister_id(),
-        "vetkd_encrypted_key",
-        (request,),
-    )
-    .await
-    .expect("Error::Call to vetkd_encrypted_key failed");
-
-    hex::encode(response.encrypted_key)
+    vec_to_hex_string(response)
 }
 
 #[update]
 async fn encrypted_symmetric_key_for_caller(encryption_public_key: Vec<u8>) -> String {
-    debug_println_caller("encrypted_symmetric_key_for_caller");
+    log_caller!("encrypted_symmetric_key_for_caller");
 
-    let derivation_id = ic_cdk::caller().as_slice().to_vec();
+    let encrypted_key = VetKD::new(ic_cdk::caller().into())
+        .request_encrypted_key(vec![b"symmetric_key".to_vec()], encryption_public_key)
+        .await
+        .unwrap_or_else(revert);
 
-    let request = VetKDEncryptedKeyRequest {
-        derivation_id,
-        public_key_derivation_path: vec![b"symmetric_key".to_vec()],
-        key_id: bls12_381_test_key_1(),
-        encryption_public_key,
-    };
+    vec_to_hex_string(encrypted_key)
+}
 
-    let (response,): (VetKDEncryptedKeyReply,) = ic_cdk::call(
-        vetkd_system_api_canister_id(),
-        "vetkd_encrypted_key",
-        (request,),
-    )
-    .await
-    .expect("Error::Call to vetkd_encrypted_key failed");
+#[update]
+async fn two_factor_verification_key() -> String {
+    log_caller!("two_factor_verification_key");
 
-    hex::encode(response.encrypted_key)
+    let reponse = VetKDManagement(None)
+        .request_public_key(vec![b"two_factor_authentication".to_vec()])
+        .await
+        .unwrap_or_else(revert);
+
+    vec_to_hex_string(reponse)
+}
+
+#[update]
+async fn request_two_factor_authentication(encryption_public_key: Vec<u8>) -> String {
+    log_caller!("request_two_factor_authentication");
+
+    let encrypted_key = VetKD::new(ic_cdk::caller().into())
+        .request_encrypted_key(
+            vec![b"two_factor_authentication".to_vec()],
+            encryption_public_key,
+        )
+        .await
+        .unwrap_or_else(revert);
+
+    vec_to_hex_string(encrypted_key)
 }
 
 #[update]
 async fn ibe_encryption_key() -> String {
-    let request = VetKDPublicKeyRequest {
-        canister_id: None,
-        derivation_path: vec![b"ibe_encryption".to_vec()],
-        key_id: bls12_381_test_key_1(),
-    };
+    log_caller!("ibe_encryption_key");
 
-    let (response,): (VetKDPublicKeyReply,) = ic_cdk::call(
-        vetkd_system_api_canister_id(),
-        "vetkd_public_key",
-        (request,),
-    )
-    .await
-    .expect("Error::Call to vetkd_public_key failed");
+    let reponse = VetKDManagement(None)
+        .request_public_key(vec![b"ibe_encryption".to_vec()])
+        .await
+        .unwrap_or_else(revert);
 
-    hex::encode(response.public_key)
+    vec_to_hex_string(reponse)
 }
 
 #[update]
 async fn encrypted_ibe_decryption_key_for_caller(encryption_public_key: Vec<u8>) -> String {
-    debug_println_caller("encrypted_ibe_decryption_key_for_caller");
+    log_caller!("encrypted_ibe_decryption_key_for_caller");
 
-    let request = VetKDEncryptedKeyRequest {
-        derivation_id: ic_cdk::caller().as_slice().to_vec(),
-        public_key_derivation_path: vec![b"ibe_encryption".to_vec()],
-        key_id: bls12_381_test_key_1(),
-        encryption_public_key,
-    };
+    let encrypted_key = VetKD::new(ic_cdk::caller().into())
+        .request_encrypted_key(vec![b"ibe_encryption".to_vec()], encryption_public_key)
+        .await
+        .unwrap_or_else(revert);
 
-    let (response,): (VetKDEncryptedKeyReply,) = ic_cdk::api::call::call(
-        vetkd_system_api_canister_id(),
-        "vetkd_encrypted_key",
-        (request,),
-    )
-    .await
-    .expect("Error::Call to vetkd_encrypted_key failed");
-
-    hex::encode(response.encrypted_key)
+    vec_to_hex_string(encrypted_key)
 }
 
 #[update]
-async fn encrypted_ibe_decryption_key_for_caller_with_derivation(
+async fn encrypted_ibe_decryption_key_for_caller_for_canister(
     encryption_public_key: Vec<u8>,
     derivation_id: Vec<u8>,
 ) -> String {
-    debug_println_caller("encrypted_ibe_decryption_key_for_caller");
+    log_caller!("encrypted_ibe_decryption_key_for_caller");
 
-    let request = VetKDEncryptedKeyRequest {
-        derivation_id,
-        public_key_derivation_path: vec![b"ibe_encryption".to_vec()],
-        key_id: bls12_381_test_key_1(),
-        encryption_public_key,
-    };
+    let encrypted_key = VetKDManagement(None)
+        .request_encrypted_key(
+            derivation_id,
+            vec![b"ibe_encryption".to_vec()],
+            encryption_public_key,
+        )
+        .await
+        .unwrap_or_else(revert);
 
-    let (response,): (VetKDEncryptedKeyReply,) = ic_cdk::call(
-        vetkd_system_api_canister_id(),
-        "vetkd_encrypted_key",
-        (request,),
-    )
-    .await
-    .expect("Error::Call to vetkd_encrypted_key failed");
-
-    hex::encode(response.encrypted_key)
+    vec_to_hex_string(encrypted_key)
 }
 
 #[query]
 fn get_encrypted_texts() -> Vec<(TextId, String)> {
-    debug_println_caller("get_encrypted_texts");
+    log_caller!("get_encrypted_texts");
 
     ENCRYPTED_TEXTS.with(|texts| {
         let texts = texts.borrow();
 
         texts
             .iter()
-            .map(|(id, text)| (id.to_owned(), hex::encode(text)))
+            .map(|(id, text)| (id.to_owned(), vec_to_hex_string(text.0)))
             .collect()
     })
 }
 
 #[update]
 async fn save_encrypted_text(encrypted_text: String) -> TextId {
-    debug_println_caller("save_encrypted_text");
+    log_caller!("save_encrypted_text");
+
+    let encrypted_text = hex_string_to_vec(encrypted_text).unwrap_or_else(revert);
 
     let text_id = ENCRYPTED_TEXTS.with(|texts| {
         let mut texts = texts.borrow_mut();
 
-        let id = texts.len().to_be_bytes().to_vec();
+        let id = TextId(texts.len().to_be_bytes());
 
-        texts.insert(id.clone(), hex::decode(encrypted_text).unwrap());
+        texts.insert(id.clone(), EncryptedText(encrypted_text));
 
         id
     });
@@ -457,11 +399,16 @@ async fn save_encrypted_text(encrypted_text: String) -> TextId {
     USERS.with(|users| {
         let mut users = users.borrow_mut();
 
-        let caller = ic_cdk::caller();
+        let caller = ic_cdk::caller().into();
 
-        let ids = users.entry(caller).or_default();
+        let mut user_data = if let Some(user) = users.get(&caller) {
+            user
+        } else {
+            users.insert(caller.clone(), UserData::default());
+            users.get(&caller).unwrap()
+        };
 
-        ids.texts.push(text_id.clone());
+        user_data.texts.push(text_id.clone());
     });
 
     text_id
@@ -469,16 +416,20 @@ async fn save_encrypted_text(encrypted_text: String) -> TextId {
 
 #[update]
 fn edit_encrypted_text(text_id: TextId, encrypted_text: String) {
-    debug_println_caller("edit_encrypted_text");
+    log_caller!("edit_encrypted_text");
 
-    let caller = ic_cdk::caller();
+    let encrypted_text = hex_string_to_vec(encrypted_text).unwrap_or_else(revert);
+
+    let caller = ic_cdk::caller().into();
 
     USERS.with(|users| {
-        let mut users = users.borrow_mut();
+        let users = users.borrow_mut();
 
-        let ids = users.entry(caller).or_default();
+        let user = users.get(&caller).unwrap_or_else(|| {
+            ic_cdk::trap("user not found");
+        });
 
-        if !ids.texts.contains(&text_id) {
+        if !user.texts.contains(&text_id) {
             ic_cdk::trap("text not found");
         }
     });
@@ -486,67 +437,82 @@ fn edit_encrypted_text(text_id: TextId, encrypted_text: String) {
     ENCRYPTED_TEXTS.with(|texts| {
         let mut texts = texts.borrow_mut();
 
-        texts.insert(text_id, hex::decode(encrypted_text).unwrap());
+        let id = TextId(texts.len().to_be_bytes());
+
+        texts.insert(id.clone(), EncryptedText(encrypted_text));
     });
 }
 
 #[update]
 fn verify_caller(auth_code: String, public_key_hex: String, signature_hex: String) -> bool {
-    debug_println_caller("get_caller");
+    log_caller!("get_caller");
 
     // Convert hex to bytes
-    let auth_code = hex::decode(auth_code).expect("Error::Invalid hex encoding");
-    let public_key_bytes = hex::decode(public_key_hex).expect("Error::Invalid hex encoding");
-    let signature_bytes = hex::decode(signature_hex).expect("Error::Invalid hex encoding");
+    let auth_code = hex_string_to_vec(auth_code).unwrap_or_else(revert);
+    let public_key_bytes = hex_string_to_vec(public_key_hex).unwrap_or_else(revert);
+    let signature_bytes = hex_string_to_vec(signature_hex).unwrap_or_else(revert);
 
     // Verify the signature
     verify_pairing(&public_key_bytes, &signature_bytes, &auth_code).unwrap()
 }
 
-#[update]
-pub fn decrypt_text(
-    encrypted_note_hex: String,
-    symmetric_key_hex: String,
-) -> Result<String, String> {
-    // Convert hex to bytes
-    let encrypted_note = hex::decode(encrypted_note_hex).expect("Error::Invalid hex encoding");
-    let symmetric_key: aes256gcm::Key = hex::decode(symmetric_key_hex)
-        .expect("Error::Invalid hex encoding")
-        .try_into()
-        .expect("Error::Invalid key length");
-
-    // Extract IV (nonce) and ciphertext
-    let nonce: aes256gcm::Nonce = encrypted_note[0..aes256gcm::NONCE_LEN]
-        .try_into()
-        .expect("Error::Invalid nonce length");
-    let ciphertext_and_tag = &encrypted_note[aes256gcm::NONCE_LEN..];
-
-    // Decrypt the ciphertext
-    let data = aes256gcm::decrypt(ciphertext_and_tag, &[], &symmetric_key, nonce)
-        .map_err(|e| format!("Decryption error: {:?}", e))?;
-
-    // Return the decrypted data
-    String::from_utf8(data).map_err(|e| format!("Invalid UTF-8 sequence: {:?}", e))
+#[query]
+fn print_log_entries() -> Vec<LogEntry> {
+    export_log()
 }
 
-fn bls12_381_test_key_1() -> VetKDKeyId {
-    VetKDKeyId {
-        curve: VetKDCurve::Bls12_381,
-        name: "test_key_1".to_string(),
+#[query]
+fn print_log_entries_page(page: usize, page_size: Option<usize>) -> Vec<String> {
+    export_log_messages_page(page, page_size)
+}
+
+#[macro_export]
+macro_rules! log_caller {
+    ($method:expr) => {
+        log!(
+            "Method: {}, Caller: {}",
+            $method,
+            ic_cdk::caller().to_text()
+        )
+    };
+}
+
+#[update]
+fn schedule_task(after_sec: u64, id: u64) {
+    let time = NanoTimeStamp::now().add_secs(after_sec);
+
+    let timer = TimerEntry { id, time };
+
+    with_base_partition_mut(|core_partition| core_partition.push_timer(&timer)).unwrap();
+
+    reschedule();
+}
+
+#[export_name = "canister_global_timer"]
+fn global_timer() {
+    while let Some(task_time) = with_base_partition(|core_partition| core_partition.peek_timer()) {
+        if task_time.time.in_future() {
+            reschedule();
+            return;
+        }
+        with_base_partition_mut(|core_partition| core_partition.pop_timer());
+
+        execute_task(task_time);
+        reschedule();
     }
 }
 
-fn vetkd_system_api_canister_id() -> CanisterId {
-    CanisterId::from_str(VETKD_SYSTEM_API_CANISTER_ID).expect("Error::Failed to create canister ID")
+fn execute_task(timer: TimerEntry) {
+    log!("execute_task: {}", timer.id);
+    log!("execute_task in : {}", timer.time);
 }
 
-fn debug_println_caller(method_name: &str) {
-    ic_cdk::println!(
-        "{}: caller: {} (isAnonymous: {})",
-        method_name,
-        ic_cdk::caller().to_text(),
-        ic_cdk::caller() == candid::Principal::anonymous()
-    );
+fn reschedule() {
+    if let Some(task_time) = with_base_partition(|core_partition| core_partition.peek_timer()) {
+        unsafe {
+            ic0::global_timer_set(task_time.time.into());
+        }
+    }
 }
 
 ic_cdk::export_candid!();

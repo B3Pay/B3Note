@@ -10,8 +10,18 @@ export function useBackendIsInitialized(): boolean {
 }
 
 export function useBackendActor() {
-  const { backendActor: backend } = useBackend()
-  return backend
+  const { backendActor } = useBackend()
+  return backendActor
+}
+
+export function useBackendCanisterId() {
+  const { canisterId } = useBackend()
+  return canisterId
+}
+
+export function useUserIdentity() {
+  const { userIdentity } = useBackend()
+  return userIdentity
 }
 
 export function useBackendNotes() {

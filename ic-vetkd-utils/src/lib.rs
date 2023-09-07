@@ -117,6 +117,17 @@ impl TransportSecretKey {
 
         Ok(signed_input_bytes.to_vec())
     }
+
+    /// sign and hash a message with the transport secret key
+    pub fn sign_and_hash(&self, input: &[u8]) -> Result<Vec<u8>, String> {
+        let signed_input_bytes = self.sign(input)?;
+
+        let mut ro = ro::RandomOracle::new("ic-crypto-vetkd-bls12-381-sign-and-hash");
+        ro.update_bin(&signed_input_bytes);
+        let hash = ro.finalize_to_vec(32);
+
+        Ok(hash)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

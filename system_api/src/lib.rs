@@ -97,8 +97,11 @@ fn ensure_bls12_381_test_key_1(key_id: VetKDKeyId) {
     if key_id.curve != VetKDCurve::Bls12_381 {
         ic_cdk::trap("unsupported key ID curve");
     }
-    if key_id.name.as_str() != "test_key_1" {
-        ic_cdk::trap("unsupported key ID name");
+    match key_id.name.as_str() {
+        "dfx_test_key" => (),
+        "test_key_1" => (),
+        "key_1" => (),
+        _ => ic_cdk::trap("unsupported key ID name"),
     }
 }
 

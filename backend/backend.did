@@ -1,0 +1,47 @@
+type AuthenticatedSignature = record {
+  signature : vec nat8;
+  created_at : nat64;
+};
+type LogEntry = record {
+  counter : nat64;
+  file : text;
+  line : nat32;
+  version : text;
+  message : text;
+  timestamp : nat64;
+};
+type UserData = record {
+  texts : vec vec nat8;
+  signature : opt AuthenticatedSignature;
+  public_key : vec nat8;
+};
+type UserText = record { id : vec nat8; note : vec nat8 };
+service : () -> {
+  edit_encrypted_text : (vec nat8, text) -> ();
+  encrypted_ibe_decryption_key_for_caller : (vec nat8) -> (text);
+  encrypted_ibe_decryption_key_for_caller_for_canister : (
+      vec nat8,
+      vec nat8,
+    ) -> (text);
+  encrypted_symmetric_key_for_caller : (vec nat8) -> (text);
+  get_encrypted_texts : () -> (vec record { vec nat8; text }) query;
+  get_password : (text) -> (vec nat8) query;
+  get_time : () -> (nat64) query;
+  get_user_data : () -> (UserData) query;
+  ibe_encryption_key : () -> (text);
+  login_with_signature : (text) -> (bool);
+  print_log_entries : () -> (vec LogEntry) query;
+  print_log_entries_page : (nat64, opt nat64) -> (vec text) query;
+  read_with_one_time_key : (vec nat8, text, text) -> (text, text);
+  request_two_factor_authentication : (vec nat8) -> (text);
+  save_encrypted_text : (text) -> (vec nat8);
+  schedule_task : (nat64, nat64) -> ();
+  set_one_time_key : (vec nat8, text) -> ();
+  set_password : (text, vec nat8) -> ();
+  set_signature : (text, text) -> (nat64);
+  symmetric_key_verification_key : () -> (text);
+  two_factor_verification_key : () -> (text);
+  user_notes : () -> (vec UserText) query;
+  verify_caller : (text, text, text) -> (bool);
+  verify_password : (text, vec nat8) -> (bool);
+}
