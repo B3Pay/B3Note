@@ -4,12 +4,13 @@ import Alert from "@mui/material/Alert"
 import AlertTitle from "@mui/material/AlertTitle"
 import Address from "components/Address"
 import LoadingDots from "components/LoadingDots"
+import NewNote from "components/NewNote"
+import Notes from "components/Notes"
 import Section from "components/Section"
 import { decyptWithSignature } from "contexts/helpers"
 import { useBackendIsInitialized } from "contexts/hooks/useBackend"
 import { useDecryptionError } from "contexts/hooks/useError"
 import { useBackendLoading } from "contexts/hooks/useLoading"
-import { hex_decode } from "helper/utils"
 import { useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 
@@ -34,10 +35,7 @@ const WithoutII: React.FC<IdentityProps> = () => {
   const decryptError = useDecryptionError(id)
 
   const handleDecryptNote = async () => {
-    let note = await decyptWithSignature(
-      hex_decode(id as string),
-      signature as string
-    )
+    let note = await decyptWithSignature(id, signature)
 
     setDecryptedNote(note)
   }
@@ -51,9 +49,10 @@ const WithoutII: React.FC<IdentityProps> = () => {
       <Address address={Principal.anonymous()?.toString()}>
         Your principal is
       </Address>
+      <Notes />
       <Section
         title="Decrypt"
-        color="primary"
+        color="info"
         description="Decrypt a note with a signature."
         noShadow
       >
@@ -64,6 +63,7 @@ const WithoutII: React.FC<IdentityProps> = () => {
         )}
         <TextField
           type="text"
+          color="info"
           label="id"
           value={id}
           onChange={(e) => setId(e.target.value)}
@@ -72,6 +72,7 @@ const WithoutII: React.FC<IdentityProps> = () => {
           multiline
           rows={4}
           type="text"
+          color="info"
           label="Signature"
           value={signature}
           onChange={(e) => setSignature(e.target.value)}
@@ -79,6 +80,7 @@ const WithoutII: React.FC<IdentityProps> = () => {
         <Button
           onClick={handleDecryptNote}
           variant="contained"
+          color="info"
           disabled={decryptLoading}
         >
           {decryptLoading ? <LoadingDots title="Decrypting" /> : "Decrypt"}
@@ -105,6 +107,7 @@ const WithoutII: React.FC<IdentityProps> = () => {
           />
         </Section>
       )}
+      <NewNote />
     </Section>
   )
 }

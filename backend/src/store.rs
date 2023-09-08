@@ -1,5 +1,6 @@
 use b3_utils::{
     memory::{timer::TaskTimerPartition, types::DefaultVMMap, with_stable_memory_mut},
+    nonce::Nonce,
     Subaccount,
 };
 use std::cell::RefCell;
@@ -7,6 +8,8 @@ use std::cell::RefCell;
 use crate::{types::*, utils::vec_to_fixed_array};
 
 thread_local! {
+    pub static NONCE: RefCell<Nonce> = RefCell::new(Nonce::zero());
+
     pub static IBE_ENCRYPTION_KEYS: RefCell<EncryptionKey> = RefCell::new([0; 96]);
     pub static SYMMETRIC_ENCRYPTION_KEYS: RefCell<EncryptionKey> = RefCell::new([0; 96]);
 
@@ -16,8 +19,20 @@ thread_local! {
     pub static ANONYMOUS_USERS: RefCell<DefaultVMMap<PublicKey, AnonymousUserData>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("anonymous_users", 11).unwrap()));
 
     pub static USER_PASS: RefCell<DefaultVMMap<UserName, EncryptedHashedPassword>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("password", 12).unwrap()));
-    pub static ONE_TIME_KEYS: RefCell<DefaultVMMap<TextId, OneTimePassword>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("one_time_key", 13).unwrap()));
-    pub static ENCRYPTED_TEXTS: RefCell<DefaultVMMap<TextId, EncryptedText>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("text", 14).unwrap()));
+    pub static ONE_TIME_KEYS: RefCell<DefaultVMMap<u64, OneTimePassword>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("one_time_key", 13).unwrap()));
+    pub static ENCRYPTED_TEXTS: RefCell<DefaultVMMap<u64, EncryptedText>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("text", 14).unwrap()));
+}
+
+pub fn increment_nonce() -> u64 {
+    NONCE.with(|nonce| nonce.borrow_mut().next().0)
+}
+
+pub fn get_nonce() -> Nonce {
+    NONCE.with(|nonce| nonce.borrow().current())
+}
+
+pub fn set_nonce(nonce: Nonce) {
+    NONCE.with(|nonce_| *nonce_.borrow_mut() = nonce);
 }
 
 pub fn set_ibe_encryption_key(key: Vec<u8>) {
@@ -28,16 +43,16 @@ pub fn set_ibe_encryption_key(key: Vec<u8>) {
     })
 }
 
+pub fn get_ibe_encrypted_key() -> EncryptionKey {
+    IBE_ENCRYPTION_KEYS.with(|ibe_encrypted_key| *ibe_encrypted_key.borrow())
+}
+
 pub fn set_symmetric_encryption_key(key: Vec<u8>) {
     let key = vec_to_fixed_array(&key).unwrap();
 
     SYMMETRIC_ENCRYPTION_KEYS.with(|symmetric_encrypted_key| {
         *symmetric_encrypted_key.borrow_mut() = key;
     })
-}
-
-pub fn get_ibe_encrypted_key() -> EncryptionKey {
-    IBE_ENCRYPTION_KEYS.with(|ibe_encrypted_key| *ibe_encrypted_key.borrow())
 }
 
 pub fn get_symmetric_encrypted_key() -> EncryptionKey {
@@ -85,14 +100,14 @@ where
 
 pub fn with_one_time_keys<F, R>(f: F) -> R
 where
-    F: FnOnce(&mut DefaultVMMap<TextId, OneTimePassword>) -> R,
+    F: FnOnce(&mut DefaultVMMap<u64, OneTimePassword>) -> R,
 {
     ONE_TIME_KEYS.with(|one_time_key| f(&mut *one_time_key.borrow_mut()))
 }
 
 pub fn with_encrypted_texts<F, R>(f: F) -> R
 where
-    F: FnOnce(&mut DefaultVMMap<TextId, EncryptedText>) -> R,
+    F: FnOnce(&mut DefaultVMMap<u64, EncryptedText>) -> R,
 {
     ENCRYPTED_TEXTS.with(|encrypted_texts| f(&mut *encrypted_texts.borrow_mut()))
 }
@@ -115,7 +130,7 @@ where
     })
 }
 
-pub fn with_encrypted_text<F, R>(text_id: &TextId, f: F) -> Result<R, String>
+pub fn with_encrypted_text<F, R>(text_id: &u64, f: F) -> Result<R, String>
 where
     F: FnOnce(&mut EncryptedText) -> Result<R, String>,
 {
@@ -126,7 +141,7 @@ where
     })
 }
 
-pub fn with_one_time_key_and_remove<F, R>(text_id: &TextId, f: F) -> Result<R, String>
+pub fn with_one_time_key_and_remove<F, R>(text_id: &u64, f: F) -> Result<R, String>
 where
     F: FnOnce(&mut OneTimePassword) -> Result<R, String>,
 {

@@ -22,7 +22,8 @@
       }
     ],
     "paths": {
-      "*": ["./*"]
+      "*": ["./*"],
+      "declarations/*": ["../declarations/*"]
     }
   },
   "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx"],

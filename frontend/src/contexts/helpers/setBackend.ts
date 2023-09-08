@@ -19,7 +19,7 @@ export const saveNoteGCM = async (note: string) => {
   store.dispatch.backend.save_gcm_user_note({ note })
 }
 
-export const generateOneTimeLink = async (id: Uint8Array) => {
+export const generateOneTimeLink = async (id: bigint) => {
   return store.dispatch.backend.generate_one_time_link({ id })
 }
 
@@ -31,10 +31,7 @@ export const gcmDecrypt = async (encryptedNote: string) => {
   store.dispatch.backend.decrypt_gcm_user_note({ encryptedNote })
 }
 
-export const decyptWithSignature = async (
-  id: Uint8Array,
-  signature: string
-) => {
+export const decyptWithSignature = async (id: string, signature: string) => {
   return store.dispatch.backend.decrypt_with_signature({ id, signature })
 }
 

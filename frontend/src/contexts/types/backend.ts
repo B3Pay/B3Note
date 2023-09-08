@@ -1,6 +1,6 @@
 import type { Identity } from "@dfinity/agent"
 import type { Principal } from "@dfinity/principal"
-import type { UserNote } from "declarations/backend/backend.did"
+import type { UserData } from "declarations/backend/backend.did"
 import { NonNullableProperties } from "helper/utils"
 import type { Backend } from "service"
 import type { IBECiphertext, TransportSecretKey } from "vetkd-utils"
@@ -13,11 +13,11 @@ export interface BackendState {
   backendActor: Backend | null
   canisterId: Principal | null
   userIdentity: Principal
-  notes: UserNote[]
+  notes: UserData[]
   decryptedNotes: {
     [x: string]: string
   }
-  pk_bytes_hex: string | null
+  ibe_encryption_key: Uint8Array | number[] | null
   transportSecretKey: TransportSecretKey | null
   ibeDeserializer: ((arg: Uint8Array) => IBECiphertext) | null
   ibeEncryptor:
@@ -28,10 +28,10 @@ export interface BackendState {
         seed: Uint8Array
       ) => IBECiphertext)
     | null
-  encryptedKey: string | null
-  publicKey: string | null
-  rawKey: Uint8Array | null
-  oneTimeKey: string | null
+  encryptedKey: Uint8Array | number[] | null
+  verificationKey: Uint8Array | number[] | null
+  rawKey: Uint8Array | number[] | null
+  oneTimeKey: Uint8Array | number[] | null
   errors: {
     globalError: Error | null
     decryptionError: DecryptError
@@ -66,11 +66,11 @@ export interface DecryptIBENoteArgs {
 }
 
 export interface SetOneTimeSignatureArgs {
-  id: Uint8Array
+  id: bigint
 }
 
 export interface DecryptWithSignatureArgs {
-  id: Uint8Array
+  id: string
   signature: string
 }
 
