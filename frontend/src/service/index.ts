@@ -6,6 +6,7 @@ export { createBackendActor } from "./backend"
 export type { Backend } from "./backend"
 
 export function getHttpAgent(identity?: Identity) {
+  console.log("creating http agent", process.env.NEXT_PUBLIC_IC_HOST)
   return new HttpAgent({
     host: process.env.NEXT_PUBLIC_IC_HOST || "http://localhost:8080",
     identity,

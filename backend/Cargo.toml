@@ -12,4 +12,4 @@ ic-cdk = "0.10.0"
 ciborium = "0.2"
 ic0 = "0.18"
 serde = { version = "1.0", features = ["derive"] }
-b3_utils = { version = "0.3.6", features = ["logging", "stable_memory", "vetkd"] }
+b3_utils = { version = "0.3.7", features = ["logging", "stable_memory", "vetkd"] }

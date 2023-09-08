@@ -87,6 +87,9 @@ const backend = createModel<RootModel>()({
           async ({ TransportSecretKey, IBECiphertext }) => {
             const seed = window.crypto.getRandomValues(new Uint8Array(32))
             const transportSecretKey = new TransportSecretKey(seed)
+            console.log({
+              publicKey: hex_encode(transportSecretKey.public_key()),
+            })
 
             const encryptedKey =
               await backendActor.encrypted_symmetric_key_for_caller(
@@ -97,7 +100,6 @@ const backend = createModel<RootModel>()({
               await backendActor.symmetric_key_verification_key()
 
             const pk_bytes_hex = await backendActor.ibe_encryption_key()
-
             const rawKey = transportSecretKey.decrypt_and_hash(
               hex_decode(encryptedKey),
               hex_decode(publicKey),
@@ -105,7 +107,16 @@ const backend = createModel<RootModel>()({
               32,
               new TextEncoder().encode("aes-256-gcm")
             )
-
+            console.log({
+              userIdentity,
+              canisterId,
+              backendActor,
+              transportSecretKey,
+              rawKey,
+              encryptedKey,
+              pk_bytes_hex,
+              publicKey,
+            })
             dispatch.backend.INIT({
               userIdentity,
               canisterId,

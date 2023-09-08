@@ -31,9 +31,9 @@ dependencies = [
 
 [[package]]
 name = "b3_utils"
-version = "0.3.6"
+version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "258e143b874da3b38665289a6b821215981f7829b6b2f3c8a2459d35c7f16353"
+checksum = "26bae5781bdc3edbaa1bf39c136dc557cc42ca969fc0cf984165344613902626"
 dependencies = [
  "b3-stable-structures",
  "candid",

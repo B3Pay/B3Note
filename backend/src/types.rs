@@ -8,6 +8,12 @@ use ciborium::ser::into_writer;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 
+pub type PublicKey = [u8; 48];
+
+pub type EncryptionKey = [u8; 96];
+
+pub type DecryptionKey = [u8; 192];
+
 #[derive(CandidType, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub struct UserName(String);
 
@@ -50,7 +56,7 @@ pub struct TextId(pub [u8; 8]);
 #[derive(candid::CandidType, Clone, Deserialize)]
 pub struct UserText {
     pub id: TextId,
-    pub note: EncryptedText,
+    pub text: EncryptedText,
 }
 
 impl BoundedStorable for TextId {
@@ -71,6 +77,12 @@ impl Storable for TextId {
     fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
         self.0.to_vec().into()
     }
+}
+
+#[derive(Clone)]
+pub struct OneTimePassword {
+    pub time_lock: u64,
+    pub public_key: Vec<u8>,
 }
 
 impl BoundedStorable for OneTimePassword {
@@ -99,11 +111,6 @@ impl Storable for OneTimePassword {
 
         bytes.into()
     }
-}
-
-pub struct OneTimePassword {
-    pub time_lock: u64,
-    pub public_key: Vec<u8>,
 }
 
 #[derive(candid::CandidType, Clone, Deserialize)]
@@ -140,10 +147,112 @@ impl AuthenticatedSignature {
 }
 
 #[derive(Default, Serialize, Clone, CandidType, Deserialize)]
+pub struct AnonymousUserData {
+    texts: Vec<TextId>,
+    decryption_key: Vec<u8>,
+}
+
+impl AnonymousUserData {
+    pub fn new(decryption_key: Vec<u8>, text_id: Option<TextId>) -> Self {
+        Self {
+            texts: text_id.into_iter().collect(),
+            decryption_key,
+        }
+    }
+
+    pub fn add_text_id(&mut self, new_texts: TextId) -> Result<(), &'static str> {
+        if self.texts.len() > 5 {
+            return Err("Maximum of 5 TextIds are allowed");
+        }
+
+        self.texts.push(new_texts);
+
+        Ok(())
+    }
+
+    pub fn remove_text_id(&mut self, text_id: &TextId) -> Result<(), &'static str> {
+        if self.texts.len() < 1 {
+            return Err("No TextIds to remove");
+        }
+
+        self.texts.retain(|id| id != text_id);
+
+        Ok(())
+    }
+
+    pub fn iter_texts(&self) -> impl Iterator<Item = &TextId> {
+        self.texts.iter()
+    }
+
+    pub fn get_decryption_key(&self) -> Vec<u8> {
+        self.decryption_key.clone()
+    }
+}
+
+impl BoundedStorable for AnonymousUserData {
+    const IS_FIXED_SIZE: bool = false;
+    const MAX_SIZE: u32 = 232;
+}
+
+impl Storable for AnonymousUserData {
+    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
+        let mut bytes = vec![];
+        into_writer(&self, &mut bytes).unwrap();
+        std::borrow::Cow::Owned(bytes)
+    }
+
+    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
+        from_reader(&mut Cursor::new(&bytes)).unwrap()
+    }
+}
+
+#[derive(Default, Serialize, Clone, CandidType, Deserialize)]
 pub struct UserData {
-    pub texts: Vec<TextId>,
-    pub public_key: Vec<u8>,
-    pub signature: Option<AuthenticatedSignature>,
+    texts: Vec<TextId>,
+    public_key: Vec<u8>,
+    signature: Option<AuthenticatedSignature>,
+}
+
+impl UserData {
+    pub fn new(public_key: Vec<u8>, text_id: Option<TextId>) -> Self {
+        Self {
+            texts: text_id.into_iter().collect(),
+            public_key,
+            signature: None,
+        }
+    }
+
+    pub fn add_text_id(&mut self, new_texts: TextId) -> Result<(), &'static str> {
+        if self.texts.len() > 10 {
+            return Err("Maximum of 10 TextIds are allowed");
+        }
+
+        self.texts.push(new_texts);
+
+        Ok(())
+    }
+
+    pub fn remove_text_id(&mut self, text_id: &TextId) -> Result<(), &'static str> {
+        if self.texts.len() < 1 {
+            return Err("No TextIds to remove");
+        }
+
+        self.texts.retain(|id| id != text_id);
+
+        Ok(())
+    }
+
+    pub fn public_key(&self) -> &Vec<u8> {
+        &self.public_key
+    }
+
+    pub fn texts(&self) -> &Vec<TextId> {
+        &self.texts
+    }
+
+    pub fn iter_texts(&self) -> impl Iterator<Item = &TextId> {
+        self.texts.iter()
+    }
 }
 
 impl BoundedStorable for UserData {
@@ -161,4 +270,36 @@ impl Storable for UserData {
     fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
         from_reader(&mut Cursor::new(&bytes)).unwrap()
     }
+}
+
+#[derive(CandidType, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+pub enum Task {
+    Initialize,
+    Reinialize,
+    SendEmail {
+        email: String,
+        subject: String,
+        body: String,
+    },
+    SendText {
+        phone_number: String,
+        body: String,
+    },
+}
+
+impl Storable for Task {
+    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
+        let mut bytes = vec![];
+        into_writer(&self, &mut bytes).unwrap();
+        std::borrow::Cow::Owned(bytes)
+    }
+
+    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
+        from_reader(&mut Cursor::new(&bytes)).unwrap()
+    }
+}
+
+impl BoundedStorable for Task {
+    const MAX_SIZE: u32 = 24;
+    const IS_FIXED_SIZE: bool = true;
 }

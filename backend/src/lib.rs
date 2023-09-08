@@ -1,208 +1,219 @@
 use b3_utils::{
     hex_string_to_vec, log,
     logs::{export_log, export_log_messages_page, LogEntry},
-    memory::{
-        base::{timer::TimerEntry, with_base_partition, with_base_partition_mut},
-        types::DefaultVMMap,
-        with_stable_memory_mut,
-    },
+    memory::{timer::TaskTimerEntry, types::PartitionDetail},
     revert, vec_to_hex_string,
     vetkd::{verify_pairing, VetKD, VetKDManagement},
-    NanoTimeStamp, Subaccount,
+    NanoTimeStamp,
 };
-use ic_cdk::{init, query, update};
-use std::cell::RefCell;
+use candid::Principal;
+use ic_cdk::{init, post_upgrade, query, update};
 
 mod types;
 use types::*;
 
-thread_local! {
-    static USERS: RefCell<DefaultVMMap<Subaccount, UserData>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("users", 10).unwrap()));
-    static USER_PASS: RefCell<DefaultVMMap<UserName, EncryptedHashedPassword>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("password", 11).unwrap()));
-    static ONE_TIME_KEY: RefCell<DefaultVMMap<TextId, OneTimePassword>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("one_time_key", 12).unwrap()));
-    static ENCRYPTED_TEXTS: RefCell<DefaultVMMap<TextId, EncryptedText>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("text", 13).unwrap()));
-}
+mod store;
+use store::*;
+
+mod utils;
+use utils::*;
 
 #[init]
 fn init() {
     log_caller!("init");
 
-    let caller = ic_cdk::caller().into();
+    schedule_task(10, Task::Initialize);
 
-    USERS.with(|users| {
-        let mut users = users.borrow_mut();
-
-        users.insert(caller, UserData::default());
-    });
+    reschedule();
 }
 
-#[query]
-fn get_password(username: UserName) -> EncryptedHashedPassword {
-    log_caller!("get_password");
+#[post_upgrade]
+fn post_upgrade() {
+    log!("post_upgrade");
 
-    let password = USER_PASS.with(|users| {
-        let users = users.borrow();
+    schedule_task(10, Task::Reinialize);
 
-        users.get(&username)
-    });
-
-    if let Some(password) = password {
-        password.clone()
-    } else {
-        ic_cdk::trap("user not found");
-    }
+    reschedule();
 }
 
-#[update]
-fn set_password(username: UserName, password: EncryptedHashedPassword) {
-    log_caller!("set_password");
-
-    USER_PASS.with(|users| {
-        let mut users = users.borrow_mut();
-
-        users.insert(username, password);
-    });
-}
-
-#[update]
-fn verify_password(username: UserName, _password: EncryptedHashedPassword) -> bool {
-    log_caller!("verify_password");
-
-    let _encrypted_hashed_password = get_password(username);
-
-    // let decryptedHashedPassword = decrypt_text(
-    //     hex::encode(encryptedHashedPassword),
-    //     hex::encode(symmetric_key_verification_key()),
-    // );
-
-    // verify_pairing(username, decryptedHashedPassword, &password).unwrap()
-
-    todo!("verify_password")
-}
-
-#[query]
+#[query(guard = "caller_is_not_anonymous")]
 fn get_user_data() -> UserData {
     log_caller!("get_user");
 
     let caller = ic_cdk::caller().into();
 
-    let user = USERS.with(|users| {
-        let users = users.borrow();
-
-        users.get(&caller)
-    });
-
-    if let Some(user) = user {
-        user.clone()
-    } else {
-        ic_cdk::trap("user not found");
-    }
+    with_user(&caller, |user| Ok(user.clone())).unwrap_or_else(revert)
 }
 
-#[query]
+#[query(guard = "caller_is_not_anonymous")]
 fn user_notes() -> Vec<UserText> {
     log_caller!("user_notes");
 
     let caller = ic_cdk::caller().into();
 
-    USERS.with(|users| {
-        let users = users.borrow();
+    with_user(&caller, |user| {
+        let texts = user
+            .iter_texts()
+            .map(|text_id| {
+                with_encrypted_texts(|texts| {
+                    let text = texts.get(text_id).unwrap();
 
-        users
-            .get(&caller)
-            .map(|ids| {
-                ids.texts
-                    .iter()
-                    .filter_map(|id| {
-                        ENCRYPTED_TEXTS.with(|texts| {
-                            let texts = texts.borrow();
-
-                            texts.get(id).map(|note| UserText {
-                                id: id.to_owned(),
-                                note: note.clone(),
-                            })
-                        })
-                    })
-                    .collect()
+                    UserText {
+                        id: text_id.clone(),
+                        text: text.clone(),
+                    }
+                })
             })
-            .unwrap_or_default()
+            .collect();
+
+        Ok(texts)
+    })
+    .unwrap_or(vec![])
+}
+
+#[query]
+fn get_anonymous_users() -> Vec<(PublicKey, AnonymousUserData)> {
+    log_caller!("get_anonymous_users");
+
+    with_anonymous_users(|users| {
+        users
+            .iter()
+            .map(|(key, user)| (key.clone(), user.clone()))
+            .collect()
     })
 }
 
 #[query]
-fn get_time() -> u64 {
-    log_caller!("get_time");
+fn get_anonymous_user(public_key: Vec<u8>) -> AnonymousUserData {
+    log_caller!("anonymous_user");
 
-    ic_cdk::api::time()
+    let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
+
+    with_anonymous_user(&public_key, |user| Ok(user.clone())).unwrap_or_else(revert)
 }
 
-#[update]
-fn set_signature(public_key: String, signature: String) -> NanoTimeStamp {
-    log_caller!("set_signature");
+#[query]
+fn get_anonymous_user_notes(public_key: Vec<u8>) -> Vec<UserText> {
+    log_caller!("get_anonymous_users_notes");
 
-    let signature = hex_string_to_vec(signature).unwrap_or_else(revert);
-    let public_key = hex_string_to_vec(public_key).unwrap_or_else(revert);
+    let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
 
-    USERS.with(|users| {
-        let mut users = users.borrow_mut();
+    with_anonymous_user(&public_key, |user| {
+        let texts = user
+            .iter_texts()
+            .map(|text_id| {
+                with_encrypted_texts(|texts| {
+                    let text = texts.get(text_id).unwrap();
 
-        let caller = ic_cdk::caller().into();
-
-        // get user or create new one
-        let mut user_data = if let Some(user) = users.get(&caller) {
-            user
-        } else {
-            users.insert(caller.clone(), UserData::default());
-            users.get(&caller).unwrap()
-        };
-
-        let auth = AuthenticatedSignature::new(signature);
-
-        user_data.signature = Some(auth.clone());
-        user_data.public_key = public_key;
-
-        auth.created_at
-    })
-}
-
-#[update]
-fn login_with_signature(auth_code: String) -> bool {
-    log_caller!("login_with_signature");
-
-    let auth_code = hex_string_to_vec(auth_code).unwrap_or_else(revert);
-
-    let caller = ic_cdk::caller().into();
-
-    USERS.with(|users| {
-        let users = users.borrow_mut();
-
-        let user = users.get(&caller).unwrap_or_else(|| {
-            ic_cdk::trap("user not found");
-        });
-
-        if let Some(signature) = &user.signature {
-            if signature.created_at.add_secs(30).has_passed() {
-                ic_cdk::trap("signature expired");
-            }
-
-            let verified = verify_pairing(&user.public_key, &signature.signature, &auth_code);
-
-            match verified {
-                Ok(verified) => {
-                    if !verified {
-                        ic_cdk::trap("invalid signature");
+                    UserText {
+                        id: text_id.clone(),
+                        text: text.clone(),
                     }
+                })
+            })
+            .collect();
 
-                    return true;
-                }
-                Err(_) => {
-                    ic_cdk::trap("invalid signature");
-                }
-            }
-        } else {
-            ic_cdk::trap("signature not set");
-        }
+        Ok(texts)
     })
+    .unwrap_or(vec![])
+}
+
+#[query]
+fn get_encrypted_texts() -> Vec<(TextId, String)> {
+    log_caller!("get_encrypted_texts");
+
+    with_encrypted_texts(|texts| {
+        texts
+            .iter()
+            .map(|(id, text)| (id.clone(), vec_to_hex_string(text.0.clone())))
+            .collect()
+    })
+}
+
+#[update]
+async fn save_encrypted_text(encrypted_text: String, public_key: Option<Vec<u8>>) -> TextId {
+    log_caller!("save_encrypted_text");
+
+    let encrypted_text = hex_string_to_vec(encrypted_text).unwrap_or_else(revert);
+
+    let text_id = ENCRYPTED_TEXTS.with(|texts| {
+        let mut texts = texts.borrow_mut();
+
+        let id = TextId(texts.len().to_be_bytes());
+
+        texts.insert(id.clone(), EncryptedText(encrypted_text));
+
+        id
+    });
+
+    let caller = ic_cdk::caller();
+
+    if caller == Principal::anonymous() {
+        match public_key {
+            Some(public_key) => {
+                let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
+
+                with_anonymous_user(&public_key, |user| {
+                    user.add_text_id(text_id.clone()).unwrap_or_else(revert);
+
+                    Ok(text_id)
+                })
+                .unwrap_or_else(revert)
+            }
+            None => return revert("public key is required"),
+        }
+    } else {
+        with_user(&caller.into(), |user| {
+            user.add_text_id(text_id.clone()).unwrap_or_else(revert);
+
+            Ok(text_id)
+        })
+        .unwrap_or_else(revert)
+    }
+}
+
+#[update]
+fn edit_encrypted_text(text_id: TextId, encrypted_text: String, public_key: Option<Vec<u8>>) {
+    log_caller!("edit_encrypted_text");
+
+    let encrypted_text = hex_string_to_vec(encrypted_text).unwrap_or_else(revert);
+
+    let caller = ic_cdk::caller();
+
+    if caller == Principal::anonymous() {
+        match public_key {
+            Some(public_key) => {
+                let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
+
+                with_anonymous_user(&public_key, |data| {
+                    data.remove_text_id(&text_id).unwrap_or_else(revert);
+
+                    with_encrypted_texts(|texts| {
+                        texts.insert(text_id.clone(), EncryptedText(encrypted_text));
+                    });
+
+                    data.add_text_id(text_id).unwrap_or_else(revert);
+
+                    Ok(())
+                })
+                .unwrap_or_else(revert)
+            }
+            None => revert("public key is required"),
+        }
+    } else {
+        with_user(&caller.into(), |user| {
+            user.remove_text_id(&text_id).unwrap_or_else(revert);
+
+            with_encrypted_texts(|texts| {
+                texts.insert(text_id.clone(), EncryptedText(encrypted_text));
+            });
+
+            user.add_text_id(text_id).unwrap_or_else(revert);
+
+            Ok(())
+        })
+        .unwrap_or_else(revert)
+    }
 }
 
 #[update]
@@ -211,7 +222,7 @@ fn set_one_time_key(text_id: TextId, public_key: String) {
 
     let public_key = hex_string_to_vec(public_key).unwrap_or_else(revert);
 
-    ONE_TIME_KEY.with(|otp| {
+    ONE_TIME_KEYS.with(|otp| {
         let mut otp = otp.borrow_mut();
 
         otp.insert(
@@ -232,13 +243,8 @@ async fn read_with_one_time_key(
 ) -> (String, String) {
     log_caller!("login_with_one_time_key");
 
-    let one_time_key = ONE_TIME_KEY
-        .with(|otp| {
-            let mut otp = otp.borrow_mut();
-
-            otp.remove(&text_id)
-        })
-        .expect("Error::One time link not exists!");
+    let one_time_key =
+        with_one_time_key_and_remove(&text_id, |key| Ok(key.clone())).unwrap_or_else(revert);
 
     if one_time_key.time_lock < ic_cdk::api::time() {
         ic_cdk::trap("one time password is expired!");
@@ -253,13 +259,8 @@ async fn read_with_one_time_key(
         ic_cdk::trap("invalid signature");
     }
 
-    let encrypted_text = ENCRYPTED_TEXTS
-        .with(|texts| {
-            let texts = texts.borrow();
-
-            texts.get(&text_id)
-        })
-        .expect("Error::Text not found");
+    let encrypted_text =
+        with_encrypted_text(&text_id, |text| Ok(text.clone())).unwrap_or_else(revert);
 
     let encrypted_key = VetKD::new(ic_cdk::caller().into())
         .request_encrypted_key(vec![b"ibe_encryption".to_vec()], encryption_public_key)
@@ -272,175 +273,72 @@ async fn read_with_one_time_key(
     (encrypted_text, encrypted_key)
 }
 
-#[update]
-async fn symmetric_key_verification_key() -> String {
-    log_caller!("symmetric_key_verification_key");
-
-    let response = VetKDManagement(None)
-        .request_public_key(vec![b"symmetric_key".to_vec()])
-        .await
-        .unwrap_or_else(revert);
-
-    vec_to_hex_string(response)
-}
-
-#[update]
-async fn encrypted_symmetric_key_for_caller(encryption_public_key: Vec<u8>) -> String {
-    log_caller!("encrypted_symmetric_key_for_caller");
-
-    let encrypted_key = VetKD::new(ic_cdk::caller().into())
-        .request_encrypted_key(vec![b"symmetric_key".to_vec()], encryption_public_key)
-        .await
-        .unwrap_or_else(revert);
-
-    vec_to_hex_string(encrypted_key)
-}
-
-#[update]
-async fn two_factor_verification_key() -> String {
-    log_caller!("two_factor_verification_key");
-
-    let reponse = VetKDManagement(None)
-        .request_public_key(vec![b"two_factor_authentication".to_vec()])
-        .await
-        .unwrap_or_else(revert);
-
-    vec_to_hex_string(reponse)
-}
-
-#[update]
-async fn request_two_factor_authentication(encryption_public_key: Vec<u8>) -> String {
-    log_caller!("request_two_factor_authentication");
-
-    let encrypted_key = VetKD::new(ic_cdk::caller().into())
-        .request_encrypted_key(
-            vec![b"two_factor_authentication".to_vec()],
-            encryption_public_key,
-        )
-        .await
-        .unwrap_or_else(revert);
-
-    vec_to_hex_string(encrypted_key)
-}
-
-#[update]
+#[query]
 async fn ibe_encryption_key() -> String {
     log_caller!("ibe_encryption_key");
 
-    let reponse = VetKDManagement(None)
-        .request_public_key(vec![b"ibe_encryption".to_vec()])
-        .await
-        .unwrap_or_else(revert);
+    vec_to_hex_string(get_ibe_encrypted_key())
+}
 
-    vec_to_hex_string(reponse)
+#[query]
+async fn symmetric_key_verification_key() -> String {
+    log_caller!("symmetric_key_verification_key");
+
+    vec_to_hex_string(get_symmetric_encrypted_key())
 }
 
 #[update]
 async fn encrypted_ibe_decryption_key_for_caller(encryption_public_key: Vec<u8>) -> String {
     log_caller!("encrypted_ibe_decryption_key_for_caller");
 
+    let public_key = vec_to_fixed_array(&encryption_public_key).unwrap_or_else(revert);
+
+    // check for cached key
+    if let Ok(key) = with_anonymous_user(&public_key, |data| Ok(data.get_decryption_key())) {
+        return vec_to_hex_string(key);
+    }
+
+    // request key from VetKD Api
     let encrypted_key = VetKD::new(ic_cdk::caller().into())
         .request_encrypted_key(vec![b"ibe_encryption".to_vec()], encryption_public_key)
         .await
         .unwrap_or_else(revert);
 
+    // cache key
+    with_anonymous_users(|keys| {
+        let user_data = AnonymousUserData::new(encrypted_key.clone(), None);
+
+        keys.insert(public_key, user_data);
+    });
+
     vec_to_hex_string(encrypted_key)
 }
 
 #[update]
-async fn encrypted_ibe_decryption_key_for_caller_for_canister(
-    encryption_public_key: Vec<u8>,
-    derivation_id: Vec<u8>,
-) -> String {
-    log_caller!("encrypted_ibe_decryption_key_for_caller");
+async fn encrypted_symmetric_key_for_caller(encryption_public_key: Vec<u8>) -> String {
+    log_caller!("encrypted_symmetric_key_for_caller");
 
-    let encrypted_key = VetKDManagement(None)
-        .request_encrypted_key(
-            derivation_id,
-            vec![b"ibe_encryption".to_vec()],
-            encryption_public_key,
-        )
+    let public_key = vec_to_fixed_array(&encryption_public_key).unwrap_or_else(revert);
+
+    // check for cached key
+    if let Ok(key) = with_anonymous_user(&public_key, |data| Ok(data.get_decryption_key())) {
+        return vec_to_hex_string(key);
+    }
+
+    // request key from VetKD Api
+    let encrypted_key = VetKD::new(ic_cdk::caller().into())
+        .request_encrypted_key(vec![b"symmetric_key".to_vec()], encryption_public_key)
         .await
         .unwrap_or_else(revert);
 
+    // cache key
+    with_anonymous_users(|keys| {
+        let user_data = AnonymousUserData::new(encrypted_key.clone(), None);
+
+        keys.insert(public_key, user_data);
+    });
+
     vec_to_hex_string(encrypted_key)
-}
-
-#[query]
-fn get_encrypted_texts() -> Vec<(TextId, String)> {
-    log_caller!("get_encrypted_texts");
-
-    ENCRYPTED_TEXTS.with(|texts| {
-        let texts = texts.borrow();
-
-        texts
-            .iter()
-            .map(|(id, text)| (id.to_owned(), vec_to_hex_string(text.0)))
-            .collect()
-    })
-}
-
-#[update]
-async fn save_encrypted_text(encrypted_text: String) -> TextId {
-    log_caller!("save_encrypted_text");
-
-    let encrypted_text = hex_string_to_vec(encrypted_text).unwrap_or_else(revert);
-
-    let text_id = ENCRYPTED_TEXTS.with(|texts| {
-        let mut texts = texts.borrow_mut();
-
-        let id = TextId(texts.len().to_be_bytes());
-
-        texts.insert(id.clone(), EncryptedText(encrypted_text));
-
-        id
-    });
-
-    USERS.with(|users| {
-        let mut users = users.borrow_mut();
-
-        let caller = ic_cdk::caller().into();
-
-        let mut user_data = if let Some(user) = users.get(&caller) {
-            user
-        } else {
-            users.insert(caller.clone(), UserData::default());
-            users.get(&caller).unwrap()
-        };
-
-        user_data.texts.push(text_id.clone());
-    });
-
-    text_id
-}
-
-#[update]
-fn edit_encrypted_text(text_id: TextId, encrypted_text: String) {
-    log_caller!("edit_encrypted_text");
-
-    let encrypted_text = hex_string_to_vec(encrypted_text).unwrap_or_else(revert);
-
-    let caller = ic_cdk::caller().into();
-
-    USERS.with(|users| {
-        let users = users.borrow_mut();
-
-        let user = users.get(&caller).unwrap_or_else(|| {
-            ic_cdk::trap("user not found");
-        });
-
-        if !user.texts.contains(&text_id) {
-            ic_cdk::trap("text not found");
-        }
-    });
-
-    ENCRYPTED_TEXTS.with(|texts| {
-        let mut texts = texts.borrow_mut();
-
-        let id = TextId(texts.len().to_be_bytes());
-
-        texts.insert(id.clone(), EncryptedText(encrypted_text));
-    });
 }
 
 #[update]
@@ -466,6 +364,162 @@ fn print_log_entries_page(page: usize, page_size: Option<usize>) -> Vec<String> 
     export_log_messages_page(page, page_size)
 }
 
+#[query]
+fn get_partition_details() -> Vec<PartitionDetail> {
+    let mut details = Vec::new();
+
+    details.push(PartitionDetail {
+        name: "users".to_string(),
+        len: USERS.with(|m| m.borrow().len()) as u64,
+    });
+
+    details.push(PartitionDetail {
+        name: "anonymous_users".to_string(),
+        len: ANONYMOUS_USERS.with(|s| s.borrow().len()) as u64,
+    });
+
+    details.push(PartitionDetail {
+        name: "password".to_string(),
+        len: USER_PASS.with(|v| v.borrow().len()) as u64,
+    });
+
+    details.push(PartitionDetail {
+        name: "one_time_key".to_string(),
+        len: ONE_TIME_KEYS.with(|u| u.borrow().len()) as u64,
+    });
+
+    details.push(PartitionDetail {
+        name: "text".to_string(),
+        len: ENCRYPTED_TEXTS.with(|s| s.borrow().len()) as u64,
+    });
+
+    TASK_TIMER.with(|tt| {
+        let tt = tt.borrow();
+
+        details.push(tt.details());
+    });
+
+    details
+}
+
+#[query]
+fn get_timers() -> Vec<TaskTimerEntry<Task>> {
+    TASK_TIMER.with(|s| {
+        let state = s.borrow();
+
+        state.get_timer()
+    })
+}
+
+#[update]
+fn schedule_task(after_sec: u64, task: Task) {
+    log_caller!("schedule_task");
+
+    let time = NanoTimeStamp::now().add_secs(after_sec);
+
+    let timer = TaskTimerEntry { task, time };
+
+    with_task_timer(|tt| {
+        tt.push_timer(&timer)
+            .unwrap_or_else(|_| revert("Error::Failed to push timer!"))
+    });
+
+    reschedule();
+}
+
+#[export_name = "canister_global_timer"]
+fn global_timer() {
+    while let Some(task_timer) = TASK_TIMER.with(|tt| {
+        let tt = tt.borrow();
+
+        tt.peek_timer()
+    }) {
+        if task_timer.time.in_future() {
+            reschedule();
+            return;
+        }
+        with_task_timer(|tt| tt.pop_timer());
+
+        ic_cdk::spawn(execute_task(task_timer));
+        reschedule();
+    }
+}
+
+async fn fetch_encryption_keys() {
+    log!("fetching keys...");
+    let symmetric_key = VetKDManagement(None)
+        .request_public_key(vec![b"symmetric_key".to_vec()])
+        .await;
+
+    let ibe_encryption_key = VetKDManagement(None)
+        .request_public_key(vec![b"ibe_encryption".to_vec()])
+        .await;
+
+    log!("caching keys...");
+    if let Ok(symmetric_key) = symmetric_key {
+        set_symmetric_encryption_key(symmetric_key);
+    } else {
+        log!("failed to fetch symmetric key");
+    }
+
+    if let Ok(ibe_encryption_key) = ibe_encryption_key {
+        set_ibe_encryption_key(ibe_encryption_key);
+    } else {
+        log!("failed to fetch ibe encryption key");
+    }
+}
+
+async fn execute_task(timer: TaskTimerEntry<Task>) {
+    log!("execute_task: {:?}", timer.task);
+    log!("execute_task in : {}", timer.time);
+
+    match timer.task {
+        Task::Initialize => {
+            log!("initializing...");
+
+            fetch_encryption_keys().await;
+
+            log!("initializing done!");
+        }
+        Task::Reinialize => {
+            log!("reinitializing...");
+
+            fetch_encryption_keys().await;
+
+            log!("reinitializing done!");
+        }
+        Task::SendEmail {
+            email,
+            body,
+            subject,
+        } => {
+            log!(
+                "sending email to: {} with subject: {}, and body: {}",
+                email,
+                subject,
+                body
+            );
+        }
+        Task::SendText { phone_number, body } => {
+            log!("send text to: {} with body: {}", phone_number, body);
+        }
+    }
+}
+
+fn reschedule() {
+    if let Some(task_time) = TASK_TIMER.with(|tt| {
+        let tt = tt.borrow();
+
+        tt.peek_timer()
+    }) {
+        unsafe {
+            ic0::global_timer_set(task_time.time.into());
+        }
+    }
+}
+
+ic_cdk::export_candid!();
+
 #[macro_export]
 macro_rules! log_caller {
     ($method:expr) => {
@@ -476,43 +530,3 @@ macro_rules! log_caller {
         )
     };
 }
-
-#[update]
-fn schedule_task(after_sec: u64, id: u64) {
-    let time = NanoTimeStamp::now().add_secs(after_sec);
-
-    let timer = TimerEntry { id, time };
-
-    with_base_partition_mut(|core_partition| core_partition.push_timer(&timer)).unwrap();
-
-    reschedule();
-}
-
-#[export_name = "canister_global_timer"]
-fn global_timer() {
-    while let Some(task_time) = with_base_partition(|core_partition| core_partition.peek_timer()) {
-        if task_time.time.in_future() {
-            reschedule();
-            return;
-        }
-        with_base_partition_mut(|core_partition| core_partition.pop_timer());
-
-        execute_task(task_time);
-        reschedule();
-    }
-}
-
-fn execute_task(timer: TimerEntry) {
-    log!("execute_task: {}", timer.id);
-    log!("execute_task in : {}", timer.time);
-}
-
-fn reschedule() {
-    if let Some(task_time) = with_base_partition(|core_partition| core_partition.peek_timer()) {
-        unsafe {
-            ic0::global_timer_set(task_time.time.into());
-        }
-    }
-}
-
-ic_cdk::export_candid!();

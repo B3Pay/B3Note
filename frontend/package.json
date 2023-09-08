@@ -6,7 +6,7 @@
     "dfx:start": "sh dfx-start.sh",
     "deploy": "dfx deploy",
     "generate": "dfx generate",
-    "dev": "next dev",
+    "dev": "rm public/sw.js & next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

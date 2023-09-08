@@ -16,7 +16,7 @@ console.log("version", version)
 envList.NEXT_PUBLIC_IC_HOST =
   envList.DFX_NETWORK === "ic" ? "https://ic0.app" : "http://localhost:8080"
 
-console.log("network", envList.DFX_NETWORK)
+console.log("network", envList.NEXT_PUBLIC_IC_HOST)
 
 envList.NEXT_PUBLIC_VERSION = version
 

@@ -67,11 +67,6 @@
       "declarations": {
         "output": "frontend/declarations/system_api",
         "node_compatibility": true
-      },
-      "remote": {
-        "id": {
-          "ic": "wfdtj-lyaaa-aaaap-abakq-cai"
-        }
       }
     }
   },
