@@ -34,8 +34,6 @@ const Texts: React.FC<TextsProps> = ({}) => {
       color="success"
       description="Notes are encrypted with your identity"
       action={fetchNotes}
-      loading={haveNotes && !decryptionKeyIsSet}
-      loadingTitle="Fetching Decryption Key"
     >
       <Box>
         {!backendInitailized ? (

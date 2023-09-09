@@ -4,6 +4,7 @@ import Address from "components/Address"
 import NewNote from "components/NewText"
 import Section from "components/Section"
 import Texts from "components/Texts"
+import TwoFactor from "components/TwoFactor"
 import {
   useBackendIsInitialized,
   useUserIdentity,
@@ -30,6 +31,14 @@ const WithoutII: React.FC<IdentityProps> = () => {
         </Section>
       ) : (
         <>
+          <Section
+            title="Authenticator"
+            color="primary"
+            description="This is the Authenticator section"
+            noShadow
+          >
+            <TwoFactor />
+          </Section>
           <Address address={principal.toString()}>Your principal is</Address>
           <Texts />
           <NewNote />

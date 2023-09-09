@@ -10,7 +10,7 @@ import LoadingDots from "./LoadingDots"
 interface LoadingProps extends PropsWithChildren {
   dark?: boolean
   circle?: boolean
-  title?: string
+  title?: string | null
   description?: string
 }
 

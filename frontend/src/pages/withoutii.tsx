@@ -8,9 +8,12 @@ import NewNote from "components/NewText"
 import Section from "components/Section"
 import Texts from "components/Texts"
 import { decyptWithSignature } from "contexts/helpers"
-import { useBackendIsInitialized } from "contexts/hooks/useBackend"
 import { useDecryptionError } from "contexts/hooks/useError"
-import { useBackendLoading } from "contexts/hooks/useLoading"
+import {
+  useAllBackendLoading,
+  useBackendLoading,
+} from "contexts/hooks/useLoading"
+import { extractLoadingTitle } from "helper/utils"
 import { useSearchParams } from "next/navigation"
 import { useRouter } from "next/router"
 import { useEffect, useState } from "react"
@@ -18,7 +21,8 @@ import { useEffect, useState } from "react"
 interface IdentityProps {}
 
 const WithoutII: React.FC<IdentityProps> = () => {
-  const backendInitailized = useBackendIsInitialized()
+  const backendAllLoading = useAllBackendLoading()
+
   const searchParams = useSearchParams()
   const { push } = useRouter()
 
@@ -38,20 +42,22 @@ const WithoutII: React.FC<IdentityProps> = () => {
     }
   }, [searchParams])
 
-  const decryptLoading = useBackendLoading("decrypt_with_signature")
+  const decryptLoading = useBackendLoading("decrypt_with_one_time_key")
   const decryptError = useDecryptionError(id)
-  console.log(decryptError)
+
   const handleDecryptNote = async () => {
     let note = await decyptWithSignature(id, signature)
 
     setDecryptedNote(note)
   }
 
+  const loadingTitle = extractLoadingTitle(backendAllLoading)
+
   return (
     <Section
       title="Without Identity"
-      loading={!backendInitailized}
-      loadingTitle="Initializing"
+      loading={!!loadingTitle}
+      loadingTitle={loadingTitle}
     >
       <Address address={Principal.anonymous()?.toString()}>
         Your principal is

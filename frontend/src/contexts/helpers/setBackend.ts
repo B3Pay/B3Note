@@ -35,7 +35,7 @@ export const saveNoteGCM = async (note: string) => {
 }
 
 export const generateOneTimeLink = async (id: string) => {
-  return store.dispatch.backend.generate_one_time_link({ id })
+  return store.dispatch.backend.generate_one_time_key({ id })
 }
 
 export const decyptIBENote = async (id: string, encryptedNote: Uint8Array) => {
@@ -47,7 +47,7 @@ export const gcmDecrypt = async (encryptedNote: string) => {
 }
 
 export const decyptWithSignature = async (id: string, signature: string) => {
-  return store.dispatch.backend.decrypt_with_signature({ id, signature })
+  return store.dispatch.backend.decrypt_with_one_time_key({ id, signature })
 }
 
 export const requestOneTimeKey = async () => {

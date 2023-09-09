@@ -23,7 +23,13 @@ export interface BackendState {
     | ((arg1: Uint8Array, arg2: Uint8Array, arg3: Uint8Array) => boolean)
     | null
   ibeDeserialize: ((arg: Uint8Array) => IBECiphertext) | null
-  ibeEncrypt: ((msg: Uint8Array, seed: Uint8Array) => IBECiphertext) | null
+  ibeEncrypt:
+    | ((
+        drivationId: Uint8Array,
+        msg: Uint8Array,
+        seed: Uint8Array
+      ) => IBECiphertext)
+    | null
   encryptedKey: Uint8Array | number[] | null
   verificationKey: Uint8Array | number[] | null
   encrypted_decryption_key: Uint8Array | number[] | null

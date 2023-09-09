@@ -33,7 +33,7 @@ export type LoadingKey =
     }
   | { [x: string]: boolean }
 
-export function extractLoadingTitle(loadings: LoadingKey) {
+export function extractLoadingTitle(loadings: LoadingKey): string | null {
   let latestTrueKey: string | null = null
 
   for (const [key, value] of Object.entries(loadings)) {

@@ -9,7 +9,8 @@
     "dev": "source ./frontend/.env && cd frontend && yarn dev",
     "build": "cd frontend && yarn build",
     "start": "cd frontend && yarn start",
-    "lint": "cd frontend && yarn lint"
+    "lint": "cd frontend && yarn lint",
+    "pack": "cd ic-vetkd-utils && wasm-pack build --release && wasm-pack pack"
   },
   "dependencies": {
     "@react-email/button": "0.0.10",

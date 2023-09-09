@@ -1,6 +1,5 @@
 "use client"
 import {
-  Button,
   Paper,
   Table,
   TableBody,
@@ -11,19 +10,17 @@ import {
   TableRow,
   Typography,
 } from "@mui/material"
-import Address from "components/Address"
 import Section from "components/Section"
 import { fetchLogs } from "contexts/helpers"
 import { useBackendIsInitialized } from "contexts/hooks/useBackend"
 import { useBackendLoading } from "contexts/hooks/useLoading"
 import { LogEntry } from "declarations/backend/backend.did"
 import { nanoToHumanReadable } from "helper/utils"
-import Link from "next/link"
 import { useEffect, useState } from "react"
 
-interface AboutProps {}
+interface LogsProps {}
 
-const About: React.FC<AboutProps> = ({}) => {
+const Logs: React.FC<LogsProps> = ({}) => {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -48,36 +45,10 @@ const About: React.FC<AboutProps> = ({}) => {
 
   return (
     <Section
-      title="About"
+      title="Logs"
       loading={!backendInitailized}
       loadingTitle="Initializing"
     >
-      <Section title="What is this?" color="success" noShadow>
-        <Typography variant="body1" color="grey.700" component="div">
-          This is a simple demo of the Vetkd library. It demonstrates how to use
-          Vetkd to encrypt and decrypt messages.
-          <br />
-          The demo is a simple note-taking app. You can write secret notes and
-          then share them with other users. You can also view secret notes that
-          have been shared with you.
-          <br />
-          The demo app runs fully on Internet Computer blockchain. The backend
-          is written in Rust and the frontend is written in TypeScript.
-          <br />
-          The backend is deployed as a canister with this address:{" "}
-          <Address address={process.env.BACKEND_CANISTER_ID!} overflow="auto" />
-          and the frontend is deployed as a static site on this address:
-          <Address
-            address={process.env.FRONTEND_CANISTER_ID!}
-            overflow="auto"
-          />
-          The source code is available on{" "}
-          <Link href="https://github.com/B3Pay/vetkd_examples">GitHub</Link>
-        </Typography>
-        <Button href="https://github.com/B3Pay/vetkd_examples">
-          View Source Code
-        </Button>
-      </Section>
       <Section
         title="Logs"
         color="secondary"
@@ -122,8 +93,8 @@ const About: React.FC<AboutProps> = ({}) => {
             </TableBody>
           </Table>
         </TableContainer>
-        <Typography variant="body1" fontSize={10}>
-          Text: Logs are reset when the backend is upgraded.
+        <Typography variant="body1" fontSize={11}>
+          Note: Logs are reset when the backend is upgraded.
         </Typography>
         <TablePagination
           rowsPerPageOptions={[10, 25, 100]}
@@ -140,4 +111,4 @@ const About: React.FC<AboutProps> = ({}) => {
   )
 }
 
-export default About
+export default Logs

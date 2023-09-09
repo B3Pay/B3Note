@@ -296,7 +296,7 @@ fn set_one_time_key(text_id: Nonce, public_key: Vec<u8>) {
 async fn read_with_one_time_key(
     text_id: Nonce,
     signature: Vec<u8>,
-    public_key: Vec<u8>,
+    reader_public_key: Vec<u8>,
 ) -> Result<(Vec<u8>, Vec<u8>), String> {
     let caller = log_caller!("read_with_one_time_key");
 
@@ -323,7 +323,7 @@ async fn read_with_one_time_key(
                 with_encrypted_text(&text_id, |text| Ok(text.clone())).unwrap_or_else(revert);
 
             let encrypted_key = VetKD::new(caller.into())
-                .request_encrypted_key(vec![b"symmetric_key".to_vec()], public_key)
+                .request_encrypted_key(vec![b"ibe_encryption".to_vec()], reader_public_key)
                 .await
                 .unwrap_or_else(revert);
 

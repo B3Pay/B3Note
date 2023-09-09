@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 
 interface LoadingDotsProps {
-  title?: string
+  title?: string | null
 }
 
 const LoadingDots: React.FC<LoadingDotsProps> = ({ title }) => {
@@ -9,7 +9,7 @@ const LoadingDots: React.FC<LoadingDotsProps> = ({ title }) => {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setDots(dots => (dots.length < 3 ? dots + "." : "."))
+      setDots((dots) => (dots.length < 3 ? dots + "." : "."))
     }, 500)
 
     return () => clearInterval(timer)

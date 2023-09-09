@@ -9,10 +9,10 @@ import {
 } from "@mui/material/colors"
 import { createTheme } from "@mui/material/styles"
 import { ColorRanges } from "contexts/types/setting"
-import { Gluten } from "next/font/google"
+import { Catamaran } from "next/font/google"
 
-const gluten = Gluten({
-  weight: "400",
+const gluten = Catamaran({
+  weight: "600",
   subsets: ["latin"],
 })
 

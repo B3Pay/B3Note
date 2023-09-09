@@ -18,7 +18,11 @@ const ibeEffect = (dispatch: RematchDispatch<RootModel>) => ({
     const message_encoded = new TextEncoder().encode(args.note)
     const seed = window.crypto.getRandomValues(new Uint8Array(32))
 
-    return ibeEncrypt(message_encoded, seed)
+    return ibeEncrypt(
+      generateSubaccount(Principal.anonymous()),
+      message_encoded,
+      seed
+    )
   },
   edit_ibe_user_note: async (args: EditIBEUserNoteArgs) => {
     const { backendActor, userIdentity, transportSecretKey } =

@@ -23,7 +23,7 @@ const Text: React.FC<TextProps> = ({ canDecrypt, id, text }) => {
   const decryptedNote = useDecryptedNoteById(id)
   const textLoading = decryptedNote === undefined
 
-  const generatedLinkLoading = useBackendLoading("generate_one_time_link")
+  const generatedLinkLoading = useBackendLoading("generate_one_time_key")
 
   useEffect(() => {
     if (canDecrypt) decyptIBENote(id, text as Uint8Array)

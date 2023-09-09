@@ -40,10 +40,14 @@ const initEffect = (dispatch: RematchDispatch<RootModel>) => ({
         backendActor,
         verify_offline,
         ibeDeserialize: (arg) => IBECiphertext.deserialize(arg as Uint8Array),
-        ibeEncrypt: (msg, seed) =>
+        ibeEncrypt: (
+          drivationId: Uint8Array,
+          msg: Uint8Array,
+          seed: Uint8Array
+        ) =>
           IBECiphertext.encrypt(
             ibeEncryptionKey as Uint8Array,
-            generateSubaccount(userIdentity),
+            drivationId,
             msg,
             seed
           ),

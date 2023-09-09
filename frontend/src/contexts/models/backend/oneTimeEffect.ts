@@ -18,27 +18,7 @@ import {
 } from "helper/utils"
 
 const oneTimeEffect = (dispatch: RematchDispatch<RootModel>) => ({
-  verify_offline: async (args: DecryptWithSignatureArgs) => {
-    const { backendActor, verify_offline } = getBackendStates()
-
-    const { input, id } = stringToBigIntAndUint8Array(args.id)
-    const signature = hex_decode(args.signature)
-
-    const pub_key = await backendActor.get_one_time_key(BigInt(args.id))
-
-    if (signature.length !== 96) {
-      throw new Error("Error::Signature is not valid!")
-    }
-    // Verify the signature using the one time key
-    const res = verify_offline(pub_key as Uint8Array, signature, input)
-
-    if (!res) {
-      throw new Error("Error::Signature is not valid!")
-    }
-
-    return { id, signature }
-  },
-  generate_one_time_link: async (args: SetOneTimeSignatureArgs) => {
+  generate_one_time_key: async (args: SetOneTimeSignatureArgs) => {
     const { backendActor, transportSecretKey } = getBackendStates()
 
     const publicKey = transportSecretKey.public_key()
@@ -59,7 +39,7 @@ const oneTimeEffect = (dispatch: RematchDispatch<RootModel>) => ({
 
     return signature
   },
-  decrypt_with_signature: async (args: DecryptWithSignatureArgs) => {
+  decrypt_with_one_time_key: async (args: DecryptWithSignatureArgs) => {
     const {
       backendActor,
       ibeEncryptionKey,
@@ -68,10 +48,9 @@ const oneTimeEffect = (dispatch: RematchDispatch<RootModel>) => ({
     } = getBackendStates()
 
     try {
-      const { id, signature } = await dispatch.backend.verify_offline({
-        id: args.id,
-        signature: args.signature,
-      })
+      const { id, signature } = await dispatch.backend.verify_signature_offline(
+        args
+      )
 
       const result = await backendActor.read_with_one_time_key(
         id,
@@ -84,6 +63,8 @@ const oneTimeEffect = (dispatch: RematchDispatch<RootModel>) => ({
       }
 
       const [encryptedNote, ibeDecryptionKey] = result.Ok
+
+      console.log({ encryptedNote, ibeDecryptionKey })
 
       const k_bytes = transportSecretKey.decrypt(
         ibeDecryptionKey as Uint8Array,
@@ -106,15 +87,34 @@ const oneTimeEffect = (dispatch: RematchDispatch<RootModel>) => ({
       console.log(e)
     }
   },
+  verify_signature_offline: async (args: DecryptWithSignatureArgs) => {
+    const { backendActor, verify_offline } = getBackendStates()
+
+    const { input, id } = stringToBigIntAndUint8Array(args.id)
+    const signature = hex_decode(args.signature)
+
+    const pub_key = await backendActor.get_one_time_key(BigInt(args.id))
+
+    if (signature.length !== 96) {
+      throw new Error("Error::Signature is not valid!")
+    }
+    // Verify the signature using the one time key
+    const res = verify_offline(pub_key as Uint8Array, signature, input)
+
+    if (!res) {
+      throw new Error("Error::Signature is not valid!")
+    }
+
+    return { id, signature }
+  },
   request_one_time_key: async (args: RequestOneTimeKeyArgs) => {
     const { backendActor, ibeEncryptionKey, transportSecretKey } =
       getBackendStates()
 
     // try {
-    //   const ek_bytes_hex =
-    //     await backendActor.request_two_factor_authentication(
-    //       transportSecretKey.public_key()
-    //     )
+    //   const ek_bytes_hex = await backendActor.request_two_factor_authentication(
+    //     transportSecretKey.public_key()
+    //   )
     //   const verification_key = transportSecretKey.decrypt_and_hash(
     //     hex_decode(ek_bytes_hex),
     //     hex_decode(pk_bytes_hex),
@@ -127,7 +127,7 @@ const oneTimeEffect = (dispatch: RematchDispatch<RootModel>) => ({
     //   console.log(e)
     // }
   },
-  generate_one_time_key: async (args: GenerateOneTimeKeyArgs) => {
+  generate_authenticator_code: async (args: GenerateOneTimeKeyArgs) => {
     const { transportSecretKey } = getBackendStates()
 
     const generate = () => {

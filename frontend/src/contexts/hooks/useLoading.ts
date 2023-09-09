@@ -13,6 +13,10 @@ export function useLoadingByAction(action: string) {
   return useSelector((state: RootState) => state.loading[action])
 }
 
+export function useAllBackendLoading() {
+  return useSelector((state: RootState) => state.loading.effects.backend)
+}
+
 export function useBackendLoading(
   action: keyof RootState["loading"]["effects"]["backend"]
 ) {

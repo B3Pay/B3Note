@@ -16,7 +16,7 @@ interface SectionProps extends CardProps {
   noShadow?: boolean
   noMargin?: boolean
   loading?: boolean
-  loadingTitle?: string
+  loadingTitle?: string | null
   action?: () => void
   actionIcon?: React.ReactNode
   actionProps?: IconButtonProps

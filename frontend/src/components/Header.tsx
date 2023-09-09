@@ -31,14 +31,14 @@ const Header: React.FC<HeaderProps> = ({}) => {
             component="img"
             src="/logo.svg"
             sx={{
-              height: "2.3rem",
-              width: "2.3rem",
+              height: "36px",
+              width: "36px",
               filter: appLoading ? "grayscale(100%)" : "none",
             }}
             alt="Vetkd Logo"
           />
         }
-        sx={{ maxWidth: "80px", minWidth: "80px", maxHeight: "54px" }}
+        sx={{ maxWidth: "80px", minWidth: "80px", maxHeight: "60px" }}
         aria-label="Vetkd Logo"
         value="/"
       />
@@ -51,7 +51,7 @@ const Header: React.FC<HeaderProps> = ({}) => {
       />
       <Tab label="Without Identity" value="/withoutii" />
       <Tab label="With Identity" value="/withii" />
-      <Tab label="About" value="/about" />
+      <Tab label="Logs" value="/logs" />
     </Tabs>
   )
 }
