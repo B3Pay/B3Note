@@ -163,24 +163,6 @@ where
     USER_PASS.with(|user_pass| f(&mut *user_pass.borrow_mut()))
 }
 
-pub fn with_one_time_keys<F, R>(f: F) -> R
-where
-    F: FnOnce(&mut DefaultVMMap<Nonce, OneTimeKey>) -> R,
-{
-    ONE_TIME_KEYS.with(|one_time_key| f(&mut *one_time_key.borrow_mut()))
-}
-
-pub fn with_one_time_key<F, R>(text_id: &Nonce, f: F) -> Result<R, String>
-where
-    F: FnOnce(&mut OneTimeKey) -> Result<R, String>,
-{
-    with_one_time_keys(|one_time_key| {
-        f(&mut one_time_key
-            .get(text_id)
-            .ok_or("Error::One time key not found!".to_string())?)
-    })
-}
-
 pub fn with_encrypted_texts<F, R>(f: F) -> R
 where
     F: FnOnce(&mut DefaultVMMap<Nonce, EncryptedText>) -> R,
@@ -210,6 +192,24 @@ where
     })
 }
 
+pub fn with_one_time_keys<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut DefaultVMMap<Nonce, OneTimeKey>) -> R,
+{
+    ONE_TIME_KEYS.with(|one_time_key| f(&mut *one_time_key.borrow_mut()))
+}
+
+pub fn with_one_time_key<F, R>(text_id: &Nonce, f: F) -> Result<R, String>
+where
+    F: FnOnce(&mut OneTimeKey) -> Result<R, String>,
+{
+    with_one_time_keys(|one_time_key| {
+        f(&mut one_time_key
+            .get(text_id)
+            .ok_or("Error::One time key not found!".to_string())?)
+    })
+}
+
 pub fn with_one_time_key_and_try<F, R>(text_id: &Nonce, f: F) -> Result<R, String>
 where
     F: FnOnce(&mut OneTimeKey) -> Result<R, String>,
@@ -219,9 +219,9 @@ where
             .get(text_id)
             .ok_or("Error::Text not found!".to_string())?;
 
-        one_time_key.add_try();
-
         let result = f(&mut one_time_key);
+
+        one_time_key.add_try();
 
         result
     })

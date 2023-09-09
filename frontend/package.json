@@ -31,7 +31,7 @@
     "react-redux": "^8.1.2",
     "react-use-clipboard": "^1.0.9",
     "redux": "^4.2.1",
-    "vetkd-utils": "file:../ic-vetkd-utils/pkg/ic-vetkd-utils-0.1.1.tgz"
+    "vetkd-utils": "file:../ic-vetkd-utils/pkg/ic-vetkd-utils-0.1.2.tgz"
   },
   "devDependencies": {
     "@babel/preset-typescript": "^7.22",

@@ -71,7 +71,15 @@ export const compileError = (error: any) => {
   const regex = /Error::(.*?)!/
   const match = errorString.match(regex)
 
-  return match ? match[1].trim() + "!" : "Unknown error!"
+  if (match) {
+    return match[1].trim() + "!"
+  }
+
+  if (errorString.length < 100) {
+    return errorString
+  }
+
+  return "Unknown error!"
 }
 
 export function nanoToHumanReadable(nanoTimestamp: bigint) {

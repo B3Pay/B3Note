@@ -3,6 +3,7 @@ import { createModel } from "@rematch/core"
 import { RootModel } from "contexts/store"
 import type { BackendState, DisableArgs } from "contexts/types/backend"
 import gcmEffect from "./gcmEffect"
+import getterEffect from "./getterEffect"
 import ibeEffect from "./ibeEffect"
 import initEffect from "./initEffect"
 import oneTimeEffect from "./oneTimeEffect"
@@ -73,6 +74,7 @@ const backend = createModel<RootModel>()({
     ...ibeEffect(dispatch),
     ...gcmEffect(dispatch),
     ...oneTimeEffect(dispatch),
+    ...getterEffect(dispatch),
     disable: async (args: DisableArgs) => {
       dispatch.backend.UNSET()
     },

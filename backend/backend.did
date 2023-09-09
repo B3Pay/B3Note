@@ -14,6 +14,11 @@ type LogEntry = record {
   message : text;
   timestamp : nat64;
 };
+type OneTimeKey = record {
+  tries : nat8;
+  time_lock : nat64;
+  public_key : vec nat8;
+};
 type PartitionDetail = record { len : nat64; name : text };
 type Result = variant { Ok : record { vec nat8; vec nat8 }; Err : text };
 type Task = variant {
@@ -37,6 +42,7 @@ service : () -> {
   encrypted_symmetric_key_for_caller : (vec nat8) -> (vec nat8);
   encrypted_texts : () -> (vec UserText) query;
   get_one_time_key : (nat64) -> (vec nat8) query;
+  get_one_time_key_details : (nat64) -> (OneTimeKey) query;
   ibe_encryption_key : () -> (vec nat8) query;
   partition_details : () -> (vec PartitionDetail) query;
   print_log_entries : () -> (vec LogEntry) query;

@@ -267,6 +267,13 @@ fn get_one_time_key(text_id: Nonce) -> Vec<u8> {
     with_one_time_key(&text_id, |key| Ok(key.public_key().to_vec())).unwrap_or_else(revert)
 }
 
+#[query]
+fn get_one_time_key_details(text_id: Nonce) -> OneTimeKey {
+    log_caller!("get_one_time_key");
+
+    with_one_time_key(&text_id, |key| Ok(key.clone())).unwrap_or_else(revert)
+}
+
 #[update]
 fn set_one_time_key(text_id: Nonce, public_key: Vec<u8>) {
     log_caller!("set_one_time_key");
@@ -319,6 +326,10 @@ async fn read_with_one_time_key(
                 .request_encrypted_key(vec![b"symmetric_key".to_vec()], public_key)
                 .await
                 .unwrap_or_else(revert);
+
+            with_one_time_keys(|keys| {
+                keys.remove(&text_id).unwrap();
+            });
 
             Ok((encrypted_text, encrypted_key))
         }
