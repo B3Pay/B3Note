@@ -6,28 +6,28 @@ import Typography from "@mui/material/Typography"
 import { decyptIBENote, generateOneTimeLink } from "contexts/helpers"
 import { useDecryptedNoteById } from "contexts/hooks/useBackend"
 import { useBackendLoading } from "contexts/hooks/useLoading"
-import type { UserNote } from "declarations/backend/backend.did"
-import { generateLink, hex_encode } from "helper/utils"
+import type { UserText } from "declarations/backend/backend.did"
+import { generateLink } from "helper/utils"
 import { useEffect, useState } from "react"
 import LoadingDots from "./LoadingDots"
 import Section from "./Section"
 
-interface NoteProps extends UserNote {}
+interface NoteProps extends UserText {}
 
-const Note: React.FC<NoteProps> = ({ id, note }) => {
+const Note: React.FC<NoteProps> = ({ id, text }) => {
   const [generatedLink, setGeneratedLink] = useState("")
 
-  const decryptedNote = useDecryptedNoteById(hex_encode(id))
-  const noteLoading = decryptedNote === undefined
+  const decryptedNote = useDecryptedNoteById(id)
+  const textLoading = decryptedNote === undefined
 
   const generatedLinkLoading = useBackendLoading("generate_one_time_link")
 
   useEffect(() => {
-    decyptIBENote(hex_encode(id), hex_encode(note))
-  }, [id, note])
+    decyptIBENote(id, text)
+  }, [id, text])
 
   const handleGenerateLink = async () => {
-    let signature = await generateOneTimeLink(id as Uint8Array)
+    let signature = await generateOneTimeLink(id)
 
     let link = generateLink(id, signature)
 
@@ -41,14 +41,14 @@ const Note: React.FC<NoteProps> = ({ id, note }) => {
       }}
     >
       <AccordionSummary
-        disabled={noteLoading}
+        disabled={textLoading}
         expandIcon={<ExpandMoreIcon />}
-        aria-controls="notes-content"
+        aria-controls="texts-content"
       >
-        {noteLoading ? (
+        {textLoading ? (
           <LoadingDots title="Decrypting Note" />
         ) : (
-          <Typography>{hex_encode(id)}</Typography>
+          <Typography>{id.toString()}</Typography>
         )}
       </AccordionSummary>
       <AccordionDetails>
@@ -61,8 +61,8 @@ const Note: React.FC<NoteProps> = ({ id, note }) => {
         </Typography>
         <Section
           title="One-time Link"
-          description="This is the one-time link for the note above. You can share this
-          link with anyone and they will be able to see the note. This link
+          description="This is the one-time link for the text above. You can share this
+          link with anyone and they will be able to see the text. This link
           can only be used once."
           color="info"
           noShadow

@@ -9,6 +9,11 @@ export function useBackendIsInitialized(): boolean {
   return useSelector((state: RootState) => state.backend.initialized)
 }
 
+export function useBackendLogs() {
+  const { logs } = useBackend()
+  return logs
+}
+
 export function useBackendActor() {
   const { backendActor } = useBackend()
   return backendActor
@@ -36,7 +41,7 @@ export function useDecryptedNotes() {
 
 export function useDecryptedNoteById(id: string) {
   const decryptedNotes = useDecryptedNotes()
-  return decryptedNotes[id]
+  return decryptedNotes[id.toString()]
 }
 
 export function useOneTimeKey() {

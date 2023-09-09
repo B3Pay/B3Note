@@ -1,10 +1,11 @@
 use b3_utils::{
     memory::types::{BoundedStorable, Storable},
-    NanoTimeStamp,
+    vec_to_hex_string, NanoTimeStamp,
 };
 use candid::CandidType;
 use ciborium::de::from_reader;
 use ciborium::ser::into_writer;
+use core::fmt;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 
@@ -52,8 +53,8 @@ impl Storable for EncryptedHashedPassword {
 
 #[derive(candid::CandidType, Clone, Deserialize)]
 pub struct UserText {
-    pub id: u64,
-    pub text: EncryptedText,
+    pub id: String,
+    pub text: String,
 }
 
 #[derive(Clone)]
@@ -92,6 +93,12 @@ impl Storable for OneTimePassword {
 
 #[derive(candid::CandidType, Clone, Deserialize)]
 pub struct EncryptedText(pub Vec<u8>);
+
+impl fmt::Display for EncryptedText {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", vec_to_hex_string(&self.0))
+    }
+}
 
 impl BoundedStorable for EncryptedText {
     const IS_FIXED_SIZE: bool = false;
@@ -142,19 +149,19 @@ impl AnonymousUserData {
         }
     }
 
-    pub fn add_text_id(&mut self, new_texts: u64) -> Result<(), &'static str> {
-        if self.texts.len() > 5 {
-            return Err("Maximum of 5 u64s are allowed");
+    pub fn add_text_id(&mut self, text_id: u64) -> Result<(), &'static str> {
+        if self.texts.len() >= 5 {
+            return Err("Maximum of 5 text are allowed");
         }
 
-        self.texts.push(new_texts);
+        self.texts.push(text_id);
 
         Ok(())
     }
 
     pub fn remove_text_id(&mut self, text_id: &u64) -> Result<(), &'static str> {
         if self.texts.len() < 1 {
-            return Err("No u64s to remove");
+            return Err("No text to remove");
         }
 
         self.texts.retain(|id| id != text_id);
@@ -166,8 +173,12 @@ impl AnonymousUserData {
         self.texts.iter()
     }
 
-    pub fn get_decryption_key(&self) -> Vec<u8> {
-        self.decryption_key.clone()
+    pub fn get_decryption_key(&self) -> Result<Vec<u8>, String> {
+        if self.decryption_key.len() != 192 {
+            return Err("Decryption key is not Valid!".to_string());
+        }
+
+        Ok(self.decryption_key.clone())
     }
 }
 

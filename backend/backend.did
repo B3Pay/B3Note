@@ -27,7 +27,7 @@ type UserData = record {
   signature : opt AuthenticatedSignature;
   public_key : vec nat8;
 };
-type UserText = record { id : nat64; "text" : vec nat8 };
+type UserText = record { id : text; "text" : text };
 service : () -> {
   edit_encrypted_text : (nat64, vec nat8, opt vec nat8) -> ();
   encrypted_ibe_decryption_key_for_caller : (vec nat8) -> (vec nat8);
@@ -37,7 +37,7 @@ service : () -> {
   get_anonymous_users : () -> (
       vec record { vec nat8; AnonymousUserData },
     ) query;
-  get_encrypted_texts : () -> (vec record { nat64; vec nat8 }) query;
+  get_encrypted_texts : () -> (vec UserText) query;
   get_partition_details : () -> (vec PartitionDetail) query;
   get_timers : () -> (vec TaskTimerEntry) query;
   get_user_data : () -> (UserData) query;

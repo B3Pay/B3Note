@@ -4,7 +4,6 @@ import {
   useBackendIsInitialized,
   useBackendNotes,
 } from "contexts/hooks/useBackend"
-import { hex_encode } from "helper/utils"
 import { useEffect } from "react"
 import LoadingDots from "./LoadingDots"
 import Note from "./Note"
@@ -39,7 +38,7 @@ const Notes: React.FC<NotesProps> = ({}) => {
             No notes found
           </SimpleCard>
         ) : (
-          notes.map((note) => <Note key={hex_encode(note.id)} {...note} />)
+          notes.map((note) => <Note key={note.id.toString()} {...note} />)
         )}
       </Box>
     </Section>

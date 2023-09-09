@@ -1,13 +1,17 @@
 use b3_utils::{
     hex_string_to_vec, log,
     logs::{export_log, export_log_messages_page, LogEntry},
-    memory::{timer::TaskTimerEntry, types::PartitionDetail},
-    nonce::Nonce,
+    memory::{
+        base::{with_base_partition, with_base_partition_mut},
+        timer::TaskTimerEntry,
+        types::PartitionDetail,
+    },
     revert,
     vetkd::{verify_pairing, VetKD, VetKDManagement},
     NanoTimeStamp,
 };
 use candid::Principal;
+use ciborium::into_writer;
 use ic_cdk::{init, post_upgrade, pre_upgrade, query, update};
 
 mod types;
@@ -36,15 +40,23 @@ pub fn pre_upgrade() {
     let ibe_key = get_ibe_encrypted_key().to_vec();
     let sym_key = get_symmetric_encrypted_key().to_vec();
 
-    ic_cdk::storage::stable_save((nonce, ibe_key, sym_key)).unwrap();
+    let mut states_bytes = vec![];
+
+    into_writer(&(nonce, ibe_key, sym_key), &mut states_bytes).unwrap();
+
+    with_base_partition_mut(|core_partition| core_partition.set_backup(states_bytes));
 }
 
 #[post_upgrade]
 pub fn post_upgrade() {
     log!("post_upgrade");
 
-    let (nonce, ibe_key, sym_key): (Nonce, Vec<u8>, Vec<u8>) =
-        ic_cdk::storage::stable_restore().unwrap();
+    let states_bytes = with_base_partition(|core_partition| core_partition.get_backup());
+
+    log!("states_bytes: {}", states_bytes.len());
+
+    let (nonce, ibe_key, sym_key) =
+        ciborium::de::from_reader(&*states_bytes).expect("failed to decode state");
 
     set_nonce(nonce);
     set_ibe_encryption_key(ibe_key);
@@ -77,8 +89,8 @@ fn user_notes(public_key: Option<Vec<u8>>) -> Vec<UserText> {
                                 let text = texts.get(text_id).unwrap();
 
                                 UserText {
-                                    id: text_id.clone(),
-                                    text: text.clone(),
+                                    id: text_id.to_string(),
+                                    text: text.to_string(),
                                 }
                             })
                         })
@@ -86,7 +98,7 @@ fn user_notes(public_key: Option<Vec<u8>>) -> Vec<UserText> {
 
                     Ok(texts)
                 })
-                .unwrap_or_else(revert)
+                .unwrap_or(vec![])
             }
             None => return revert("public key is required for anonymous user"),
         }
@@ -99,8 +111,8 @@ fn user_notes(public_key: Option<Vec<u8>>) -> Vec<UserText> {
                         let text = texts.get(text_id).unwrap();
 
                         UserText {
-                            id: text_id.clone(),
-                            text: text.clone(),
+                            id: text_id.to_string(),
+                            text: text.to_string(),
                         }
                     })
                 })
@@ -147,8 +159,8 @@ fn get_anonymous_user_notes(public_key: Vec<u8>) -> Vec<UserText> {
                     let text = texts.get(text_id).unwrap();
 
                     UserText {
-                        id: text_id.clone(),
-                        text: text.clone(),
+                        id: text_id.to_string(),
+                        text: text.to_string(),
                     }
                 })
             })
@@ -160,13 +172,16 @@ fn get_anonymous_user_notes(public_key: Vec<u8>) -> Vec<UserText> {
 }
 
 #[query]
-fn get_encrypted_texts() -> Vec<(u64, Vec<u8>)> {
+fn get_encrypted_texts() -> Vec<UserText> {
     log_caller!("get_encrypted_texts");
 
     with_encrypted_texts(|texts| {
         texts
             .iter()
-            .map(|(id, text)| (id.clone(), text.0.clone()))
+            .map(|(id, text)| UserText {
+                id: id.to_string(),
+                text: text.to_string(),
+            })
             .collect()
     })
 }
@@ -191,12 +206,11 @@ async fn save_encrypted_text(encrypted_text: Vec<u8>, public_key: Option<Vec<u8>
         // this is safe because we checked for None above
         let public_key = vec_to_fixed_array(&public_key.unwrap()).unwrap_or_else(revert);
 
-        with_anonymous_user(&public_key, |user| {
+        with_anonymous_user_or_add(&public_key, |user| {
             user.add_text_id(text_id.clone()).unwrap_or_else(revert);
 
-            Ok(text_id)
+            text_id
         })
-        .unwrap_or_else(revert)
     } else {
         with_user(&caller.into(), |user| {
             user.add_text_id(text_id.clone()).unwrap_or_else(revert);
@@ -313,7 +327,8 @@ async fn encrypted_ibe_decryption_key_for_caller(encryption_public_key: Vec<u8>)
     let public_key = vec_to_fixed_array(&encryption_public_key).unwrap_or_else(revert);
 
     // check for cached key
-    if let Ok(key) = with_anonymous_user(&public_key, |data| Ok(data.get_decryption_key())) {
+    if let Ok(key) = with_anonymous_user_decryption_key(&public_key) {
+        log!("cached key found");
         return key;
     }
 
@@ -340,7 +355,7 @@ async fn encrypted_symmetric_key_for_caller(encryption_public_key: Vec<u8>) -> V
     let public_key = vec_to_fixed_array(&encryption_public_key).unwrap_or_else(revert);
 
     // check for cached key
-    if let Ok(key) = with_anonymous_user(&public_key, |data| Ok(data.get_decryption_key())) {
+    if let Ok(key) = with_anonymous_user_decryption_key(&public_key) {
         return key;
     }
 

@@ -45,10 +45,10 @@ export function toReadableString(str: string | null) {
     .join(" ")
 }
 
-export function generateLink(id: Uint8Array | number[], signature: Uint8Array) {
-  return `${window.location.origin}/withoutii?id=${hex_encode(
-    id
-  )}&signature=${hex_encode(signature)}`
+export function generateLink(id: string, signature: Uint8Array) {
+  return `${
+    window.location.origin
+  }/withoutii?id=${id.toString()}&signature=${hex_encode(signature)}`
 }
 
 export const compileError = (error: any) => {

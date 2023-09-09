@@ -11,6 +11,14 @@ export const fetchNotes = async () => {
   store.dispatch.backend.fetch_user_notes({})
 }
 
+export const fetchLogs = async (page?: number, pageSize?: number) => {
+  if (!page) {
+    store.dispatch.backend.fetch_logs()
+  } else {
+    store.dispatch.backend.fetch_log_page({ page, pageSize })
+  }
+}
+
 export const saveNoteIBE = async (note: string) => {
   store.dispatch.backend.save_ibe_user_note({ note })
 }
@@ -19,7 +27,7 @@ export const saveNoteGCM = async (note: string) => {
   store.dispatch.backend.save_gcm_user_note({ note })
 }
 
-export const generateOneTimeLink = async (id: bigint) => {
+export const generateOneTimeLink = async (id: string) => {
   return store.dispatch.backend.generate_one_time_link({ id })
 }
 

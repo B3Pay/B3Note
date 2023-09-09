@@ -24,6 +24,8 @@ export function LocalStorageLoader() {
 
       initBackend()
     })
+
+    // load the public key from local storage
   }, [])
 
   return null

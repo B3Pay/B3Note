@@ -29,15 +29,17 @@ const state: BackendState = {
   canisterId: null,
   oneTimeKey: null,
   transportSecretKey: null,
-  ibeDeserializer: null,
-  ibeEncryptor: null,
+  ibeDeserialize: null,
+  ibeEncrypt: null,
   rawKey: null,
   notes: [],
   encryptedKey: null,
   verificationKey: null,
   decryptedNotes: {},
-  ibe_encryption_key: null,
+  ibeEncryptionKey: null,
   initialized: false,
+  loggedIn: false,
+  logs: [],
   errors: {
     globalError: null,
     decryptionError: {},
@@ -53,6 +55,11 @@ const backend = createModel<RootModel>()({
       ...newState,
       initialized: true,
     }),
+    LOGIN: (currentState, newState: Partial<BackendState>) => ({
+      ...currentState,
+      ...newState,
+      loggedIn: true,
+    }),
     UNSET: () => ({ ...state, backend: null, initialized: false }),
     SET_NOTES: (currentState, notes) => ({ ...currentState, notes }),
     SET_SECRET_KEY: (currentState, transportSecretKey) => ({
@@ -66,6 +73,7 @@ const backend = createModel<RootModel>()({
         ...error,
       },
     }),
+    SET_LOGS: (currentState, logs) => ({ ...currentState, logs }),
     SET_KEYS: (currentState, rawKey) => ({ ...currentState, rawKey }),
     ADD_DECRYPTED_NOTE: (currentState, decryptedNote) => ({
       ...currentState,
@@ -76,65 +84,93 @@ const backend = createModel<RootModel>()({
     initialize: async (args: InitializeArgs, rootState) => {
       if (rootState.backend.initialized) return
 
-      const userIdentity =
-        args.identity?.getPrincipal() || Principal.anonymous()
+      try {
+        let { TransportSecretKey, IBECiphertext } = await import("vetkd-utils")
 
-      const { backendActor, canisterId } = await createBackendActor(
-        args.identity
-      )
+        let seed: Uint8Array
+        if (localStorage.getItem("random-seed") !== null) {
+          seed = hex_decode(localStorage.getItem("random-seed")!)
+        } else {
+          seed = window.crypto.getRandomValues(new Uint8Array(32))
+          localStorage.setItem("random-seed", hex_encode(seed))
+        }
+
+        const transportSecretKey = new TransportSecretKey(seed)
+        console.log({ public_key: hex_encode(transportSecretKey.public_key()) })
+
+        const userIdentity =
+          args.identity?.getPrincipal() || Principal.anonymous()
+
+        const { backendActor, canisterId } = await createBackendActor(
+          args.identity
+        )
+
+        const verificationKey =
+          await backendActor.symmetric_key_verification_key()
+
+        const ibeEncryptionKey = await backendActor.ibe_encryption_key()
+
+        dispatch.backend.INIT({
+          userIdentity,
+          canisterId,
+          verificationKey,
+          ibeEncryptionKey,
+          transportSecretKey,
+          backendActor,
+          ibeDeserialize: (arg) => IBECiphertext.deserialize(arg as Uint8Array),
+          ibeEncrypt: (...args) => IBECiphertext.encrypt(...args),
+        })
+      } catch (e) {
+        console.log(e)
+        dispatch.backend.SET_ERROR({
+          globalError: e,
+        })
+      }
+    },
+    login: async () => {
+      const {
+        backendActor,
+        verificationKey,
+        canisterId,
+        transportSecretKey,
+        userIdentity,
+      } = getBackendStates()
 
       try {
-        await import("vetkd-utils").then(
-          async ({ TransportSecretKey, IBECiphertext }) => {
-            const seed = window.crypto.getRandomValues(new Uint8Array(32))
-            const transportSecretKey = new TransportSecretKey(seed)
+        console.log({
+          publicKey: hex_encode(transportSecretKey.public_key()),
+        })
 
-            console.log({
-              publicKey: hex_encode(transportSecretKey.public_key()),
-            })
+        const encryptedKey =
+          await backendActor.encrypted_symmetric_key_for_caller(
+            transportSecretKey.public_key()
+          )
 
-            const encryptedKey =
-              await backendActor.encrypted_symmetric_key_for_caller(
-                transportSecretKey.public_key()
-              )
-
-            const verificationKey =
-              await backendActor.symmetric_key_verification_key()
-
-            const ibe_encryption_key = await backendActor.ibe_encryption_key()
-
-            const rawKey = transportSecretKey.decrypt_and_hash(
-              encryptedKey as Uint8Array,
-              verificationKey as Uint8Array,
-              generateSubaccount(userIdentity),
-              32,
-              new TextEncoder().encode("aes-256-gcm")
-            )
-            console.log({
-              userIdentity,
-              canisterId,
-              backendActor,
-              transportSecretKey,
-              rawKey,
-              encryptedKey,
-              ibe_encryption_key,
-              verificationKey,
-            })
-            dispatch.backend.INIT({
-              userIdentity,
-              canisterId,
-              backendActor,
-              transportSecretKey,
-              ibeDeserializer: (arg) =>
-                IBECiphertext.deserialize(arg as Uint8Array),
-              ibeEncryptor: (...args) => IBECiphertext.encrypt(...args),
-              rawKey,
-              encryptedKey,
-              ibe_encryption_key,
-              verificationKey,
-            })
-          }
+        const rawKey = transportSecretKey.decrypt_and_hash(
+          encryptedKey as Uint8Array,
+          verificationKey as Uint8Array,
+          generateSubaccount(userIdentity),
+          32,
+          new TextEncoder().encode("aes-256-gcm")
         )
+        console.log({
+          userIdentity,
+          canisterId,
+          backendActor,
+          transportSecretKey,
+          rawKey,
+          encryptedKey,
+          verificationKey,
+        })
+        dispatch.backend.LOGIN({
+          userIdentity,
+          canisterId,
+          backendActor,
+          transportSecretKey,
+          rawKey,
+          encryptedKey,
+          verificationKey,
+        })
       } catch (e) {
         console.log(e)
 
@@ -159,15 +195,15 @@ const backend = createModel<RootModel>()({
         backendActor,
         userIdentity,
         transportSecretKey,
-        ibe_encryption_key,
-        ibeEncryptor,
+        ibeEncryptionKey,
+        ibeEncrypt,
       } = getBackendStates()
 
       const message_encoded = new TextEncoder().encode(args.note)
       const seed = window.crypto.getRandomValues(new Uint8Array(32))
 
-      const ibe_ciphertext = ibeEncryptor(
-        ibe_encryption_key as Uint8Array,
+      const ibe_ciphertext = ibeEncrypt(
+        ibeEncryptionKey as Uint8Array,
         Principal.anonymous().toUint8Array(),
         message_encoded,
         seed
@@ -234,52 +270,56 @@ const backend = createModel<RootModel>()({
       console.log({ decrypted })
     },
     decrypt_ibe_user_note: async (args: DecryptIBENoteArgs) => {
-      const {
-        backendActor,
-        ibe_encryption_key: public_key,
-        transportSecretKey,
-      } = getBackendStates()
+      const { backendActor, ibeEncryptionKey, transportSecretKey } =
+        getBackendStates()
 
-      console.log({ public_key: hex_encode(transportSecretKey.public_key()) })
+      console.log({ public_key: transportSecretKey.public_key() })
 
       const ek_bytes =
         await backendActor.encrypted_ibe_decryption_key_for_caller(
           transportSecretKey.public_key()
         )
+      console.log({ ek_bytes: hex_encode(ek_bytes) })
 
       const k_bytes = transportSecretKey.decrypt(
         ek_bytes as Uint8Array,
-        public_key as Uint8Array,
+        ibeEncryptionKey as Uint8Array,
         Principal.anonymous().toUint8Array()
       )
+
+      console.log({ k_bytes: hex_encode(k_bytes) })
 
       let note = await dispatch.backend.decrypt_ibe({
         encryptedNote: args.encryptedNote,
         k_bytes,
       })
 
-      dispatch.backend.ADD_DECRYPTED_NOTE({ [args.id]: note })
+      console.log({ note })
+
+      dispatch.backend.ADD_DECRYPTED_NOTE({ [args.id.toString()]: note })
     },
     generate_one_time_link: async (args: SetOneTimeSignatureArgs) => {
       const { backendActor, transportSecretKey } = getBackendStates()
 
       const publicKey = transportSecretKey.public_key()
 
-      const input = new Uint8Array(bigintToBuf(args.id))
+      const id = BigInt(args.id)
+
+      const input = new Uint8Array(bigintToBuf(id))
       // Sign the id using the TransportSecretKey
       const signature = transportSecretKey.sign(input)
 
-      console.log({ signature: hex_encode(signature), id: args.id })
+      console.log({ signature: hex_encode(signature), id })
 
-      await backendActor.set_one_time_key(args.id, publicKey)
+      await backendActor.set_one_time_key(id, publicKey)
 
       return signature
     },
     decrypt_with_signature: async (args: DecryptWithSignatureArgs) => {
       const {
         backendActor,
-        ibe_encryption_key,
-        ibeDeserializer,
+        ibeEncryptionKey,
+        ibeDeserialize,
         transportSecretKey,
       } = getBackendStates()
 
@@ -296,11 +336,11 @@ const backend = createModel<RootModel>()({
 
         const k_bytes = transportSecretKey.decrypt(
           ibeDecryptionKey as Uint8Array,
-          ibe_encryption_key as Uint8Array,
+          ibeEncryptionKey as Uint8Array,
           Principal.anonymous().toUint8Array()
         )
 
-        const ibe_ciphertext = ibeDeserializer(encryptedNote as Uint8Array)
+        const ibe_ciphertext = ibeDeserialize(encryptedNote as Uint8Array)
         const ibe_plaintext = ibe_ciphertext.decrypt(k_bytes)
 
         let decrypted = new TextDecoder().decode(ibe_plaintext)
@@ -316,11 +356,8 @@ const backend = createModel<RootModel>()({
       }
     },
     request_one_time_key: async (args: RequestOneTimeKeyArgs) => {
-      const {
-        backendActor,
-        ibe_encryption_key: pk_bytes_hex,
-        transportSecretKey,
-      } = getBackendStates()
+      const { backendActor, ibeEncryptionKey, transportSecretKey } =
+        getBackendStates()
 
       // try {
       //   const ek_bytes_hex =
@@ -358,14 +395,31 @@ const backend = createModel<RootModel>()({
       generate()
     },
     decrypt_ibe: async (args: DecryptIBEArgs) => {
-      const { ibeDeserializer } = getBackendStates()
+      const { ibeDeserialize } = getBackendStates()
 
-      const ibe_ciphertext = ibeDeserializer(hex_decode(args.encryptedNote))
+      const ibe_ciphertext = ibeDeserialize(hex_decode(args.encryptedNote))
       const ibe_plaintext = ibe_ciphertext.decrypt(args.k_bytes)
 
       let decrypted = new TextDecoder().decode(ibe_plaintext)
 
       return decrypted
+    },
+    fetch_logs: async () => {
+      const { backendActor } = getBackendStates()
+
+      const logs = await backendActor.print_log_entries()
+
+      dispatch.backend.SET_LOGS(logs)
+    },
+    fetch_log_page: async (args: { page: number; pageSize?: number }) => {
+      const { backendActor } = getBackendStates()
+
+      const logs = await backendActor.print_log_entries_page(
+        BigInt(args.page),
+        args.pageSize ? [BigInt(args.pageSize)] : []
+      )
+
+      dispatch.backend.SET_LOGS(logs)
     },
     disable: async (args: DisableArgs) => {
       dispatch.backend.UNSET()

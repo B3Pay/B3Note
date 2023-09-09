@@ -77,6 +77,29 @@ where
     })
 }
 
+pub fn with_anonymous_user_decryption_key(public_key: &PublicKey) -> Result<Vec<u8>, String> {
+    with_anonymous_user(public_key, |anonymous_user| {
+        anonymous_user.get_decryption_key()
+    })
+}
+
+pub fn with_anonymous_user_or_add<F, R>(public_key: &PublicKey, f: F) -> R
+where
+    F: FnOnce(&mut AnonymousUserData) -> R,
+{
+    with_anonymous_users(|anonymous_users| {
+        let mut anonymous_user = anonymous_users
+            .get(public_key)
+            .unwrap_or_else(|| AnonymousUserData::default());
+
+        let result = f(&mut anonymous_user);
+
+        anonymous_users.insert(*public_key, anonymous_user);
+
+        result
+    })
+}
+
 pub fn with_task_timer<F, R>(f: F) -> R
 where
     F: FnOnce(&mut TaskTimerPartition<Task>) -> R,
