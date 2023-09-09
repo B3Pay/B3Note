@@ -6,9 +6,9 @@ import { useState } from "react"
 import LoadingDots from "./LoadingDots"
 import Section from "./Section"
 
-interface NewNoteProps {}
+interface NewTextProps {}
 
-const NewNote: React.FC<NewNoteProps> = ({}) => {
+const NewText: React.FC<NewTextProps> = ({}) => {
   const [encryptInput, setEncryptInput] = useState("")
 
   const savingLoading = useBackendLoading("save_ibe_user_note")
@@ -19,7 +19,7 @@ const NewNote: React.FC<NewNoteProps> = ({}) => {
 
   return (
     <Section
-      title="New Note"
+      title="New Text"
       color="primary"
       description="Write a new note"
       noShadow
@@ -43,4 +43,4 @@ const NewNote: React.FC<NewNoteProps> = ({}) => {
   )
 }
 
-export default NewNote
+export default NewText

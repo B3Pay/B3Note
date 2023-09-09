@@ -19,20 +19,16 @@ export interface BackendState {
   }
   ibeEncryptionKey: Uint8Array | number[] | null
   transportSecretKey: TransportSecretKey | null
-  ibeDeserialize: ((arg: Uint8Array) => IBECiphertext) | null
-  ibeEncrypt:
-    | ((
-        derived_public_key_bytes: Uint8Array,
-        derivation_id: Uint8Array,
-        msg: Uint8Array,
-        seed: Uint8Array
-      ) => IBECiphertext)
+  verify_offline:
+    | ((arg1: Uint8Array, arg2: Uint8Array, arg3: Uint8Array) => boolean)
     | null
+  ibeDeserialize: ((arg: Uint8Array) => IBECiphertext) | null
+  ibeEncrypt: ((msg: Uint8Array, seed: Uint8Array) => IBECiphertext) | null
   encryptedKey: Uint8Array | number[] | null
   verificationKey: Uint8Array | number[] | null
+  encrypted_decryption_key: Uint8Array | number[] | null
   rawKey: Uint8Array | number[] | null
   oneTimeKey: Uint8Array | number[] | null
-  logs: string[]
   errors: {
     globalError: Error | null
     decryptionError: DecryptError
@@ -50,7 +46,16 @@ export interface InitializeArgs {
 
 export interface FetchUserNotesArgs {}
 
+export interface EncryptIBEUserNoteArgs {
+  note: string
+}
+
 export interface SaveIBEUserNoteArgs {
+  note: string
+}
+
+export interface EditIBEUserNoteArgs {
+  id: bigint
   note: string
 }
 
@@ -64,7 +69,7 @@ export interface DecryptGCMNoteArgs {
 
 export interface DecryptIBENoteArgs {
   id: string
-  encryptedNote: string
+  encryptedNote: Uint8Array
 }
 
 export interface SetOneTimeSignatureArgs {
@@ -81,7 +86,7 @@ export interface RequestOneTimeKeyArgs {}
 export interface GenerateOneTimeKeyArgs {}
 
 export interface DecryptIBEArgs {
-  encryptedNote: string
+  encryptedNote: Uint8Array | number[]
   k_bytes: Uint8Array
 }
 

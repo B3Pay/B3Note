@@ -1,19 +1,19 @@
 use b3_utils::{
     memory::types::{BoundedStorable, Storable},
-    vec_to_hex_string, NanoTimeStamp,
+    nonce::Nonce,
+    NanoTimeStamp,
 };
 use candid::CandidType;
 use ciborium::de::from_reader;
 use ciborium::ser::into_writer;
-use core::fmt;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
+
+const ONE_TIME_KEY_EXPIRATION: u64 = 60 * 60 * 24 * 1; // 1 days
 
 pub type PublicKey = [u8; 48];
 
 pub type EncryptionKey = [u8; 96];
-
-pub type DecryptionKey = [u8; 192];
 
 #[derive(CandidType, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub struct UserName(String);
@@ -54,55 +54,25 @@ impl Storable for EncryptedHashedPassword {
 #[derive(candid::CandidType, Clone, Deserialize)]
 pub struct UserText {
     pub id: String,
-    pub text: String,
-}
-
-#[derive(Clone)]
-pub struct OneTimePassword {
-    pub time_lock: u64,
-    pub public_key: Vec<u8>,
-}
-
-impl BoundedStorable for OneTimePassword {
-    const IS_FIXED_SIZE: bool = false;
-    const MAX_SIZE: u32 = 40;
-}
-
-impl Storable for OneTimePassword {
-    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        let bytes = bytes.into_owned();
-
-        let time_lock = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
-        let public_key = bytes[8..].try_into().unwrap();
-
-        Self {
-            time_lock,
-            public_key,
-        }
-    }
-
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        let mut bytes = vec![];
-
-        bytes.extend_from_slice(&self.time_lock.to_be_bytes());
-        bytes.extend_from_slice(&self.public_key);
-
-        bytes.into()
-    }
+    pub text: Vec<u8>,
 }
 
 #[derive(candid::CandidType, Clone, Deserialize)]
-pub struct EncryptedText(pub Vec<u8>);
+pub struct EncryptedText(Vec<u8>);
 
-impl fmt::Display for EncryptedText {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", vec_to_hex_string(&self.0))
+impl EncryptedText {
+    pub fn new(text: Vec<u8>) -> Self {
+        Self(text)
+    }
+
+    pub fn clone(&self) -> Vec<u8> {
+        self.0.clone()
     }
 }
 
 impl BoundedStorable for EncryptedText {
     const IS_FIXED_SIZE: bool = false;
-    const MAX_SIZE: u32 = 1000;
+    const MAX_SIZE: u32 = 1128;
 }
 
 impl Storable for EncryptedText {
@@ -115,24 +85,69 @@ impl Storable for EncryptedText {
     }
 }
 
-#[derive(Serialize, Clone, CandidType, Deserialize)]
-pub struct AuthenticatedSignature {
-    pub signature: Vec<u8>,
-    pub created_at: NanoTimeStamp,
+#[derive(Default, Serialize, Clone, CandidType, Deserialize)]
+pub struct OneTimeKey {
+    time_lock: NanoTimeStamp,
+    public_key: Vec<u8>,
+    tries: u8,
 }
 
-impl AuthenticatedSignature {
-    pub fn new(signature: Vec<u8>) -> Self {
+impl OneTimeKey {
+    pub fn new(public_key: PublicKey) -> Self {
+        let public_key = public_key.to_vec();
+
         Self {
-            signature,
-            created_at: NanoTimeStamp::now(),
+            time_lock: NanoTimeStamp::now().add_secs(ONE_TIME_KEY_EXPIRATION),
+            public_key,
+            tries: 0,
         }
+    }
+
+    pub fn reset_time_lock(&mut self) {
+        self.time_lock = NanoTimeStamp::now().add_secs(ONE_TIME_KEY_EXPIRATION);
+    }
+
+    pub fn out_of_tries(&self) -> bool {
+        self.tries >= 3
+    }
+
+    pub fn add_try(&mut self) {
+        self.tries += 1;
+    }
+
+    pub fn tries(&self) -> u8 {
+        self.tries
+    }
+
+    pub fn is_expired(&self) -> bool {
+        self.time_lock.has_passed()
+    }
+
+    pub fn public_key(&self) -> &[u8] {
+        &self.public_key
+    }
+}
+
+impl BoundedStorable for OneTimeKey {
+    const IS_FIXED_SIZE: bool = false;
+    const MAX_SIZE: u32 = 200;
+}
+
+impl Storable for OneTimeKey {
+    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
+        let mut bytes = vec![];
+        into_writer(&self, &mut bytes).unwrap();
+        std::borrow::Cow::Owned(bytes)
+    }
+
+    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
+        from_reader(&mut Cursor::new(&bytes)).unwrap()
     }
 }
 
 #[derive(Default, Serialize, Clone, CandidType, Deserialize)]
 pub struct AnonymousUserData {
-    texts: Vec<u64>,
+    texts: Vec<Nonce>,
     decryption_key: Vec<u8>,
 }
 
@@ -142,14 +157,15 @@ impl BoundedStorable for AnonymousUserData {
 }
 
 impl AnonymousUserData {
-    pub fn new(decryption_key: Vec<u8>, text_id: Option<u64>) -> Self {
-        Self {
-            texts: text_id.into_iter().collect(),
-            decryption_key,
-        }
+    pub fn set_decryption_key(&mut self, key: Vec<u8>) {
+        self.decryption_key = key;
     }
 
-    pub fn add_text_id(&mut self, text_id: u64) -> Result<(), &'static str> {
+    pub fn has_text_id(&self, text_id: &Nonce) -> bool {
+        self.texts.contains(text_id)
+    }
+
+    pub fn add_text_id(&mut self, text_id: Nonce) -> Result<(), &'static str> {
         if self.texts.len() >= 5 {
             return Err("Maximum of 5 text are allowed");
         }
@@ -159,7 +175,7 @@ impl AnonymousUserData {
         Ok(())
     }
 
-    pub fn remove_text_id(&mut self, text_id: &u64) -> Result<(), &'static str> {
+    pub fn remove_text_id(&mut self, text_id: &Nonce) -> Result<(), &'static str> {
         if self.texts.len() < 1 {
             return Err("No text to remove");
         }
@@ -169,7 +185,7 @@ impl AnonymousUserData {
         Ok(())
     }
 
-    pub fn iter_texts(&self) -> impl Iterator<Item = &u64> {
+    pub fn iter_texts(&self) -> impl Iterator<Item = &Nonce> {
         self.texts.iter()
     }
 
@@ -194,9 +210,15 @@ impl Storable for AnonymousUserData {
     }
 }
 
+#[derive(Serialize, Clone, CandidType, Deserialize)]
+pub struct AuthenticatedSignature {
+    pub signature: Vec<u8>,
+    pub created_at: NanoTimeStamp,
+}
+
 #[derive(Default, Serialize, Clone, CandidType, Deserialize)]
 pub struct UserData {
-    texts: Vec<u64>,
+    texts: Vec<Nonce>,
     public_key: Vec<u8>,
     signature: Option<AuthenticatedSignature>,
 }
@@ -207,7 +229,7 @@ impl BoundedStorable for UserData {
 }
 
 impl UserData {
-    pub fn new(public_key: Vec<u8>, text_id: Option<u64>) -> Self {
+    pub fn new(public_key: Vec<u8>, text_id: Option<Nonce>) -> Self {
         Self {
             texts: text_id.into_iter().collect(),
             public_key,
@@ -215,19 +237,19 @@ impl UserData {
         }
     }
 
-    pub fn add_text_id(&mut self, new_texts: u64) -> Result<(), &'static str> {
+    pub fn add_text_id(&mut self, text_id: Nonce) -> Result<(), &'static str> {
         if self.texts.len() > 10 {
-            return Err("Maximum of 10 u64s are allowed");
+            return Err("Maximum of 10 text are allowed");
         }
 
-        self.texts.push(new_texts);
+        self.texts.push(text_id);
 
         Ok(())
     }
 
-    pub fn remove_text_id(&mut self, text_id: &u64) -> Result<(), &'static str> {
+    pub fn remove_text_id(&mut self, text_id: &Nonce) -> Result<(), &'static str> {
         if self.texts.len() < 1 {
-            return Err("No u64s to remove");
+            return Err("No text to remove");
         }
 
         self.texts.retain(|id| id != text_id);
@@ -235,15 +257,7 @@ impl UserData {
         Ok(())
     }
 
-    pub fn public_key(&self) -> &Vec<u8> {
-        &self.public_key
-    }
-
-    pub fn texts(&self) -> &Vec<u64> {
-        &self.texts
-    }
-
-    pub fn iter_texts(&self) -> impl Iterator<Item = &u64> {
+    pub fn iter_texts(&self) -> impl Iterator<Item = &Nonce> {
         self.texts.iter()
     }
 }
@@ -263,7 +277,6 @@ impl Storable for UserData {
 #[derive(CandidType, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Task {
     Initialize,
-    Reinialize,
     SendEmail {
         email: String,
         subject: String,

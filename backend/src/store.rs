@@ -1,5 +1,9 @@
 use b3_utils::{
-    memory::{timer::TaskTimerPartition, types::DefaultVMMap, with_stable_memory_mut},
+    memory::{
+        timer::TaskTimerPartition,
+        types::{DefaultVMCell, DefaultVMMap},
+        with_stable_memory_mut,
+    },
     nonce::Nonce,
     Subaccount,
 };
@@ -8,7 +12,7 @@ use std::cell::RefCell;
 use crate::{types::*, utils::vec_to_fixed_array};
 
 thread_local! {
-    pub static NONCE: RefCell<Nonce> = RefCell::new(Nonce::zero());
+    pub static TEXT_COUNTER: RefCell<DefaultVMCell<Nonce>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_cell("stable_counter", 100).unwrap()));
 
     pub static IBE_ENCRYPTION_KEYS: RefCell<EncryptionKey> = RefCell::new([0; 96]);
     pub static SYMMETRIC_ENCRYPTION_KEYS: RefCell<EncryptionKey> = RefCell::new([0; 96]);
@@ -19,20 +23,32 @@ thread_local! {
     pub static ANONYMOUS_USERS: RefCell<DefaultVMMap<PublicKey, AnonymousUserData>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("anonymous_users", 11).unwrap()));
 
     pub static USER_PASS: RefCell<DefaultVMMap<UserName, EncryptedHashedPassword>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("password", 12).unwrap()));
-    pub static ONE_TIME_KEYS: RefCell<DefaultVMMap<u64, OneTimePassword>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("one_time_key", 13).unwrap()));
-    pub static ENCRYPTED_TEXTS: RefCell<DefaultVMMap<u64, EncryptedText>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("text", 14).unwrap()));
+
+    pub static ONE_TIME_KEYS: RefCell<DefaultVMMap<Nonce, OneTimeKey>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("one_time_key", 13).unwrap()));
+    pub static ENCRYPTED_TEXTS: RefCell<DefaultVMMap<Nonce, EncryptedText>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("text", 14).unwrap()));
+
 }
 
-pub fn increment_nonce() -> u64 {
-    NONCE.with(|nonce| nonce.borrow_mut().next().0)
+pub fn increment_nonce() -> Result<Nonce, String> {
+    TEXT_COUNTER.with(|nonce| {
+        let mut nonce = nonce.borrow_mut();
+
+        let current = nonce.get().add(1);
+
+        let next = nonce.set(current).map_err(|_| {
+            "Error::Nonce counter overflowed. This should never happen, please contact the developers!"
+        })?;
+
+        Ok(next)
+    })
 }
 
 pub fn get_nonce() -> Nonce {
-    NONCE.with(|nonce| nonce.borrow().current())
-}
+    TEXT_COUNTER.with(|nonce| {
+        let nonce = nonce.borrow();
 
-pub fn set_nonce(nonce: Nonce) {
-    NONCE.with(|nonce_| *nonce_.borrow_mut() = nonce);
+        nonce.get().current()
+    })
 }
 
 pub fn set_ibe_encryption_key(key: Vec<u8>) {
@@ -73,7 +89,7 @@ where
     with_anonymous_users(|anonymous_users| {
         f(&mut anonymous_users
             .get(public_key)
-            .ok_or("Public key not found".to_string())?)
+            .ok_or("Error::Public key not found!".to_string())?)
     })
 }
 
@@ -94,7 +110,7 @@ where
 
         let result = f(&mut anonymous_user);
 
-        anonymous_users.insert(*public_key, anonymous_user);
+        anonymous_users.insert(public_key.clone(), anonymous_user);
 
         result
     })
@@ -114,6 +130,32 @@ where
     USERS.with(|users| f(&mut *users.borrow_mut()))
 }
 
+pub fn with_user<F, R>(user: &Subaccount, f: F) -> Result<R, String>
+where
+    F: FnOnce(&mut UserData) -> Result<R, String>,
+{
+    with_users(|users| {
+        f(&mut users
+            .get(user)
+            .ok_or("Error::User not found!".to_string())?)
+    })
+}
+
+pub fn with_user_or_add<F, R>(user: &Subaccount, f: F) -> R
+where
+    F: FnOnce(&mut UserData) -> R,
+{
+    with_users(|users| {
+        let mut user_data = users.get(user).unwrap_or_else(|| UserData::default());
+
+        let result = f(&mut user_data);
+
+        users.insert(user.clone(), user_data);
+
+        result
+    })
+}
+
 pub fn with_user_pass<F, R>(f: F) -> R
 where
     F: FnOnce(&mut DefaultVMMap<UserName, EncryptedHashedPassword>) -> R,
@@ -123,23 +165,27 @@ where
 
 pub fn with_one_time_keys<F, R>(f: F) -> R
 where
-    F: FnOnce(&mut DefaultVMMap<u64, OneTimePassword>) -> R,
+    F: FnOnce(&mut DefaultVMMap<Nonce, OneTimeKey>) -> R,
 {
     ONE_TIME_KEYS.with(|one_time_key| f(&mut *one_time_key.borrow_mut()))
 }
 
-pub fn with_encrypted_texts<F, R>(f: F) -> R
+pub fn with_one_time_key<F, R>(text_id: &Nonce, f: F) -> Result<R, String>
 where
-    F: FnOnce(&mut DefaultVMMap<u64, EncryptedText>) -> R,
+    F: FnOnce(&mut OneTimeKey) -> Result<R, String>,
 {
-    ENCRYPTED_TEXTS.with(|encrypted_texts| f(&mut *encrypted_texts.borrow_mut()))
+    with_one_time_keys(|one_time_key| {
+        f(&mut one_time_key
+            .get(text_id)
+            .ok_or("Error::One time key not found!".to_string())?)
+    })
 }
 
-pub fn with_user<F, R>(user: &Subaccount, f: F) -> Result<R, String>
+pub fn with_encrypted_texts<F, R>(f: F) -> R
 where
-    F: FnOnce(&mut UserData) -> Result<R, String>,
+    F: FnOnce(&mut DefaultVMMap<Nonce, EncryptedText>) -> R,
 {
-    with_users(|users| f(&mut users.get(user).ok_or("User not found".to_string())?))
+    ENCRYPTED_TEXTS.with(|encrypted_texts| f(&mut *encrypted_texts.borrow_mut()))
 }
 
 pub fn with_user_pass_by_name<F, R>(user_name: &UserName, f: F) -> Result<R, String>
@@ -149,28 +195,34 @@ where
     with_user_pass(|user_pass| {
         f(&mut user_pass
             .get(user_name)
-            .ok_or("User not found".to_string())?)
+            .ok_or("Error::User not found!".to_string())?)
     })
 }
 
-pub fn with_encrypted_text<F, R>(text_id: &u64, f: F) -> Result<R, String>
+pub fn with_encrypted_text<F, R>(text_id: &Nonce, f: F) -> Result<R, String>
 where
     F: FnOnce(&mut EncryptedText) -> Result<R, String>,
 {
     with_encrypted_texts(|encrypted_texts| {
         f(&mut encrypted_texts
             .get(text_id)
-            .ok_or("Text not found".to_string())?)
+            .ok_or("Error::Text not found!".to_string())?)
     })
 }
 
-pub fn with_one_time_key_and_remove<F, R>(text_id: &u64, f: F) -> Result<R, String>
+pub fn with_one_time_key_and_try<F, R>(text_id: &Nonce, f: F) -> Result<R, String>
 where
-    F: FnOnce(&mut OneTimePassword) -> Result<R, String>,
+    F: FnOnce(&mut OneTimeKey) -> Result<R, String>,
 {
     with_one_time_keys(|one_time_key| {
-        f(&mut one_time_key
-            .remove(text_id)
-            .ok_or("One time key not found".to_string())?)
+        let mut one_time_key = one_time_key
+            .get(text_id)
+            .ok_or("Error::Text not found!".to_string())?;
+
+        one_time_key.add_try();
+
+        let result = f(&mut one_time_key);
+
+        result
     })
 }

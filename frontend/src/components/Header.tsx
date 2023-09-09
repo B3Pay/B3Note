@@ -15,19 +15,16 @@ const Header: React.FC<HeaderProps> = ({}) => {
       value={pathname}
       onChange={(_, newValue) => push(newValue)}
       variant="fullWidth"
-      indicatorColor="secondary"
+      TabIndicatorProps={{
+        style: {
+          display: "none",
+        },
+      }}
       textColor="secondary"
       sx={{
         boxShadow: 2,
       }}
     >
-      <Tab
-        value="/404"
-        sx={{
-          position: "absolute",
-          left: "-100vw",
-        }}
-      />
       <Tab
         icon={
           <Box
@@ -44,6 +41,13 @@ const Header: React.FC<HeaderProps> = ({}) => {
         sx={{ maxWidth: "80px", minWidth: "80px", maxHeight: "54px" }}
         aria-label="Vetkd Logo"
         value="/"
+      />
+      <Tab
+        value="/404"
+        sx={{
+          position: "absolute",
+          left: "-1000vh",
+        }}
       />
       <Tab label="Without Identity" value="/withoutii" />
       <Tab label="With Identity" value="/withii" />

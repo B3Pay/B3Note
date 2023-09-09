@@ -9,7 +9,7 @@
 
 use ic_bls12_381::{
     hash_to_curve::{ExpandMsgXmd, HashToCurve},
-    G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar,
+    pairing, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar,
 };
 use pairing::group::Curve;
 use rand::SeedableRng;
@@ -128,6 +128,22 @@ impl TransportSecretKey {
 
         Ok(hash)
     }
+}
+#[cfg_attr(feature = "js", wasm_bindgen)]
+/// Verifies a signature on a message with the transport public key
+pub fn verify_offline(public_key: &[u8], signature: &[u8], input: &[u8]) -> Result<bool, String> {
+    // Deserialize the public key from G2 and signature from G1
+    let public_key = deserialize_g1(public_key)?;
+    let signature = deserialize_g2(signature)?;
+
+    // Hash the input to a point on G2 using the public key in G1
+    let hashed_input = augmented_hash_to_g2(&G1Affine::generator(), input);
+    // Pairings
+    let pairing_check_1 = pairing(&G1Affine::generator(), &signature);
+    let pairing_check_2 = pairing(&public_key, &hashed_input);
+
+    // Verify if the pairings are equal
+    Ok(pairing_check_1 == pairing_check_2)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

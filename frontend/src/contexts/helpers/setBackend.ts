@@ -7,16 +7,23 @@ export const initBackend = (identity?: Identity) => {
 
 export const unsetBackend = () => store.dispatch.backend.UNSET()
 
+export const fetchDecryptionKey = async () => {
+  store.dispatch.backend.fetch_decryption_key()
+}
+
 export const fetchNotes = async () => {
   store.dispatch.backend.fetch_user_notes({})
 }
 
-export const fetchLogs = async (page?: number, pageSize?: number) => {
-  if (!page) {
-    store.dispatch.backend.fetch_logs()
-  } else {
-    store.dispatch.backend.fetch_log_page({ page, pageSize })
-  }
+export const fetchLogs = async () => {
+  return store.dispatch.backend.fetch_logs()
+}
+
+export const editNoteIBE = async (id: bigint, note: string) => {
+  store.dispatch.backend.edit_ibe_user_note({
+    id,
+    note,
+  })
 }
 
 export const saveNoteIBE = async (note: string) => {
@@ -31,7 +38,7 @@ export const generateOneTimeLink = async (id: string) => {
   return store.dispatch.backend.generate_one_time_link({ id })
 }
 
-export const decyptIBENote = async (id: string, encryptedNote: string) => {
+export const decyptIBENote = async (id: string, encryptedNote: Uint8Array) => {
   store.dispatch.backend.decrypt_ibe_user_note({ id, encryptedNote })
 }
 

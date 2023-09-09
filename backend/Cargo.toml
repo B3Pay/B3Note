@@ -12,4 +12,4 @@ ic-cdk = "0.10.0"
 ciborium = "0.2"
 ic0 = "0.18"
 serde = { version = "1.0", features = ["derive"] }
-b3_utils = { version = "0.3.7", features = ["logging", "stable_memory", "vetkd"] }
+b3_utils = { commit = "e36f2f53265345bfe3d115d812ad344ce2a39b78", git = "https://github.com/B3Pay/b3_utils", features = ["logging", "stable_memory", "vetkd"] }

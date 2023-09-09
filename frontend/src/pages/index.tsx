@@ -1,3 +1,4 @@
+"use client"
 import Section from "components/Section"
 import TwoFactor from "components/TwoFactor"
 

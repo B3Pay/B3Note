@@ -1,23 +1,17 @@
-use std::mem;
-
 use candid::Principal;
 
-pub fn vec_to_fixed_array<T>(vec: &Vec<u8>) -> Result<T, String> {
-    let required_size = mem::size_of::<T>();
-    if vec.len() != required_size {
-        return Err(format!(
-            "Length of vector is not {}, its {}",
-            required_size,
-            vec.len()
-        ));
-    }
+use crate::{
+    store::with_anonymous_user,
+    types::{AnonymousUserData, PublicKey},
+};
 
-    let mut uninit: mem::MaybeUninit<T> = mem::MaybeUninit::uninit();
-    unsafe {
-        let p = uninit.as_mut_ptr() as *mut u8;
-        std::ptr::copy_nonoverlapping(vec.as_ptr(), p, required_size);
-        Ok(uninit.assume_init())
+pub fn vec_to_fixed_array<const N: usize>(slice: &[u8]) -> Result<[u8; N], String> {
+    if slice.len() != N {
+        return Err(format!("Expected length {}, found {}", N, slice.len()));
     }
+    let mut array = [0u8; N];
+    array.copy_from_slice(slice);
+    Ok(array)
 }
 
 pub fn caller_is_not_anonymous() -> Result<(), String> {
@@ -27,4 +21,8 @@ pub fn caller_is_not_anonymous() -> Result<(), String> {
     }
 
     Ok(())
+}
+
+pub fn get_anonymous_user(public_key: &PublicKey) -> Result<AnonymousUserData, String> {
+    with_anonymous_user(public_key, |anonymous_user| Ok(anonymous_user.clone()))
 }

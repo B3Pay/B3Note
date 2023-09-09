@@ -1,83 +1,141 @@
+"use client"
 import {
+  Button,
   Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   Typography,
 } from "@mui/material"
+import Address from "components/Address"
 import Section from "components/Section"
-import {
-  useBackendIsInitialized,
-  useBackendLogs,
-} from "contexts/hooks/useBackend"
+import { fetchLogs } from "contexts/helpers"
+import { useBackendIsInitialized } from "contexts/hooks/useBackend"
+import { useBackendLoading } from "contexts/hooks/useLoading"
+import { LogEntry } from "declarations/backend/backend.did"
+import { nanoToHumanReadable } from "helper/utils"
 import Link from "next/link"
+import { useEffect, useState } from "react"
 
 interface AboutProps {}
 
 const About: React.FC<AboutProps> = ({}) => {
-  const logs = useBackendLogs()
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
+
+  const fetchingLogsLoading = useBackendLoading("fetch_logs")
+
+  const handleChangePage = (_: unknown, newPage: number) => {
+    setPage(newPage)
+  }
+
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setRowsPerPage(+event.target.value)
+    setPage(0)
+  }
   const backendInitailized = useBackendIsInitialized()
 
-  // useEffect(() => {
-  //   fetchLogs()
-  // }, [])
+  useEffect(() => {
+    if (backendInitailized) fetchLogs().then(setLogs)
+  }, [backendInitailized])
 
   return (
     <Section
       title="About"
-      color="success"
       loading={!backendInitailized}
       loadingTitle="Initializing"
     >
-      <Typography variant="body1">
-        This is a simple demo of the Vetkd library. It uses the{" "}
-        <Link href="https://sdk.dfinity.org/docs/interface-spec/index.html">
-          Internet Identity
-        </Link>{" "}
-        to authenticate users, and then uses Vetkd to encrypt and decrypt
-        messages.
-      </Typography>
-      <Typography variant="body1">
-        The demo is a simple note-taking app. You can create About, and then
-        share them with other users. You can also view About that have been
-        shared with you.
-      </Typography>
-      <Typography variant="body1">
-        The demo is built with Rust and TypeScript. The source code is available
-        on <Link href="https://github.com/B3Pay/vetkd_examples">GitHub</Link>.
-      </Typography>
-      <TableContainer component={Paper}>
-        <Table sx={{ minWidth: 650 }} aria-label="simple table">
-          <TableHead>
-            <TableRow>
-              <TableCell>Dessert (100g serving)</TableCell>
-              <TableCell align="right">Calories</TableCell>
-              <TableCell align="right">Fat&nbsp;(g)</TableCell>
-              <TableCell align="right">Carbs&nbsp;(g)</TableCell>
-              <TableCell align="right">Protein&nbsp;(g)</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {logs.map((row, index) => (
-              <TableRow
-                key={index}
-                sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-              >
-                <TableCell component="th" scope="row">
-                  {row}
-                </TableCell>
-                {/* <TableCell align="right">{row.calories}</TableCell>
-          <TableCell align="right">{row.fat}</TableCell>
-          <TableCell align="right">{row.carbs}</TableCell>
-          <TableCell align="right">{row.protein}</TableCell> */}
+      <Section title="What is this?" color="success" noShadow>
+        <Typography variant="body1" color="grey.700" component="div">
+          This is a simple demo of the Vetkd library. It demonstrates how to use
+          Vetkd to encrypt and decrypt messages.
+          <br />
+          The demo is a simple note-taking app. You can write secret notes and
+          then share them with other users. You can also view secret notes that
+          have been shared with you.
+          <br />
+          The demo app runs fully on Internet Computer blockchain. The backend
+          is written in Rust and the frontend is written in TypeScript.
+          <br />
+          The backend is deployed as a canister with this address:{" "}
+          <Address address={process.env.BACKEND_CANISTER_ID!} overflow="auto" />
+          and the frontend is deployed as a static site on this address:
+          <Address
+            address={process.env.FRONTEND_CANISTER_ID!}
+            overflow="auto"
+          />
+          The source code is available on{" "}
+          <Link href="https://github.com/B3Pay/vetkd_examples">GitHub</Link>
+        </Typography>
+        <Button href="https://github.com/B3Pay/vetkd_examples">
+          View Source Code
+        </Button>
+      </Section>
+      <Section
+        title="Logs"
+        color="secondary"
+        description="The following logs are generated by the backend."
+        action={() => fetchLogs().then(setLogs)}
+        actionProps={{ disabled: fetchingLogsLoading }}
+        noShadow
+        noMargin
+      >
+        <TableContainer
+          component={Paper}
+          variant="outlined"
+          sx={{
+            "& > *": {
+              fontFamily: "apple-system !important",
+            },
+          }}
+        >
+          <Table size="small" aria-label="simple table">
+            <TableHead>
+              <TableRow>
+                <TableCell>Time</TableCell>
+                <TableCell>Event</TableCell>
+                <TableCell align="right">Version</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {logs
+                ?.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map(({ message, timestamp, version }, index) => (
+                  <TableRow
+                    key={index}
+                    sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
+                  >
+                    <TableCell component="th" scope="row">
+                      {nanoToHumanReadable(timestamp)}
+                    </TableCell>
+                    <TableCell>{message}</TableCell>
+                    <TableCell align="right">{version}</TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <Typography variant="body1" fontSize={10}>
+          Text: Logs are reset when the backend is upgraded.
+        </Typography>
+        <TablePagination
+          rowsPerPageOptions={[10, 25, 100]}
+          labelRowsPerPage="RPP"
+          component="div"
+          count={logs?.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
+      </Section>
     </Section>
   )
 }

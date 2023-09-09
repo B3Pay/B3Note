@@ -136,7 +136,7 @@ async fn with_rng<T>(fn_with_rng: impl FnOnce(&mut ChaCha20Rng) -> T) -> T {
         let rng = ChaCha20Rng::from_seed(raw_rand_32_bytes);
         RNG.with(|option_rng| {
             // Initialize the RNG only if it wasn't initialized before.
-            // Note that this is necessary because the RNG state is accessed
+            // Text that this is necessary because the RNG state is accessed
             // both before (read) and after (write) the async inter-canister
             // call to raw_rand, which leads to the code being executed in
             // different messages. See

@@ -6,7 +6,7 @@
     "dfx:start": "sh dfx-start.sh",
     "deploy": "dfx deploy",
     "generate": "dfx generate",
-    "dev": "cd frontend && yarn dev",
+    "dev": "source ./frontend/.env && cd frontend && yarn dev",
     "build": "cd frontend && yarn build",
     "start": "cd frontend && yarn start",
     "lint": "cd frontend && yarn lint"

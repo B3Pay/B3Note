@@ -15,6 +15,15 @@ import SimpleCard from "./SimpleCard"
 
 interface AddressWithCopyProps extends BoxProps {
   address: string
+  iconColor?:
+    | "inherit"
+    | "default"
+    | "primary"
+    | "secondary"
+    | "error"
+    | "info"
+    | "success"
+    | "warning"
   noIcon?: boolean
   hiddenAddress?: boolean
 }
@@ -24,6 +33,7 @@ const Address: React.FC<AddressWithCopyProps> = ({
   noIcon,
   overflow,
   children,
+  iconColor,
   hiddenAddress,
   ...rest
 }) => {
@@ -75,7 +85,10 @@ const Address: React.FC<AddressWithCopyProps> = ({
               onClick={onCopy}
               aria-label="Copy address"
               size="small"
-              color="inherit"
+              color={iconColor ?? "inherit"}
+              sx={{
+                border: iconColor ? "none" : undefined,
+              }}
             >
               {hasCopied ? (
                 <CheckOutlined fontSize="inherit" />

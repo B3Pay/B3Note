@@ -6184,9 +6184,9 @@ vary@~1.1.2:
   resolved "https://registry.yarnpkg.com/vary/-/vary-1.1.2.tgz#2299f02c6ded30d4a5961b0b9f74524a18f634fc"
   integrity sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==
 
-"vetkd-utils@file:ic-vetkd-utils/pkg/ic-vetkd-utils-0.1.1.tgz":
+"vetkd-utils@file:../ic-vetkd-utils/pkg/ic-vetkd-utils-0.1.1.tgz":
   version "0.1.1"
-  resolved "file:ic-vetkd-utils/pkg/ic-vetkd-utils-0.1.1.tgz#886eeee7cba7b3740920ae1cd957e47819ed6be4"
+  resolved "file:../ic-vetkd-utils/pkg/ic-vetkd-utils-0.1.1.tgz#1e4775a866734e1703cf94bb22d67ca88bca7cca"
 
 watchpack@2.4.0, watchpack@^2.4.0:
   version "2.4.0"

@@ -1,16 +1,5 @@
 {
   "canisters": {
-    "old_backend": {
-      "candid": "old_backend/old_backend.did",
-      "package": "old_backend",
-      "type": "custom",
-      "wasm": "target/wasm32-unknown-unknown/release/old_backend-opt.wasm",
-      "build": "sh build.sh old_backend old_backend",
-      "declarations": {
-        "output": "frontend/declarations/old_backend",
-        "node_compatibility": true
-      }
-    },
     "backend": {
       "candid": "backend/backend.did",
       "package": "backend",
@@ -21,17 +10,6 @@
         "output": "frontend/declarations/backend",
         "node_compatibility": true
       }
-    },
-    "mail-sender": {
-      "declarations": {
-        "output": "mail-sender/declarations/mail-sender",
-        "node_compatibility": true
-      },
-      "mail-sender": {
-        "entrypoint": "mail-sender/src/pages/index.tsx"
-      },
-      "source": ["mail-sender/out"],
-      "type": "assets"
     },
     "frontend": {
       "dependencies": ["backend", "system_api"],

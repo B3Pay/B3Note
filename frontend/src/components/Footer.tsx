@@ -48,7 +48,7 @@ const Footer: React.FC<FooterProps> = ({}) => {
               alignItems: "center",
               textAlign: "center",
               display: "flex",
-              height: "100%",
+              height: "calc(100% - 4px)",
               px: 1,
             }}
           >
@@ -69,7 +69,7 @@ const Footer: React.FC<FooterProps> = ({}) => {
           </Card>
         </Link>
       </Grid>
-      <Grid item xs minHeight="50px">
+      <Grid item xs minHeight="30px">
         <Card
           sx={{
             display: "flex",

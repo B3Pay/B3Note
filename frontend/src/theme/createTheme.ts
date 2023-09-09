@@ -11,7 +11,7 @@ import { createTheme } from "@mui/material/styles"
 import { ColorRanges } from "contexts/types/setting"
 import { Gluten } from "next/font/google"
 
-const inter = Gluten({
+const gluten = Gluten({
   weight: "400",
   subsets: ["latin"],
 })
@@ -21,7 +21,10 @@ export default function createMuiTheme(
   palette: ColorRanges
 ) {
   return createTheme({
-    typography: { ...inter.style, fontSize: 12 },
+    typography: {
+      ...gluten.style,
+      fontSize: 12,
+    },
     palette: {
       primary: {
         main: blue[300],
@@ -83,15 +86,17 @@ export default function createMuiTheme(
             borderStartStartRadius: "16px",
           },
           flexContainer: {
-            boxShadow: `inset 0px -3px 2px ${
-              mode === "dark" ? grey[900] : grey[200]
+            borderBottom: "2px solid",
+            borderColor: mode === "dark" ? grey[100] : grey[700],
+            boxShadow: `inset 0px -3px 5px ${
+              mode === "dark" ? grey[900] : grey[300]
             }`,
             backgroundColor: mode === "dark" ? grey[700] : grey[100],
             "& > button": {
               borderRight: "1px solid",
               borderColor: mode === "dark" ? grey[900] : grey[200],
             },
-            "& > button:last-of-type": {
+            "& > button:last-of-type not(.Mui-selected)": {
               border: "none",
             },
           },
@@ -100,11 +105,30 @@ export default function createMuiTheme(
       MuiTab: {
         styleOverrides: {
           root: {
+            overflow: "visible",
             "&.Mui-selected": {
               fontWeight: "bold",
               backgroundColor: mode === "dark" ? grey[800] : "#fff",
               boxShadow: "0px 2px 2px rgba(0, 0, 0, 0.25)",
-              borderRight: "none",
+              border: "2px solid",
+              borderBottom: "none",
+              borderColor: mode === "dark" ? grey[100] : grey[700],
+              // add before element and give him a 2 px height
+              "&::before": {
+                content: '""',
+                position: "absolute",
+                bottom: "-2px",
+                left: "0",
+                width: "100%",
+                height: "2px",
+                backgroundColor: "white",
+              },
+            },
+            "&:first-of-type": {
+              borderStartStartRadius: "16px",
+            },
+            "&:last-of-type": {
+              borderStartEndRadius: "16px",
             },
           },
         },
@@ -423,6 +447,96 @@ export default function createMuiTheme(
               backgroundColor: mode === "dark" ? grey[700] : grey[300],
               borderRadius: "4px",
             },
+          },
+        },
+      },
+      MuiAlert: {
+        variants: [
+          {
+            props: { severity: "success" },
+            style: {
+              backgroundColor: green[50],
+              color: green[300],
+              "& .MuiAlert-icon": {
+                color: green[300],
+              },
+            },
+          },
+          {
+            props: { severity: "info" },
+            style: {
+              backgroundColor: purple[50],
+              color: purple[300],
+              "& .MuiAlert-icon": {
+                color: purple[300],
+              },
+            },
+          },
+          {
+            props: { severity: "warning" },
+            style: {
+              backgroundColor: yellow[50],
+              color: yellow[300],
+              "& .MuiAlert-icon": {
+                color: yellow[300],
+              },
+            },
+          },
+          {
+            props: { severity: "error" },
+            style: {
+              backgroundColor: red[50],
+              color: red[300],
+              "& .MuiAlert-icon": {
+                color: red[300],
+              },
+            },
+          },
+        ],
+        styleOverrides: {
+          root: {
+            borderRadius: "4px",
+            border: "2px solid",
+            borderColor: mode === "dark" ? grey[100] : grey[700],
+            "& .MuiAlert-message": {
+              fontWeight: "bold",
+              padding: "10px 0 0 0",
+            },
+          },
+        },
+      },
+      MuiPaper: {
+        variants: [
+          {
+            props: { color: "primary", variant: "outlined" },
+            style: {
+              backgroundColor: mode === "dark" ? blue[900] : blue[50],
+            },
+          },
+          {
+            props: { color: "secondary", variant: "outlined" },
+            style: {
+              backgroundColor: mode === "dark" ? pink[900] : pink[50],
+            },
+          },
+          {
+            props: { color: "info", variant: "outlined" },
+            style: {
+              backgroundColor: mode === "dark" ? purple[900] : purple[50],
+            },
+          },
+          {
+            props: { color: "success", variant: "outlined" },
+            style: {
+              backgroundColor: mode === "dark" ? green[900] : green[50],
+            },
+          },
+        ],
+        styleOverrides: {
+          root: {
+            borderRadius: "4px",
+            border: "2px solid",
+            borderColor: mode === "dark" ? grey[100] : grey[700],
           },
         },
       },

@@ -1,5 +1,5 @@
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import { AccordionDetails, Button, TextField } from "@mui/material"
+import { AccordionDetails, Button } from "@mui/material"
 import Accordion from "@mui/material/Accordion"
 import AccordionSummary from "@mui/material/AccordionSummary"
 import Typography from "@mui/material/Typography"
@@ -9,12 +9,15 @@ import { useBackendLoading } from "contexts/hooks/useLoading"
 import type { UserText } from "declarations/backend/backend.did"
 import { generateLink } from "helper/utils"
 import { useEffect, useState } from "react"
+import Address from "./Address"
 import LoadingDots from "./LoadingDots"
 import Section from "./Section"
 
-interface NoteProps extends UserText {}
+interface TextProps extends UserText {
+  canDecrypt: boolean
+}
 
-const Note: React.FC<NoteProps> = ({ id, text }) => {
+const Text: React.FC<TextProps> = ({ canDecrypt, id, text }) => {
   const [generatedLink, setGeneratedLink] = useState("")
 
   const decryptedNote = useDecryptedNoteById(id)
@@ -23,16 +26,17 @@ const Note: React.FC<NoteProps> = ({ id, text }) => {
   const generatedLinkLoading = useBackendLoading("generate_one_time_link")
 
   useEffect(() => {
-    decyptIBENote(id, text)
-  }, [id, text])
+    if (canDecrypt) decyptIBENote(id, text as Uint8Array)
+  }, [canDecrypt, id, text])
 
   const handleGenerateLink = async () => {
     let signature = await generateOneTimeLink(id)
-
+    console.log(signature)
     let link = generateLink(id, signature)
 
     setGeneratedLink(link)
   }
+
   return (
     <Accordion
       color="primary"
@@ -46,7 +50,7 @@ const Note: React.FC<NoteProps> = ({ id, text }) => {
         aria-controls="texts-content"
       >
         {textLoading ? (
-          <LoadingDots title="Decrypting Note" />
+          <LoadingDots title="Decrypting Text" />
         ) : (
           <Typography>{id.toString()}</Typography>
         )}
@@ -68,17 +72,7 @@ const Note: React.FC<NoteProps> = ({ id, text }) => {
           noShadow
         >
           {(generatedLink || generatedLinkLoading) && (
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              type="text"
-              label="Link"
-              value={generatedLink}
-              InputProps={{
-                readOnly: true,
-              }}
-            />
+            <Address address={generatedLink} iconColor="info" />
           )}
           <Button onClick={handleGenerateLink} variant="contained">
             Generate Link
@@ -89,4 +83,4 @@ const Note: React.FC<NoteProps> = ({ id, text }) => {
   )
 }
 
-export default Note
+export default Text

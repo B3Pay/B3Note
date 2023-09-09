@@ -9,9 +9,10 @@ export function useBackendIsInitialized(): boolean {
   return useSelector((state: RootState) => state.backend.initialized)
 }
 
-export function useBackendLogs() {
-  const { logs } = useBackend()
-  return logs
+export function useDecryptionKeyIsSet(): boolean {
+  return useSelector(
+    (state: RootState) => state.backend.encrypted_decryption_key !== null
+  )
 }
 
 export function useBackendActor() {
