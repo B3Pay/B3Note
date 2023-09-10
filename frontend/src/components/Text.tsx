@@ -31,7 +31,6 @@ const Text: React.FC<TextProps> = ({ canDecrypt, id, text }) => {
 
   const handleGenerateLink = async () => {
     let signature = await generateOneTimeLink(id)
-    console.log(signature)
     let link = generateLink(id, signature)
 
     setGeneratedLink(link)

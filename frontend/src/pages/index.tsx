@@ -30,7 +30,6 @@ const Home: React.FC<HomeProps> = ({}) => {
       >
         Create Anonymous Note
       </Button>
-
       <Section title="How does it work?" color="info" noShadow>
         <Typography variant="body1" color="grey.700" component="div">
           B3Note uses a combination of the Internet Identity and Internet

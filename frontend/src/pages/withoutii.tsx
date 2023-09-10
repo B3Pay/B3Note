@@ -88,18 +88,13 @@ const WithoutII: React.FC<IdentityProps> = () => {
               description="You can now see the decrypted text."
               noShadow
             >
-              <TextField
-                fullWidth
-                multiline
-                color="secondary"
-                rows={4}
-                type="text"
-                label="Text"
-                value={decryptedNote}
-                InputProps={{
-                  readOnly: true,
-                }}
-              />
+              <Typography
+                variant="body1"
+                paddingBottom={1}
+                sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+              >
+                {decryptedNote}
+              </Typography>
             </Section>
             <Typography variant="body1" color="text.secondary">
               Note: The text is only visible once. The link is not valid
