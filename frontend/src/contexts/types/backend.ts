@@ -1,4 +1,4 @@
-import type { Identity } from "@dfinity/agent"
+import { AuthClient } from "@dfinity/auth-client"
 import type { Principal } from "@dfinity/principal"
 import type { UserText } from "declarations/backend/backend.did"
 import { NonNullableProperties } from "helper/utils"
@@ -13,7 +13,10 @@ export interface BackendState {
   backendActor: Backend | null
   canisterId: Principal | null
   userIdentity: Principal
+  authClient: AuthClient | null
   notes: UserText[]
+  randomSeed: Uint8Array | null
+  createdAt: bigint | null
   decryptedNotes: {
     [x: string]: string
   }
@@ -35,6 +38,10 @@ export interface BackendState {
   encrypted_decryption_key: Uint8Array | number[] | null
   rawKey: Uint8Array | number[] | null
   oneTimeKey: Uint8Array | number[] | null
+  authCode: {
+    code: string
+    signature: string
+  }
   errors: {
     globalError: Error | null
     decryptionError: DecryptError
@@ -47,7 +54,7 @@ export type BackendStateAfterInitialization =
   NonNullableProperties<BackendState>
 
 export interface InitializeArgs {
-  identity?: Identity
+  randomSeed?: string
 }
 
 export interface FetchUserNotesArgs {}

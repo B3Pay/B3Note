@@ -1,8 +1,15 @@
-import { Identity } from "@dfinity/agent"
 import store from "../store"
 
-export const initBackend = (identity?: Identity) => {
-  store.dispatch.backend.initialize({ identity })
+export const initBackend = (randomSeed?: string) => {
+  store.dispatch.backend.initialize({ randomSeed })
+}
+
+export const loginWithII = () => {
+  store.dispatch.backend.login()
+}
+
+export const logout = () => {
+  store.dispatch.backend.logout()
 }
 
 export const unsetBackend = () => store.dispatch.backend.UNSET()
@@ -19,15 +26,19 @@ export const fetchLogs = async () => {
   return store.dispatch.backend.fetch_logs()
 }
 
+export const fetchTimers = async () => {
+  return store.dispatch.backend.fetch_timers()
+}
+
 export const editNoteIBE = async (id: bigint, note: string) => {
-  store.dispatch.backend.edit_ibe_user_note({
+  store.dispatch.backend.edit_IBE_user_note({
     id,
     note,
   })
 }
 
 export const saveNoteIBE = async (note: string) => {
-  store.dispatch.backend.save_ibe_user_note({ note })
+  store.dispatch.backend.save_IBE_user_note({ note })
 }
 
 export const saveNoteGCM = async (note: string) => {
@@ -39,7 +50,7 @@ export const generateOneTimeLink = async (id: string) => {
 }
 
 export const decyptIBENote = async (id: string, encryptedNote: Uint8Array) => {
-  store.dispatch.backend.decrypt_ibe_user_note({ id, encryptedNote })
+  store.dispatch.backend.decrypt_IBE_user_note({ id, encryptedNote })
 }
 
 export const gcmDecrypt = async (encryptedNote: string) => {

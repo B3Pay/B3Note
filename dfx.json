@@ -4,7 +4,7 @@
       "candid": "backend/backend.did",
       "package": "backend",
       "type": "custom",
-      "wasm": "target/wasm32-unknown-unknown/release/backend-opt.wasm",
+      "wasm": "target/wasm32-unknown-unknown/release/backend.wasm",
       "build": "sh build.sh backend backend",
       "declarations": {
         "output": "frontend/declarations/backend",

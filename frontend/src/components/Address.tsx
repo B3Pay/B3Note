@@ -34,6 +34,7 @@ const Address: React.FC<AddressWithCopyProps> = ({
   overflow,
   children,
   iconColor,
+  prefix,
   hiddenAddress,
   ...rest
 }) => {
@@ -59,7 +60,7 @@ const Address: React.FC<AddressWithCopyProps> = ({
 
   return (
     <SimpleCard {...rest}>
-      {children}&nbsp;
+      {prefix ?? children}&nbsp;
       <Tooltip title={address} placement="top" aria-label="Full address">
         <Stack
           display="inline-flex"
@@ -99,6 +100,7 @@ const Address: React.FC<AddressWithCopyProps> = ({
           )}
         </Stack>
       </Tooltip>
+      &nbsp;{prefix && children}
     </SimpleCard>
   )
 }

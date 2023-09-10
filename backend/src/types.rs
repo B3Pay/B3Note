@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 
 const ONE_TIME_KEY_EXPIRATION: u64 = 60 * 60 * 24 * 1; // 1 days
+const ANONYMOUS_USER_DATA_EXPIRATION: u64 = 60 * 60 * 24 * 1; // 1 days
 
 pub type PublicKey = [u8; 48];
 
@@ -85,7 +86,7 @@ impl Storable for EncryptedText {
     }
 }
 
-#[derive(Default, Serialize, Clone, CandidType, Deserialize)]
+#[derive(Default, Debug, Serialize, Clone, CandidType, Deserialize)]
 pub struct OneTimeKey {
     time_lock: NanoTimeStamp,
     public_key: Vec<u8>,
@@ -103,20 +104,12 @@ impl OneTimeKey {
         }
     }
 
-    pub fn reset_time_lock(&mut self) {
-        self.time_lock = NanoTimeStamp::now().add_secs(ONE_TIME_KEY_EXPIRATION);
-    }
-
     pub fn out_of_tries(&self) -> bool {
         self.tries >= 3
     }
 
     pub fn add_try(&mut self) {
         self.tries += 1;
-    }
-
-    pub fn tries(&self) -> u8 {
-        self.tries
     }
 
     pub fn is_expired(&self) -> bool {
@@ -145,10 +138,11 @@ impl Storable for OneTimeKey {
     }
 }
 
-#[derive(Default, Serialize, Clone, CandidType, Deserialize)]
+#[derive(Default, Debug, Serialize, Clone, CandidType, Deserialize)]
 pub struct AnonymousUserData {
     texts: Vec<Nonce>,
-    decryption_key: Vec<u8>,
+    created_at: NanoTimeStamp,
+    decryption_key: Option<Vec<u8>>,
 }
 
 impl BoundedStorable for AnonymousUserData {
@@ -157,8 +151,20 @@ impl BoundedStorable for AnonymousUserData {
 }
 
 impl AnonymousUserData {
+    pub fn new(decryption_key: Option<Vec<u8>>) -> Self {
+        Self {
+            texts: vec![],
+            created_at: NanoTimeStamp::now(),
+            decryption_key,
+        }
+    }
+
     pub fn set_decryption_key(&mut self, key: Vec<u8>) {
-        self.decryption_key = key;
+        self.decryption_key = Some(key);
+    }
+
+    pub fn is_expired(&self) -> bool {
+        self.created_at.elapsed().to_secs() > ANONYMOUS_USER_DATA_EXPIRATION
     }
 
     pub fn has_text_id(&self, text_id: &Nonce) -> bool {
@@ -189,12 +195,24 @@ impl AnonymousUserData {
         self.texts.iter()
     }
 
+    pub fn get_created_at(&self) -> NanoTimeStamp {
+        self.created_at.clone()
+    }
+
     pub fn get_decryption_key(&self) -> Result<Vec<u8>, String> {
-        if self.decryption_key.len() != 192 {
-            return Err("Decryption key is not Valid!".to_string());
+        if self.is_expired() {
+            return Err("Decryption key expired".to_string());
         }
 
-        Ok(self.decryption_key.clone())
+        if let Some(decryption_key) = self.decryption_key.clone() {
+            if decryption_key.len() != 192 {
+                return Err("Decryption key is not Valid!".to_string());
+            }
+
+            return Ok(decryption_key);
+        } else {
+            return Err("No decryption key found".to_string());
+        }
     }
 }
 
@@ -225,7 +243,7 @@ pub struct UserData {
 
 impl BoundedStorable for UserData {
     const IS_FIXED_SIZE: bool = false;
-    const MAX_SIZE: u32 = 100;
+    const MAX_SIZE: u32 = 500;
 }
 
 impl UserData {
@@ -277,6 +295,8 @@ impl Storable for UserData {
 #[derive(CandidType, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Task {
     Initialize,
+    CleanUpAnonymousUsers,
+    CleanUpKeys,
     SendEmail {
         email: String,
         subject: String,

@@ -8,12 +8,18 @@ const getterEffect = (dispatch: RematchDispatch<RootModel>) => ({
     const { backendActor, userIdentity, transportSecretKey } =
       getBackendStates()
 
-    const notes = await backendActor.user_notes(
+    const [createdAt, notes] = await backendActor.user_notes(
       userIdentity.isAnonymous() ? [transportSecretKey.public_key()] : []
     )
     console.log({ notes })
 
     dispatch.backend.SET_NOTES(notes)
+    dispatch.backend.SET_CREATED_AT(createdAt)
+  },
+  fetch_timers: async () => {
+    const { backendActor } = getBackendStates()
+
+    return await backendActor.timers()
   },
   fetch_logs: async () => {
     const { backendActor } = getBackendStates()

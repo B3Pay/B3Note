@@ -7,6 +7,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material"
+import Head from "next/head"
 import { RefreshIcon } from "./Icons"
 import Loading from "./Loading"
 
@@ -44,6 +45,7 @@ const Section: React.FC<SectionProps> = ({
         borderTop: !noShadow ? "none" : undefined,
       }}
     >
+      <Head>{title && !noShadow && <title>{title}</title>}</Head>
       {title &&
         (noShadow ? (
           <CardHeader

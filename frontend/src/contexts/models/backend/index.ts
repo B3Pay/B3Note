@@ -13,6 +13,7 @@ const state: BackendState = {
   userIdentity: Principal.anonymous(),
   canisterId: null,
   oneTimeKey: null,
+  authClient: null,
   transportSecretKey: null,
   ibeDeserialize: null,
   ibeEncrypt: null,
@@ -26,6 +27,12 @@ const state: BackendState = {
   ibeEncryptionKey: null,
   initialized: false,
   loggedIn: false,
+  randomSeed: null,
+  createdAt: null,
+  authCode: {
+    code: "",
+    signature: "",
+  },
   errors: {
     globalError: null,
     decryptionError: {},
@@ -48,6 +55,10 @@ const backend = createModel<RootModel>()({
     }),
     UNSET: () => ({ ...state, backend: null, initialized: false }),
     SET_NOTES: (currentState, notes) => ({ ...currentState, notes }),
+    SET_CREATED_AT: (currentState, createdAt) => ({
+      ...currentState,
+      createdAt,
+    }),
     SET_SECRET_KEY: (currentState, transportSecretKey) => ({
       ...currentState,
       transportSecretKey,

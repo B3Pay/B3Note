@@ -24,7 +24,7 @@ const ibeEffect = (dispatch: RematchDispatch<RootModel>) => ({
       seed
     )
   },
-  edit_ibe_user_note: async (args: EditIBEUserNoteArgs) => {
+  edit_IBE_user_note: async (args: EditIBEUserNoteArgs) => {
     const { backendActor, userIdentity, transportSecretKey } =
       getBackendStates()
 
@@ -40,7 +40,7 @@ const ibeEffect = (dispatch: RematchDispatch<RootModel>) => ({
 
     fetchNotes()
   },
-  save_ibe_user_note: async (args: SaveIBEUserNoteArgs) => {
+  save_IBE_user_note: async (args: SaveIBEUserNoteArgs) => {
     const { backendActor, userIdentity, transportSecretKey } =
       getBackendStates()
 
@@ -48,10 +48,18 @@ const ibeEffect = (dispatch: RematchDispatch<RootModel>) => ({
       note: args.note,
     })
 
-    await backendActor.save_encrypted_text(
-      ibe_ciphertext.serialize(),
-      userIdentity.isAnonymous() ? [transportSecretKey.public_key()] : []
-    )
+    try {
+      await backendActor.save_encrypted_text(
+        ibe_ciphertext.serialize(),
+        userIdentity.isAnonymous() ? [transportSecretKey.public_key()] : []
+      )
+    } catch (e) {
+      console.log(e)
+
+      dispatch.backend.SET_ERROR({
+        saveError: compileError(e),
+      })
+    }
 
     fetchNotes()
   },
@@ -67,7 +75,7 @@ const ibeEffect = (dispatch: RematchDispatch<RootModel>) => ({
       encrypted_decryption_key,
     })
   },
-  decrypt_ibe_user_note: async (args: DecryptIBENoteArgs) => {
+  decrypt_IBE_user_note: async (args: DecryptIBENoteArgs) => {
     const { encrypted_decryption_key, ibeEncryptionKey, transportSecretKey } =
       getBackendStates()
 
@@ -81,7 +89,7 @@ const ibeEffect = (dispatch: RematchDispatch<RootModel>) => ({
 
       console.log({ k_bytes: hex_encode(k_bytes) })
 
-      let note = dispatch.backend.decrypt_ibe({
+      let note = dispatch.backend.decrypt_IBE_text({
         encryptedNote: args.encryptedNote,
         k_bytes,
       })
@@ -98,7 +106,7 @@ const ibeEffect = (dispatch: RematchDispatch<RootModel>) => ({
       console.log(e)
     }
   },
-  decrypt_ibe: (args: DecryptIBEArgs) => {
+  decrypt_IBE_text: (args: DecryptIBEArgs) => {
     const { ibeDeserialize } = getBackendStates()
 
     const ibe_ciphertext = ibeDeserialize(args.encryptedNote as Uint8Array)

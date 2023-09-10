@@ -71,11 +71,19 @@ const Text: React.FC<TextProps> = ({ canDecrypt, id, text }) => {
           color="info"
           noShadow
         >
-          {(generatedLink || generatedLinkLoading) && (
+          {generatedLink && (
             <Address address={generatedLink} iconColor="info" />
           )}
-          <Button onClick={handleGenerateLink} variant="contained">
-            Generate Link
+          <Button
+            onClick={handleGenerateLink}
+            variant="contained"
+            disabled={generatedLinkLoading}
+          >
+            {generatedLinkLoading ? (
+              <LoadingDots title="Generating Link" />
+            ) : (
+              "Generate Link"
+            )}
           </Button>
         </Section>
       </AccordionDetails>

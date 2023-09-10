@@ -93,12 +93,6 @@ where
     })
 }
 
-pub fn with_anonymous_user_decryption_key(public_key: &PublicKey) -> Result<Vec<u8>, String> {
-    with_anonymous_user(public_key, |anonymous_user| {
-        anonymous_user.get_decryption_key()
-    })
-}
-
 pub fn with_anonymous_user_or_add<F, R>(public_key: &PublicKey, f: F) -> R
 where
     F: FnOnce(&mut AnonymousUserData) -> R,
@@ -106,7 +100,7 @@ where
     with_anonymous_users(|anonymous_users| {
         let mut anonymous_user = anonymous_users
             .get(public_key)
-            .unwrap_or_else(|| AnonymousUserData::default());
+            .unwrap_or_else(|| AnonymousUserData::new(None));
 
         let result = f(&mut anonymous_user);
 
@@ -156,29 +150,11 @@ where
     })
 }
 
-pub fn with_user_pass<F, R>(f: F) -> R
-where
-    F: FnOnce(&mut DefaultVMMap<UserName, EncryptedHashedPassword>) -> R,
-{
-    USER_PASS.with(|user_pass| f(&mut *user_pass.borrow_mut()))
-}
-
 pub fn with_encrypted_texts<F, R>(f: F) -> R
 where
     F: FnOnce(&mut DefaultVMMap<Nonce, EncryptedText>) -> R,
 {
     ENCRYPTED_TEXTS.with(|encrypted_texts| f(&mut *encrypted_texts.borrow_mut()))
-}
-
-pub fn with_user_pass_by_name<F, R>(user_name: &UserName, f: F) -> Result<R, String>
-where
-    F: FnOnce(&mut EncryptedHashedPassword) -> Result<R, String>,
-{
-    with_user_pass(|user_pass| {
-        f(&mut user_pass
-            .get(user_name)
-            .ok_or("Error::User not found!".to_string())?)
-    })
 }
 
 pub fn with_encrypted_text<F, R>(text_id: &Nonce, f: F) -> Result<R, String>

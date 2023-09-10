@@ -1,11 +1,11 @@
 import { Button, Stack, Typography } from "@mui/material"
 import { requestOneTimeKey } from "contexts/helpers"
-import { useOneTimeKey } from "contexts/hooks/useBackend"
+import { useAuthCode } from "contexts/hooks/useBackend"
 
 interface TwoFactorProps {}
 
 const TwoFactor: React.FC<TwoFactorProps> = ({}) => {
-  const { code, signature } = useOneTimeKey()
+  const { code, signature } = useAuthCode()
 
   return code ? (
     <Stack spacing={2}>
@@ -18,7 +18,7 @@ const TwoFactor: React.FC<TwoFactorProps> = ({}) => {
     </Stack>
   ) : (
     <Button onClick={requestOneTimeKey} variant="contained">
-      Request One Time Key
+      Request Auth Code
     </Button>
   )
 }

@@ -5,32 +5,43 @@ import NewNote from "components/NewText"
 import Section from "components/Section"
 import Texts from "components/Texts"
 import TwoFactor from "components/TwoFactor"
+import { initBackend, loginWithII, logout } from "contexts/helpers"
 import {
   useBackendIsInitialized,
   useUserIdentity,
 } from "contexts/hooks/useBackend"
-import useAuthClient from "hook/useAuthClient"
+import { useAllBackendLoading } from "contexts/hooks/useLoading"
+import { extractLoadingTitle } from "helper/utils"
+import { useEffect } from "react"
 
 interface IdentityProps {}
 
 const WithoutII: React.FC<IdentityProps> = () => {
   const backendInitailized = useBackendIsInitialized()
-  const principal = useUserIdentity()
+  const backendAllLoading = useAllBackendLoading()
+  const identity = useUserIdentity()
 
-  const { login, logout } = useAuthClient()
+  useEffect(() => {
+    if (!backendInitailized) {
+      initBackend()
+    }
+  }, [backendInitailized])
+
+  const loadingTitle = extractLoadingTitle(backendAllLoading)
 
   return (
     <Section
       title="With Identity"
-      loading={!backendInitailized}
-      loadingTitle="Initializing"
+      loading={!!loadingTitle}
+      loadingTitle={loadingTitle}
     >
-      {principal.isAnonymous() ? (
+      {identity.isAnonymous() ? (
         <Section title="login with your identity" color="primary" noShadow>
-          <Button onClick={login}>Login</Button>
+          <Button onClick={loginWithII}>Login</Button>
         </Section>
       ) : (
         <>
+          <Address address={identity.toString()}>Your principal is</Address>
           <Section
             title="Authenticator"
             color="primary"
@@ -39,7 +50,6 @@ const WithoutII: React.FC<IdentityProps> = () => {
           >
             <TwoFactor />
           </Section>
-          <Address address={principal.toString()}>Your principal is</Address>
           <Texts />
           <NewNote />
           <Button onClick={logout} color="warning">

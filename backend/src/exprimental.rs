@@ -1,30 +1,3 @@
-#[update]
-async fn two_factor_verification_key() -> String {
-    log_caller!("two_factor_verification_key");
-
-    let reponse = VetKDManagement(None)
-        .request_public_key(vec![b"two_factor_authentication".to_vec()])
-        .await
-        .unwrap_or_else(revert);
-
-    vec_to_hex_string(reponse)
-}
-
-#[update]
-async fn request_two_factor_authentication(encryption_public_key: Vec<u8>) -> String {
-    log_caller!("request_two_factor_authentication");
-
-    let encrypted_key = VetKD::new(ic_cdk::caller().into())
-        .request_encrypted_key(
-            vec![b"two_factor_authentication".to_vec()],
-            encryption_public_key,
-        )
-        .await
-        .unwrap_or_else(revert);
-
-    vec_to_hex_string(encrypted_key)
-}
-
 #[query]
 fn get_password(username: UserName) -> EncryptedHashedPassword {
     log_caller!("get_password");

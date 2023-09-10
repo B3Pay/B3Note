@@ -7,7 +7,7 @@ use b3_utils::{
         types::PartitionDetail,
     },
     nonce::Nonce,
-    report, revert,
+    report, revert, vec_to_hex_string,
     vetkd::{verify_pairing, VetKD, VetKDManagement},
     NanoTimeStamp,
 };
@@ -74,7 +74,7 @@ fn user_data() -> UserData {
 }
 
 #[query]
-fn user_notes(public_key: Option<Vec<u8>>) -> Vec<UserText> {
+fn user_notes(public_key: Option<Vec<u8>>) -> (NanoTimeStamp, Vec<UserText>) {
     let caller = log_caller!("user_notes");
 
     if caller == Principal::anonymous() {
@@ -82,7 +82,7 @@ fn user_notes(public_key: Option<Vec<u8>>) -> Vec<UserText> {
             Some(public_key) => {
                 let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
 
-                with_anonymous_user(&public_key, |user| {
+                with_anonymous_user_or_add(&public_key, |user| {
                     let texts = user
                         .iter_texts()
                         .map(|text_id| {
@@ -97,13 +97,13 @@ fn user_notes(public_key: Option<Vec<u8>>) -> Vec<UserText> {
                         })
                         .collect();
 
-                    Ok(texts)
+                    (user.get_created_at(), texts)
                 })
-                .unwrap_or(vec![])
             }
             None => return revert("Error::public key is required for anonymous user"),
         }
     } else {
+        let time = NanoTimeStamp::default();
         with_user(&caller.into(), |user| {
             let texts = user
                 .iter_texts()
@@ -119,9 +119,9 @@ fn user_notes(public_key: Option<Vec<u8>>) -> Vec<UserText> {
                 })
                 .collect();
 
-            Ok(texts)
+            Ok((time.clone(), texts))
         })
-        .unwrap_or(vec![])
+        .unwrap_or((time, vec![]))
     }
 }
 
@@ -347,6 +347,33 @@ async fn symmetric_key_verification_key() -> Vec<u8> {
     get_symmetric_encrypted_key().to_vec()
 }
 
+#[update(guard = "caller_is_not_anonymous")]
+async fn two_factor_verification_key() -> String {
+    log_caller!("two_factor_verification_key");
+
+    let reponse = VetKDManagement(None)
+        .request_public_key(vec![b"two_factor_authentication".to_vec()])
+        .await
+        .unwrap_or_else(revert);
+
+    vec_to_hex_string(reponse)
+}
+
+#[update(guard = "caller_is_not_anonymous")]
+async fn request_two_factor_authentication(encryption_public_key: Vec<u8>) -> String {
+    log_caller!("request_two_factor_authentication");
+
+    let encrypted_key = VetKD::new(ic_cdk::caller().into())
+        .request_encrypted_key(
+            vec![b"two_factor_authentication".to_vec()],
+            encryption_public_key,
+        )
+        .await
+        .unwrap_or_else(revert);
+
+    vec_to_hex_string(encrypted_key)
+}
+
 #[update]
 async fn encrypted_ibe_decryption_key_for_caller(encryption_public_key: Vec<u8>) -> Vec<u8> {
     let caller = log_caller!("encrypted_ibe_decryption_key_for_caller");
@@ -471,9 +498,11 @@ fn timers() -> Vec<TaskTimerEntry<Task>> {
     })
 }
 
-#[update]
 fn schedule_task(after_sec: u64, task: Task) {
-    log_caller!(format!("schedule_task: {:?} after {}", task, after_sec));
+    log_caller!(format!(
+        "schedule_task: {:?} after {} secs",
+        task, after_sec
+    ));
 
     let time = NanoTimeStamp::now().add_secs(after_sec);
 
@@ -536,9 +565,72 @@ async fn execute_task(timer: TaskTimerEntry<Task>) {
         Task::Initialize => {
             log!("Initializing...");
 
+            let now = NanoTimeStamp::now();
+
             fetch_encryption_keys().await;
 
-            log!("Initializing done!");
+            log!("Initializing done! Took: {}ms", now.elapsed().to_millis());
+
+            schedule_task(3600, Task::CleanUpKeys);
+            schedule_task(3600, Task::CleanUpAnonymousUsers);
+
+            reschedule();
+        }
+        Task::CleanUpKeys => {
+            log!("Cleaning up keys...");
+
+            let now = NanoTimeStamp::now();
+
+            with_one_time_keys(|keys| {
+                let expired_keys: Vec<Nonce> = keys
+                    .iter()
+                    .filter(|(_, key)| key.is_expired())
+                    .map(|(id, _)| id.clone())
+                    .collect();
+
+                expired_keys.iter().for_each(|id| {
+                    log!("Removing expired key: {:?}", keys.get(id));
+                    keys.remove(id);
+                });
+            });
+
+            log!(
+                "Cleaning up keys done! Took: {}ms",
+                now.elapsed().to_millis()
+            );
+
+            // schedule next clean up
+            schedule_task(3600, Task::CleanUpKeys);
+
+            reschedule();
+        }
+        Task::CleanUpAnonymousUsers => {
+            log!("Cleaning up users...");
+
+            let now = NanoTimeStamp::now();
+
+            with_anonymous_users(|users| {
+                let expired_users: Vec<PublicKey> = users
+                    .iter()
+                    .filter(|(_, user)| user.is_expired())
+                    .map(|(id, _)| id.clone())
+                    .collect();
+
+                expired_users.iter().for_each(|id| {
+                    log!("Removing expired user: {:?}", users.get(id));
+                    users.remove(id);
+                });
+            });
+
+            log!(
+                "Cleaning up users done! Took: {}ms",
+                now.elapsed().to_millis()
+            );
+
+            // schedule next clean up
+            schedule_task(3600, Task::CleanUpAnonymousUsers);
+
+            reschedule();
         }
         Task::SendEmail {
             email,

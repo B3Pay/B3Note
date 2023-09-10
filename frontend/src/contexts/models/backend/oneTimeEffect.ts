@@ -108,24 +108,24 @@ const oneTimeEffect = (dispatch: RematchDispatch<RootModel>) => ({
     return { id, signature }
   },
   request_one_time_key: async (args: RequestOneTimeKeyArgs) => {
-    const { backendActor, ibeEncryptionKey, transportSecretKey } =
+    const { backendActor, verificationKey, userIdentity, transportSecretKey } =
       getBackendStates()
 
-    // try {
-    //   const ek_bytes_hex = await backendActor.request_two_factor_authentication(
-    //     transportSecretKey.public_key()
-    //   )
-    //   const verification_key = transportSecretKey.decrypt_and_hash(
-    //     hex_decode(ek_bytes_hex),
-    //     hex_decode(pk_bytes_hex),
-    //     Principal.anonymous().toUint8Array(),
-    //     32,
-    //     new TextEncoder().encode("aes-256-gcm")
-    //   )
-    //   console.log({ verification_key: hex_encode(verification_key) })
-    // } catch (e) {
-    //   console.log(e)
-    // }
+    try {
+      const ek_bytes_hex = await backendActor.request_two_factor_authentication(
+        transportSecretKey.public_key()
+      )
+      const verification_key = transportSecretKey.decrypt_and_hash(
+        hex_decode(ek_bytes_hex),
+        verificationKey as Uint8Array,
+        generateSubaccount(userIdentity),
+        32,
+        new TextEncoder().encode("aes-256-gcm")
+      )
+      console.log({ verification_key: hex_encode(verification_key) })
+    } catch (e) {
+      console.log(e)
+    }
   },
   generate_authenticator_code: async (args: GenerateOneTimeKeyArgs) => {
     const { transportSecretKey } = getBackendStates()

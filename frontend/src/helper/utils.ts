@@ -82,7 +82,9 @@ export const compileError = (error: any) => {
   return "Unknown error!"
 }
 
-export function nanoToHumanReadable(nanoTimestamp: bigint) {
+export function nanoToHumanReadable(nanoTimestamp: bigint | null) {
+  if (nanoTimestamp === null) return null
+
   // Convert to milliseconds
   const milliTimestamp = nanoTimestamp / BigInt(1_000_000)
 
@@ -94,4 +96,29 @@ export function nanoToHumanReadable(nanoTimestamp: bigint) {
 
   // Format the date and time
   return date.toLocaleString()
+}
+
+export function nanoToHumanReadableElapsed(nanoTimestamp: bigint | null) {
+  if (nanoTimestamp === null) return null
+
+  // Convert to milliseconds
+  const milliTimestamp = nanoTimestamp / BigInt(1_000_000)
+
+  // Convert BigInt to Number
+  const milliTimestampNumber = Number(milliTimestamp)
+
+  // Create a new Date object
+  const date = new Date(milliTimestampNumber)
+
+  const now = new Date()
+
+  const diff = now.getTime() - date.getTime()
+
+  const seconds = Math.floor(diff / 1000)
+
+  const minutes = Math.floor(seconds / 60)
+
+  const hours = Math.floor(minutes / 60)
+
+  return `${hours} hours, ${minutes % 60} minutes, ${seconds % 60} seconds`
 }

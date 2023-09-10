@@ -5,6 +5,12 @@ export default function useBackend(): RootState["backend"] {
   return useSelector((state: RootState) => state.backend)
 }
 
+export function useBackendItem<K extends keyof RootState["backend"]>(
+  key: K
+): RootState["backend"][K] {
+  return useSelector((state: RootState) => state.backend[key])
+}
+
 export function useBackendIsInitialized(): boolean {
   return useSelector((state: RootState) => state.backend.initialized)
 }
@@ -45,6 +51,6 @@ export function useDecryptedNoteById(id: string) {
   return decryptedNotes[id.toString()]
 }
 
-export function useOneTimeKey() {
-  return { code: "", signature: "" }
+export function useAuthCode() {
+  return useSelector((state: RootState) => state.backend.authCode)
 }
