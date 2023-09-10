@@ -9,10 +9,10 @@ import {
   SaveIBEUserNoteArgs,
 } from "contexts/types/backend"
 import { generateSubaccount } from "helper/subaccount"
-import { compileError, hex_encode } from "helper/utils"
+import { compileError } from "helper/utils"
 
 const ibeEffect = (dispatch: RematchDispatch<RootModel>) => ({
-  encrypt_ibe_user_note: (args: SaveIBEUserNoteArgs) => {
+  encrypt_IBE_user_note: (args: SaveIBEUserNoteArgs) => {
     const { ibeEncrypt } = getBackendStates()
 
     const message_encoded = new TextEncoder().encode(args.note)
@@ -28,7 +28,7 @@ const ibeEffect = (dispatch: RematchDispatch<RootModel>) => ({
     const { backendActor, userIdentity, transportSecretKey } =
       getBackendStates()
 
-    const ibe_ciphertext = dispatch.backend.encrypt_ibe_user_note({
+    const ibe_ciphertext = dispatch.backend.encrypt_IBE_user_note({
       note: args.note,
     })
 
@@ -44,7 +44,7 @@ const ibeEffect = (dispatch: RematchDispatch<RootModel>) => ({
     const { backendActor, userIdentity, transportSecretKey } =
       getBackendStates()
 
-    let ibe_ciphertext = dispatch.backend.encrypt_ibe_user_note({
+    let ibe_ciphertext = dispatch.backend.encrypt_IBE_user_note({
       note: args.note,
     })
 
@@ -87,14 +87,10 @@ const ibeEffect = (dispatch: RematchDispatch<RootModel>) => ({
         generateSubaccount(Principal.anonymous())
       )
 
-      console.log({ k_bytes: hex_encode(k_bytes) })
-
       let note = dispatch.backend.decrypt_IBE_text({
         encryptedNote: args.encryptedNote,
         k_bytes,
       })
-
-      console.log({ note })
 
       dispatch.backend.ADD_DECRYPTED_NOTE({ [args.id.toString()]: note })
     } catch (e) {

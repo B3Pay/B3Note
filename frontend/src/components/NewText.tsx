@@ -11,7 +11,7 @@ interface NewTextProps {}
 const NewText: React.FC<NewTextProps> = ({}) => {
   const [encryptInput, setEncryptInput] = useState("")
 
-  const savingLoading = useBackendLoading("save_ibe_user_note")
+  const savingLoading = useBackendLoading("save_IBE_user_note")
 
   const handleSaveNote = () => {
     saveNoteIBE(encryptInput)
