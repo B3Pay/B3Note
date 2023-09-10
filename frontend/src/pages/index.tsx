@@ -2,39 +2,52 @@
 import { Button, Typography } from "@mui/material"
 import Address from "components/Address"
 import Section from "components/Section"
-import Link from "next/link"
+import { useRouter } from "next/router"
 
 interface HomeProps {}
 
 const Home: React.FC<HomeProps> = ({}) => {
+  const { push } = useRouter()
   return (
     <Section title="Home">
-      <Section title="What is this?" color="success" noShadow>
+      <Typography variant="h4">Welcome to B3Note</Typography>
+      <Typography variant="h5">
+        Your decentralized and secure note-sharing platform.
+      </Typography>
+      <Section title="What is this?" color="secondary" noShadow>
         <Typography variant="body1" color="grey.700" component="div">
-          This is a simple demo of the Vetkd library. It demonstrates how to use
-          Vetkd to encrypt and decrypt messages.
-          <br />
-          The demo is a simple note-taking app. You can write secret notes and
-          then share them with other users. You can also view secret notes that
-          have been shared with you.
-          <br />
-          The demo app runs fully on Internet Computer blockchain. The backend
-          is written in Rust and the frontend is written in TypeScript.
-          <br />
-          The backend is deployed as a canister with this address:{" "}
-          <Address address={process.env.BACKEND_CANISTER_ID!} overflow="auto" />
-          and the frontend is deployed as a static site on this address:
-          <Address
-            address={process.env.FRONTEND_CANISTER_ID!}
-            overflow="auto"
-          />
-          The source code is available on{" "}
-          <Link href="https://github.com/B3Pay/vetkd_examples">GitHub</Link>
+          B3Note is a decentralized platform built on the Internet Computer that
+          allows you to create and share notes. With strong encryption and
+          blockchain-based verification, B3Note emphasizes privacy and security.
+          The platform offers two distinct features: anonymous note sharing and
+          authenticated note sharing.
         </Typography>
-        <Button href="https://github.com/B3Pay/vetkd_examples">
-          View Source Code
-        </Button>
       </Section>
+      <Button
+        variant="contained"
+        color="secondary"
+        onClick={() => push("/withoutii")}
+      >
+        Create Anonymous Note
+      </Button>
+
+      <Section title="How does it work?" color="info" noShadow>
+        <Typography variant="body1" color="grey.700" component="div">
+          B3Note uses a combination of the Internet Identity and Internet
+          Computer to create a secure and decentralized note-sharing platform.
+          The Internet Identity is used to authenticate users and the vetkd
+          technology is used to encrypt and decrypt notes.
+        </Typography>
+      </Section>
+      <Button variant="contained" color="info" onClick={() => push("/withii")}>
+        Create Authenticated Note
+      </Button>
+      <Address address={process.env.BACKEND_CANISTER_ID!} overflow="auto">
+        Backend Canister ID
+      </Address>
+      <Button href="https://github.com/B3Pay/vetkd_examples" color="warning">
+        View Source Code
+      </Button>
     </Section>
   )
 }

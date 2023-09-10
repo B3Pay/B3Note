@@ -1,3 +1,4 @@
+//! for experimental features not included in the main codebase
 #[query]
 fn get_password(username: UserName) -> EncryptedHashedPassword {
     log_caller!("get_password");

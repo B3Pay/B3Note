@@ -87,7 +87,7 @@ const Section: React.FC<SectionProps> = ({
         position="relative"
         className="section-body"
       >
-        {loading && <Loading circle title={loadingTitle} />}
+        {loading && <Loading title={loadingTitle} />}
         {children}
       </Stack>
     </Card>

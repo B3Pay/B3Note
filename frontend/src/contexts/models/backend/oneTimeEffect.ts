@@ -64,8 +64,6 @@ const oneTimeEffect = (dispatch: RematchDispatch<RootModel>) => ({
 
       const [encryptedNote, ibeDecryptionKey] = result.Ok
 
-      console.log({ encryptedNote, ibeDecryptionKey })
-
       const k_bytes = transportSecretKey.decrypt(
         ibeDecryptionKey as Uint8Array,
         ibeEncryptionKey as Uint8Array,

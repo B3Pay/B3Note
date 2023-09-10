@@ -19,7 +19,7 @@ const NewText: React.FC<NewTextProps> = ({}) => {
 
   return (
     <Section
-      title="New Text"
+      title="New Note"
       color="primary"
       description="Write a new note"
       noShadow
