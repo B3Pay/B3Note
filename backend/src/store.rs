@@ -14,8 +14,9 @@ use crate::{types::*, utils::vec_to_fixed_array};
 thread_local! {
     pub static TEXT_COUNTER: RefCell<DefaultVMCell<Nonce>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_cell("stable_counter", 100).unwrap()));
 
-    pub static IBE_ENCRYPTION_KEYS: RefCell<EncryptionKey> = RefCell::new([0; 96]);
-    pub static SYMMETRIC_ENCRYPTION_KEYS: RefCell<EncryptionKey> = RefCell::new([0; 96]);
+    pub static IBE_ENCRYPTION_KEY: RefCell<EncryptionKey> = RefCell::new([0; 96]);
+    pub static SYMMETRIC_ENCRYPTION_KEY: RefCell<EncryptionKey> = RefCell::new([0; 96]);
+    pub static TWO_FACTOR_AUTHENTICATION_KEY: RefCell<EncryptionKey> = RefCell::new([0; 96]);
 
     pub static TASK_TIMER: RefCell<TaskTimerPartition<Task>> = RefCell::new(with_stable_memory_mut(|pm| TaskTimerPartition::init(pm, 1)));
 
@@ -54,25 +55,38 @@ pub fn get_nonce() -> Nonce {
 pub fn set_ibe_encryption_key(key: Vec<u8>) {
     let key = vec_to_fixed_array(&key).unwrap();
 
-    IBE_ENCRYPTION_KEYS.with(|ibe_encrypted_key| {
+    IBE_ENCRYPTION_KEY.with(|ibe_encrypted_key| {
         *ibe_encrypted_key.borrow_mut() = key;
     })
 }
 
 pub fn get_ibe_encrypted_key() -> EncryptionKey {
-    IBE_ENCRYPTION_KEYS.with(|ibe_encrypted_key| *ibe_encrypted_key.borrow())
+    IBE_ENCRYPTION_KEY.with(|ibe_encrypted_key| *ibe_encrypted_key.borrow())
 }
 
 pub fn set_symmetric_encryption_key(key: Vec<u8>) {
     let key = vec_to_fixed_array(&key).unwrap();
 
-    SYMMETRIC_ENCRYPTION_KEYS.with(|symmetric_encrypted_key| {
+    SYMMETRIC_ENCRYPTION_KEY.with(|symmetric_encrypted_key| {
         *symmetric_encrypted_key.borrow_mut() = key;
     })
 }
 
 pub fn get_symmetric_encrypted_key() -> EncryptionKey {
-    SYMMETRIC_ENCRYPTION_KEYS.with(|symmetric_encrypted_key| *symmetric_encrypted_key.borrow())
+    SYMMETRIC_ENCRYPTION_KEY.with(|symmetric_encrypted_key| *symmetric_encrypted_key.borrow())
+}
+
+pub fn set_two_factor_authentication_key(key: Vec<u8>) {
+    let key = vec_to_fixed_array(&key).unwrap();
+
+    TWO_FACTOR_AUTHENTICATION_KEY.with(|two_factor_authentication_key| {
+        *two_factor_authentication_key.borrow_mut() = key;
+    })
+}
+
+pub fn get_two_factor_authentication_key() -> EncryptionKey {
+    TWO_FACTOR_AUTHENTICATION_KEY
+        .with(|two_factor_authentication_key| *two_factor_authentication_key.borrow())
 }
 
 pub fn with_anonymous_users<F, R>(f: F) -> R

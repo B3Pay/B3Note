@@ -48,12 +48,5 @@
       }
     }
   },
-  "defaults": {
-    "build": {
-      "args": "",
-      "packtool": ""
-    }
-  },
-  "output_env_file": "./frontend/.env",
-  "version": 1
+  "output_env_file": "./frontend/.env"
 }

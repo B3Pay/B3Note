@@ -39,10 +39,11 @@ pub fn pre_upgrade() {
 
     let ibe_key = get_ibe_encrypted_key().to_vec();
     let sym_key = get_symmetric_encrypted_key().to_vec();
+    let auth_key = get_two_factor_authentication_key().to_vec();
 
     let mut states_bytes = vec![];
 
-    into_writer(&(ibe_key, sym_key), &mut states_bytes).unwrap();
+    into_writer(&(ibe_key, sym_key, auth_key), &mut states_bytes).unwrap();
 
     with_base_partition_mut(|core_partition| core_partition.set_backup(states_bytes));
 }
@@ -53,15 +54,18 @@ pub fn post_upgrade() {
 
     let states_bytes = with_base_partition(|core_partition| core_partition.get_backup());
 
-    let (ibe_key, sym_key) =
+    let (ibe_key, sym_key, auth_key) =
         ciborium::de::from_reader(&*states_bytes).expect("failed to decode state");
 
     set_ibe_encryption_key(ibe_key);
     set_symmetric_encryption_key(sym_key);
+    set_two_factor_authentication_key(auth_key);
 
     for detail in partition_details() {
         log!("{:?}", detail);
     }
+
+    schedule_task(10, Task::Initialize);
 
     reschedule();
 }
@@ -348,15 +352,8 @@ async fn symmetric_key_verification_key() -> Vec<u8> {
 }
 
 #[update(guard = "caller_is_not_anonymous")]
-async fn two_factor_verification_key() -> String {
-    log_caller!("two_factor_verification_key");
-
-    let reponse = VetKDManagement(None)
-        .request_public_key(vec![b"two_factor_authentication".to_vec()])
-        .await
-        .unwrap_or_else(revert);
-
-    vec_to_hex_string(reponse)
+async fn two_factor_verification_key() -> Vec<u8> {
+    get_two_factor_authentication_key().to_vec()
 }
 
 #[update(guard = "caller_is_not_anonymous")]
@@ -544,17 +541,27 @@ async fn fetch_encryption_keys() {
         .request_public_key(vec![b"ibe_encryption".to_vec()])
         .await;
 
+    let authentication_key = VetKDManagement(None)
+        .request_public_key(vec![b"two_factor_authentication".to_vec()])
+        .await;
+
     log!("Caching keys...");
     if let Ok(symmetric_key) = symmetric_key {
         set_symmetric_encryption_key(symmetric_key);
     } else {
-        log!("Failed to fetch symmetric key");
+        log!("Failed to fetch symmetric key!");
     }
 
     if let Ok(ibe_encryption_key) = ibe_encryption_key {
         set_ibe_encryption_key(ibe_encryption_key);
     } else {
-        log!("Failed to fetch ibe encryption key");
+        log!("Failed to fetch ibe encryption key!");
+    }
+
+    if let Ok(authentication_key) = authentication_key {
+        set_two_factor_authentication_key(authentication_key);
+    } else {
+        log!("Failed to fetch two factor authentication key!");
     }
 }
 
