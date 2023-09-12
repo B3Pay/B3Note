@@ -26,3 +26,5 @@ ic-wasm "./target/wasm32-unknown-unknown/release/$package.wasm" \
 ic-wasm "./target/wasm32-unknown-unknown/release/$package.wasm" \
     -o "./target/wasm32-unknown-unknown/release/$package-opt.wasm" \
     shrink
+
+dfx generate "$package"
