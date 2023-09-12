@@ -11,7 +11,7 @@ import Head from "next/head"
 import { RefreshIcon } from "./Icons"
 import Loading from "./Loading"
 
-interface SectionProps extends CardProps {
+export interface SectionProps extends CardProps {
   title?: string
   description?: React.ReactNode
   noShadow?: boolean

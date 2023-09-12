@@ -1,10 +1,5 @@
 use candid::Principal;
 
-use crate::{
-    store::with_anonymous_user,
-    types::{AnonymousUserData, PublicKey},
-};
-
 pub fn vec_to_fixed_array<const N: usize>(slice: &[u8]) -> Result<[u8; N], String> {
     if slice.len() != N {
         return Err(format!("Expected length {}, found {}", N, slice.len()));
@@ -21,8 +16,4 @@ pub fn caller_is_not_anonymous() -> Result<(), String> {
     }
 
     Ok(())
-}
-
-pub fn get_anonymous_user(public_key: &PublicKey) -> Result<AnonymousUserData, String> {
-    with_anonymous_user(public_key, |anonymous_user| Ok(anonymous_user.clone()))
 }

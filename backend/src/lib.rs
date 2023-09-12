@@ -1,27 +1,42 @@
+mod anonymous;
+mod constants;
+mod identified;
+mod keys;
+mod one_time;
+mod partition;
+mod stable;
+mod task;
+mod text;
+mod types;
+mod utils;
+
+use std::collections::HashMap;
+
 use b3_utils::{
     log,
     logs::{export_log, export_log_messages_page, LogEntry},
     memory::{
         base::{with_base_partition, with_base_partition_mut},
         timer::TaskTimerEntry,
-        types::PartitionDetail,
+        with_stable_memory,
     },
     nonce::Nonce,
     report, revert, vec_to_hex_string,
-    vetkd::{verify_pairing, VetKD, VetKDManagement},
+    vetkd::{verify_pairing, VetKD},
     NanoTimeStamp,
 };
 use candid::Principal;
 use ciborium::into_writer;
 use ic_cdk::{init, post_upgrade, pre_upgrade, query, update};
 
-mod types;
+use anonymous::*;
+use identified::*;
+use keys::*;
+use one_time::*;
+use partition::*;
+use task::*;
+use text::*;
 use types::*;
-
-mod store;
-use store::*;
-
-mod utils;
 use utils::*;
 
 #[init]
@@ -35,7 +50,7 @@ fn init() {
 
 #[pre_upgrade]
 pub fn pre_upgrade() {
-    log!("Pre_upgrade");
+    log!("pre_upgrade");
 
     let ibe_key = get_ibe_encrypted_key().to_vec();
     let sym_key = get_symmetric_encrypted_key().to_vec();
@@ -50,7 +65,7 @@ pub fn pre_upgrade() {
 
 #[post_upgrade]
 pub fn post_upgrade() {
-    log!("Post_upgrade");
+    log!("post_upgrade");
 
     let states_bytes = with_base_partition(|core_partition| core_partition.get_backup());
 
@@ -65,16 +80,24 @@ pub fn post_upgrade() {
         log!("{:?}", detail);
     }
 
-    schedule_task(10, Task::Initialize);
-
     reschedule();
 }
 
+#[query]
+pub fn version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[query]
+pub fn canister_cycle_balance() -> u128 {
+    ic_cdk::api::canister_balance128()
+}
+
 #[query(guard = "caller_is_not_anonymous")]
-fn user_data() -> UserData {
+fn user_data() -> IdentifiedUserData {
     let caller = log_caller!("user_data");
 
-    with_user(&caller.into(), |user| Ok(user.clone())).unwrap_or_else(revert)
+    with_identified_user(&caller.into(), |user| Ok(user.clone())).unwrap_or_else(revert)
 }
 
 #[query]
@@ -108,7 +131,7 @@ fn user_notes(public_key: Option<Vec<u8>>) -> (NanoTimeStamp, Vec<UserText>) {
         }
     } else {
         let time = NanoTimeStamp::default();
-        with_user(&caller.into(), |user| {
+        with_identified_user(&caller.into(), |user| {
             let texts = user
                 .iter_texts()
                 .map(|text_id| {
@@ -216,7 +239,7 @@ async fn save_encrypted_text(encrypted_text: Vec<u8>, public_key: Option<Vec<u8>
             text_id
         })
     } else {
-        with_user_or_add(&caller.into(), |user| {
+        with_identified_user_or_add(&caller.into(), |user| {
             user.add_text_id(text_id.clone()).unwrap_or_else(revert);
 
             text_id
@@ -249,7 +272,7 @@ fn edit_encrypted_text(text_id: Nonce, encrypted_text: Vec<u8>, public_key: Opti
             None => revert("Error::public key is required!"),
         }
     } else {
-        with_user(&caller.into(), |user| {
+        with_identified_user(&caller.into(), |user| {
             user.remove_text_id(&text_id).unwrap_or_else(revert);
 
             with_encrypted_texts(|texts| {
@@ -304,12 +327,7 @@ async fn read_with_one_time_key(
 ) -> Result<(Vec<u8>, Vec<u8>), String> {
     let caller = log_caller!("read_with_one_time_key");
 
-    let one_time_key =
-        with_one_time_key_and_try(&text_id, |key| Ok(key.clone())).unwrap_or_else(revert);
-
-    if one_time_key.out_of_tries() {
-        return report("Error::One time key is out of tries!");
-    }
+    let one_time_key = with_one_time_key(&text_id, |key| Ok(key.clone())).unwrap_or_else(revert);
 
     if one_time_key.is_expired() {
         return report("Error::One time key is expired!");
@@ -358,9 +376,9 @@ async fn two_factor_verification_key() -> Vec<u8> {
 
 #[update(guard = "caller_is_not_anonymous")]
 async fn request_two_factor_authentication(encryption_public_key: Vec<u8>) -> String {
-    log_caller!("request_two_factor_authentication");
+    let caller = log_caller!("request_two_factor_authentication");
 
-    let encrypted_key = VetKD::new(ic_cdk::caller().into())
+    let encrypted_key = VetKD::new(caller.into())
         .request_encrypted_key(
             vec![b"two_factor_authentication".to_vec()],
             encryption_public_key,
@@ -423,8 +441,8 @@ async fn encrypted_symmetric_key_for_caller(encryption_public_key: Vec<u8>) -> V
             user.set_decryption_key(encrypted_key.clone());
         });
     } else {
-        with_users(|keys| {
-            let user_data = UserData::new(encrypted_key.clone(), None);
+        with_identified_users(|keys| {
+            let user_data = IdentifiedUserData::new(encrypted_key.clone(), None);
 
             keys.insert(caller.into(), user_data);
         });
@@ -444,82 +462,19 @@ fn print_log_entries_page(page: usize, page_size: Option<usize>) -> Vec<String> 
 }
 
 #[query]
-fn partition_details() -> Vec<PartitionDetail> {
-    let mut details = Vec::new();
-
-    details.push(PartitionDetail {
-        name: "text counter".to_string(),
-        len: get_nonce().into(),
-    });
-
-    details.push(PartitionDetail {
-        name: "users".to_string(),
-        len: USERS.with(|m| m.borrow().len()) as u64,
-    });
-
-    details.push(PartitionDetail {
-        name: "anonymous users".to_string(),
-        len: ANONYMOUS_USERS.with(|s| s.borrow().len()) as u64,
-    });
-
-    details.push(PartitionDetail {
-        name: "password".to_string(),
-        len: USER_PASS.with(|v| v.borrow().len()) as u64,
-    });
-
-    details.push(PartitionDetail {
-        name: "one time keys".to_string(),
-        len: ONE_TIME_KEYS.with(|u| u.borrow().len()) as u64,
-    });
-
-    details.push(PartitionDetail {
-        name: "encrypted text".to_string(),
-        len: ENCRYPTED_TEXTS.with(|s| s.borrow().len()) as u64,
-    });
-
-    TASK_TIMER.with(|tt| {
-        let tt = tt.borrow();
-
-        details.push(tt.details());
-    });
-
-    details
+fn partition_details() -> HashMap<String, u8> {
+    initialize_thread_locals();
+    with_stable_memory(|pm| pm.partitions().clone())
 }
 
 #[query]
 fn timers() -> Vec<TaskTimerEntry<Task>> {
-    TASK_TIMER.with(|s| {
-        let state = s.borrow();
-
-        state.get_timer()
-    })
-}
-
-fn schedule_task(after_sec: u64, task: Task) {
-    log_caller!(format!(
-        "schedule_task: {:?} after {} secs",
-        task, after_sec
-    ));
-
-    let time = NanoTimeStamp::now().add_secs(after_sec);
-
-    let timer = TaskTimerEntry { task, time };
-
-    with_task_timer(|tt| {
-        tt.push_timer(&timer)
-            .unwrap_or_else(|_| revert("Error::Failed to push timer!"))
-    });
-
-    reschedule();
+    with_task_timer(|tt| tt.get_timers())
 }
 
 #[export_name = "canister_global_timer"]
 fn global_timer() {
-    while let Some(task_timer) = TASK_TIMER.with(|tt| {
-        let tt = tt.borrow();
-
-        tt.peek_timer()
-    }) {
+    while let Some(task_timer) = with_task_timer(|tt| tt.peek_timer()) {
         if task_timer.time.in_future() {
             reschedule();
             return;
@@ -528,144 +483,6 @@ fn global_timer() {
 
         ic_cdk::spawn(execute_task(task_timer));
         reschedule();
-    }
-}
-
-async fn fetch_encryption_keys() {
-    log!("Fetching keys...");
-    let symmetric_key = VetKDManagement(None)
-        .request_public_key(vec![b"symmetric_key".to_vec()])
-        .await;
-
-    let ibe_encryption_key = VetKDManagement(None)
-        .request_public_key(vec![b"ibe_encryption".to_vec()])
-        .await;
-
-    let authentication_key = VetKDManagement(None)
-        .request_public_key(vec![b"two_factor_authentication".to_vec()])
-        .await;
-
-    log!("Caching keys...");
-    if let Ok(symmetric_key) = symmetric_key {
-        set_symmetric_encryption_key(symmetric_key);
-    } else {
-        log!("Failed to fetch symmetric key!");
-    }
-
-    if let Ok(ibe_encryption_key) = ibe_encryption_key {
-        set_ibe_encryption_key(ibe_encryption_key);
-    } else {
-        log!("Failed to fetch ibe encryption key!");
-    }
-
-    if let Ok(authentication_key) = authentication_key {
-        set_two_factor_authentication_key(authentication_key);
-    } else {
-        log!("Failed to fetch two factor authentication key!");
-    }
-}
-
-async fn execute_task(timer: TaskTimerEntry<Task>) {
-    log!("Execute_task: {:?}", timer);
-
-    match timer.task {
-        Task::Initialize => {
-            log!("Initializing...");
-
-            let now = NanoTimeStamp::now();
-
-            fetch_encryption_keys().await;
-
-            log!("Initializing done! Took: {}ms", now.elapsed().to_millis());
-
-            schedule_task(3600, Task::CleanUpKeys);
-            schedule_task(3600, Task::CleanUpAnonymousUsers);
-
-            reschedule();
-        }
-        Task::CleanUpKeys => {
-            log!("Cleaning up keys...");
-
-            let now = NanoTimeStamp::now();
-
-            with_one_time_keys(|keys| {
-                let expired_keys: Vec<Nonce> = keys
-                    .iter()
-                    .filter(|(_, key)| key.is_expired())
-                    .map(|(id, _)| id.clone())
-                    .collect();
-
-                expired_keys.iter().for_each(|id| {
-                    log!("Removing expired key: {:?}", keys.get(id));
-                    keys.remove(id);
-                });
-            });
-
-            log!(
-                "Cleaning up keys done! Took: {}ms",
-                now.elapsed().to_millis()
-            );
-
-            // schedule next clean up
-            schedule_task(3600, Task::CleanUpKeys);
-
-            reschedule();
-        }
-        Task::CleanUpAnonymousUsers => {
-            log!("Cleaning up users...");
-
-            let now = NanoTimeStamp::now();
-
-            with_anonymous_users(|users| {
-                let expired_users: Vec<PublicKey> = users
-                    .iter()
-                    .filter(|(_, user)| user.is_expired())
-                    .map(|(id, _)| id.clone())
-                    .collect();
-
-                expired_users.iter().for_each(|id| {
-                    log!("Removing expired user: {:?}", users.get(id));
-                    users.remove(id);
-                });
-            });
-
-            log!(
-                "Cleaning up users done! Took: {}ms",
-                now.elapsed().to_millis()
-            );
-
-            // schedule next clean up
-            schedule_task(3600, Task::CleanUpAnonymousUsers);
-
-            reschedule();
-        }
-        Task::SendEmail {
-            email,
-            body,
-            subject,
-        } => {
-            log!(
-                "sending email to: {} with subject: {}, and body: {}",
-                email,
-                subject,
-                body
-            );
-        }
-        Task::SendText { phone_number, body } => {
-            log!("Send text to: {} with body: {}", phone_number, body);
-        }
-    }
-}
-
-fn reschedule() {
-    if let Some(task_time) = TASK_TIMER.with(|tt| {
-        let tt = tt.borrow();
-
-        tt.peek_timer()
-    }) {
-        unsafe {
-            ic0::global_timer_set(task_time.time.into());
-        }
     }
 }
 
