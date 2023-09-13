@@ -110,9 +110,10 @@ const oneTimeEffect = (dispatch: RematchDispatch<RootModel>) => ({
       getBackendStates()
 
     try {
-      const ek_bytes_hex = await backendActor.request_two_factor_authentication(
-        transportSecretKey.public_key()
-      )
+      const ek_bytes_hex =
+        await backendActor.request_two_factor_authentication_for_caller(
+          transportSecretKey.public_key()
+        )
       const verification_key = transportSecretKey.decrypt_and_hash(
         hex_decode(ek_bytes_hex),
         verificationKey as Uint8Array,

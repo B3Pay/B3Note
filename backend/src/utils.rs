@@ -17,3 +17,12 @@ pub fn caller_is_not_anonymous() -> Result<(), String> {
 
     Ok(())
 }
+
+#[macro_export]
+macro_rules! log_caller {
+    ($method:expr) => {{
+        let caller = ic_cdk::caller();
+        log!("Method: {}, Caller: {}", $method, caller.to_text());
+        caller
+    }};
+}

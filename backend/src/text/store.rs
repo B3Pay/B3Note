@@ -37,10 +37,29 @@ where
     })
 }
 
-pub fn increment_nonce() -> Result<Nonce, String> {
-    TEXT_COUNTER.with(|nonce| {
-        let mut nonce = nonce.borrow_mut();
+pub fn with_encrypted_text_or_create<F, R>(text_id: &Nonce, f: F) -> R
+where
+    F: FnOnce(&mut EncryptedText) -> R,
+{
+    with_encrypted_texts(|encrypted_texts| {
+        let mut text = encrypted_texts
+            .get(text_id)
+            .map(|text| text)
+            .unwrap_or_else(|| EncryptedText::new(Vec::new()));
 
+        f(&mut text)
+    })
+}
+
+pub fn with_text_counter<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut DefaultVMCell<Nonce>) -> R,
+{
+    TEXT_COUNTER.with(|text_counter| f(&mut *text_counter.borrow_mut()))
+}
+
+pub fn increment_nonce() -> Result<Nonce, String> {
+    with_text_counter(|nonce| {
         let current = nonce.get().add(1);
 
         let next = nonce.set(current).map_err(|_| {
@@ -52,9 +71,5 @@ pub fn increment_nonce() -> Result<Nonce, String> {
 }
 
 pub fn get_nonce() -> Nonce {
-    TEXT_COUNTER.with(|nonce| {
-        let nonce = nonce.borrow();
-
-        nonce.get().current()
-    })
+    with_text_counter(|nonce| nonce.get().current())
 }

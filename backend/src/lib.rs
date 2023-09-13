@@ -101,70 +101,6 @@ fn user_data() -> IdentifiedUserData {
 }
 
 #[query]
-fn user_notes(public_key: Option<Vec<u8>>) -> (NanoTimeStamp, Vec<UserText>) {
-    let caller = log_caller!("user_notes");
-
-    if caller == Principal::anonymous() {
-        match public_key {
-            Some(public_key) => {
-                let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
-
-                with_anonymous_user_or_add(&public_key, |user| {
-                    let texts = user
-                        .iter_texts()
-                        .map(|text_id| {
-                            with_encrypted_texts(|texts| {
-                                let text = texts.get(text_id).unwrap();
-
-                                UserText {
-                                    id: text_id.to_string(),
-                                    text: text.clone(),
-                                }
-                            })
-                        })
-                        .collect();
-
-                    (user.get_created_at(), texts)
-                })
-            }
-            None => return revert("Error::public key is required for anonymous user"),
-        }
-    } else {
-        let time = NanoTimeStamp::default();
-        with_identified_user(&caller.into(), |user| {
-            let texts = user
-                .iter_texts()
-                .map(|text_id| {
-                    with_encrypted_texts(|texts| {
-                        let text = texts.get(text_id).unwrap();
-
-                        UserText {
-                            id: text_id.to_string(),
-                            text: text.clone(),
-                        }
-                    })
-                })
-                .collect();
-
-            Ok((time.clone(), texts))
-        })
-        .unwrap_or((time, vec![]))
-    }
-}
-
-#[query]
-fn anonymous_users() -> Vec<(PublicKey, AnonymousUserData)> {
-    log_caller!("anonymous_users");
-
-    with_anonymous_users(|users| {
-        users
-            .iter()
-            .map(|(key, user)| (key.clone(), user.clone()))
-            .collect()
-    })
-}
-
-#[query]
 fn anonymous_user(public_key: Vec<u8>) -> AnonymousUserData {
     log_caller!("anonymous_user");
 
@@ -188,7 +124,7 @@ fn anonymous_user_notes(public_key: Vec<u8>) -> Vec<UserText> {
 
                     UserText {
                         id: text_id.to_string(),
-                        text: text.clone(),
+                        text: text.into_inner(),
                     }
                 })
             })
@@ -200,18 +136,55 @@ fn anonymous_user_notes(public_key: Vec<u8>) -> Vec<UserText> {
 }
 
 #[query]
-fn encrypted_texts() -> Vec<UserText> {
-    log_caller!("encrypted_texts");
+fn user_notes(public_key: Option<Vec<u8>>) -> (NanoTimeStamp, Vec<UserText>) {
+    let caller = log_caller!("user_notes");
+    // public key for anonymous users is required
+    if caller == Principal::anonymous() && public_key.is_none() {
+        return revert("Error::public key is required for anonymous user!");
+    }
 
-    with_encrypted_texts(|texts| {
-        texts
-            .iter()
-            .map(|(id, text)| UserText {
-                id: id.to_string(),
-                text: text.clone(),
-            })
-            .collect()
-    })
+    if caller == Principal::anonymous() {
+        // this is safe because we checked for None above
+        let public_key = vec_to_fixed_array(&public_key.unwrap()).unwrap_or_else(revert);
+
+        with_anonymous_user_or_add(&public_key, |user| {
+            let texts = user
+                .iter_texts()
+                .map(|text_id| {
+                    with_encrypted_texts(|texts| {
+                        let text = texts.get(text_id).unwrap();
+
+                        UserText {
+                            id: text_id.to_string(),
+                            text: text.into_inner(),
+                        }
+                    })
+                })
+                .collect();
+
+            (user.get_created_at(), texts)
+        })
+    } else {
+        let time = NanoTimeStamp::default();
+        with_identified_user(&caller.into(), |user| {
+            let texts = user
+                .iter_texts()
+                .map(|text_id| {
+                    with_encrypted_texts(|texts| {
+                        let text = texts.get(text_id).unwrap();
+
+                        UserText {
+                            id: text_id.to_string(),
+                            text: text.into_inner(),
+                        }
+                    })
+                })
+                .collect();
+
+            Ok((time.clone(), texts))
+        })
+        .unwrap_or((time, vec![]))
+    }
 }
 
 #[update]
@@ -224,21 +197,22 @@ async fn save_encrypted_text(encrypted_text: Vec<u8>, public_key: Option<Vec<u8>
 
     let text_id = increment_nonce().unwrap_or_else(revert);
 
-    with_encrypted_texts(|texts| {
-        texts.insert(text_id, EncryptedText::new(encrypted_text));
+    with_encrypted_text_or_create(&text_id, |texts| {
+        texts.set_text(encrypted_text);
     });
 
     if caller == Principal::anonymous() {
         // this is safe because we checked for None above
         let public_key = vec_to_fixed_array(&public_key.unwrap()).unwrap_or_else(revert);
 
-        log!("Adding text id to anonymous user!");
+        log!("Adding encrypted text to anonymous user!");
         with_anonymous_user_or_add(&public_key, |user| {
             user.add_text_id(text_id.clone()).unwrap_or_else(revert);
 
             text_id
         })
     } else {
+        log!("Adding encrypted text to identified user!");
         with_identified_user_or_add(&caller.into(), |user| {
             user.add_text_id(text_id.clone()).unwrap_or_else(revert);
 
@@ -250,33 +224,33 @@ async fn save_encrypted_text(encrypted_text: Vec<u8>, public_key: Option<Vec<u8>
 #[update]
 fn edit_encrypted_text(text_id: Nonce, encrypted_text: Vec<u8>, public_key: Option<Vec<u8>>) {
     let caller = log_caller!("edit_encrypted_text");
+    // public key for anonymous users is required
+    if caller == Principal::anonymous() && public_key.is_none() {
+        return revert("Error::public key is required for anonymous user!");
+    }
 
     if caller == Principal::anonymous() {
-        match public_key {
-            Some(public_key) => {
-                let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
+        // this is safe because we checked for None above
+        let public_key = vec_to_fixed_array(&public_key.unwrap()).unwrap_or_else(revert);
 
-                with_anonymous_user(&public_key, |data| {
-                    data.remove_text_id(&text_id).unwrap_or_else(revert);
+        with_anonymous_user(&public_key, |data| {
+            data.remove_text_id(&text_id).unwrap_or_else(revert);
 
-                    with_encrypted_texts(|texts| {
-                        texts.insert(text_id.clone(), EncryptedText::new(encrypted_text));
-                    });
+            with_encrypted_text_or_create(&text_id, |texts| {
+                texts.set_text(encrypted_text.clone());
+            });
 
-                    data.add_text_id(text_id).unwrap_or_else(revert);
+            data.add_text_id(text_id).unwrap_or_else(revert);
 
-                    Ok(())
-                })
-                .unwrap_or_else(revert)
-            }
-            None => revert("Error::public key is required!"),
-        }
+            Ok(())
+        })
+        .unwrap_or_else(revert)
     } else {
         with_identified_user(&caller.into(), |user| {
             user.remove_text_id(&text_id).unwrap_or_else(revert);
 
-            with_encrypted_texts(|texts| {
-                texts.insert(text_id.clone(), EncryptedText::new(encrypted_text));
+            with_encrypted_text_or_create(&text_id, |texts| {
+                texts.set_text(encrypted_text.clone());
             });
 
             user.add_text_id(text_id).unwrap_or_else(revert);
@@ -333,6 +307,9 @@ async fn read_with_one_time_key(
         return report("Error::One time key is expired!");
     }
 
+    let encrypted_text =
+        with_encrypted_text(&text_id, |text| Ok(text.into_inner())).unwrap_or_else(revert);
+
     let verified = verify_pairing(
         &one_time_key.public_key(),
         &signature,
@@ -341,9 +318,6 @@ async fn read_with_one_time_key(
 
     match verified {
         Ok(_) => {
-            let encrypted_text =
-                with_encrypted_text(&text_id, |text| Ok(text.clone())).unwrap_or_else(revert);
-
             let encrypted_key = VetKD::new(caller.into())
                 .request_encrypted_key(vec![b"ibe_encryption".to_vec()], reader_public_key)
                 .await
@@ -375,7 +349,7 @@ async fn two_factor_verification_key() -> Vec<u8> {
 }
 
 #[update(guard = "caller_is_not_anonymous")]
-async fn request_two_factor_authentication(encryption_public_key: Vec<u8>) -> String {
+async fn request_two_factor_authentication_for_caller(encryption_public_key: Vec<u8>) -> String {
     let caller = log_caller!("request_two_factor_authentication");
 
     let encrypted_key = VetKD::new(caller.into())
@@ -487,12 +461,3 @@ fn global_timer() {
 }
 
 ic_cdk::export_candid!();
-
-#[macro_export]
-macro_rules! log_caller {
-    ($method:expr) => {{
-        let caller = ic_cdk::caller();
-        log!("Method: {}, Caller: {}", $method, caller.to_text());
-        caller
-    }};
-}
