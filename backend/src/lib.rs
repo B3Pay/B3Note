@@ -383,9 +383,17 @@ async fn encrypted_ibe_decryption_key_for_caller(encryption_public_key: Vec<u8>)
         .unwrap_or_else(revert);
 
     // cache key
-    with_anonymous_user_or_add(&public_key, |user| {
-        user.set_decryption_key(encrypted_key.clone());
-    });
+    if caller == Principal::anonymous() {
+        with_anonymous_user_or_add(&public_key, |user| {
+            user.set_decryption_key(encrypted_key.clone());
+        });
+    } else {
+        with_identified_users(|keys| {
+            let user_data = IdentifiedUserData::new(encrypted_key.clone(), None);
+
+            keys.insert(caller.into(), user_data);
+        });
+    }
 
     encrypted_key
 }
