@@ -24,7 +24,7 @@ const getterEffect = (dispatch: RematchDispatch<RootModel>) => ({
   fetch_logs: async () => {
     const { backendActor } = getBackendStates()
 
-    return (await backendActor.print_log_entries()).reverse()
+    return await backendActor.print_log_entries()
   },
   fetch_log_page: async (args: { page: number; pageSize?: number }) => {
     const { backendActor } = getBackendStates()
