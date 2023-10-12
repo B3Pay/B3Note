@@ -459,6 +459,11 @@ fn timers() -> Vec<TaskTimerEntry<Task>> {
     })
 }
 
+#[query]
+fn version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 fn schedule_task(after_sec: u64, task: Task) {
     log_caller!(format!(
         "schedule_task: {:?} after {} secs",

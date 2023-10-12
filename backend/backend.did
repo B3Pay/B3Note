@@ -62,4 +62,5 @@ service : () -> {
   two_factor_verification_key : () -> (text);
   user_data : () -> (UserData) query;
   user_notes : (opt vec nat8) -> (nat64, vec UserText) query;
+  version : () -> (text) query;
 }
