@@ -27,7 +27,7 @@ export default function createMuiTheme(
     },
     palette: {
       primary: {
-        main: blue[300],
+        main: blue[100],
       },
       info: {
         main: purple[300],
@@ -421,7 +421,7 @@ export default function createMuiTheme(
           {
             props: { color: "secondary" },
             style: {
-              color: pink[300],
+              color: pink[900],
               "&:hover": {
                 backgroundColor: pink[50],
               },

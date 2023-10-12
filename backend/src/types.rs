@@ -1,5 +1,5 @@
 use b3_utils::{
-    memory::types::{BoundedStorable, Storable},
+    memory::types::{Bound, Storable},
     nonce::Nonce,
     NanoTimeStamp,
 };
@@ -19,11 +19,6 @@ pub type EncryptionKey = [u8; 96];
 #[derive(CandidType, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub struct UserName(String);
 
-impl BoundedStorable for UserName {
-    const IS_FIXED_SIZE: bool = false;
-    const MAX_SIZE: u32 = 100;
-}
-
 impl Storable for UserName {
     fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
         Self(String::from_utf8(bytes.into_owned()).unwrap())
@@ -32,15 +27,15 @@ impl Storable for UserName {
     fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
         self.0.as_bytes().to_vec().into()
     }
+
+    const BOUND: Bound = Bound::Bounded {
+        max_size: 100,
+        is_fixed_size: false,
+    };
 }
 
 #[derive(CandidType, Clone, Deserialize)]
 pub struct EncryptedHashedPassword(Vec<u8>);
-
-impl BoundedStorable for EncryptedHashedPassword {
-    const IS_FIXED_SIZE: bool = false;
-    const MAX_SIZE: u32 = 100;
-}
 
 impl Storable for EncryptedHashedPassword {
     fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
@@ -50,6 +45,11 @@ impl Storable for EncryptedHashedPassword {
     fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
         self.0.clone().into()
     }
+
+    const BOUND: Bound = Bound::Bounded {
+        max_size: 100,
+        is_fixed_size: false,
+    };
 }
 
 #[derive(candid::CandidType, Clone, Deserialize)]
@@ -71,11 +71,6 @@ impl EncryptedText {
     }
 }
 
-impl BoundedStorable for EncryptedText {
-    const IS_FIXED_SIZE: bool = false;
-    const MAX_SIZE: u32 = 1128;
-}
-
 impl Storable for EncryptedText {
     fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
         Self(bytes.into_owned())
@@ -84,6 +79,11 @@ impl Storable for EncryptedText {
     fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
         self.0.clone().into()
     }
+
+    const BOUND: Bound = Bound::Bounded {
+        max_size: 1128,
+        is_fixed_size: false,
+    };
 }
 
 #[derive(Default, Debug, Serialize, Clone, CandidType, Deserialize)]
@@ -121,11 +121,6 @@ impl OneTimeKey {
     }
 }
 
-impl BoundedStorable for OneTimeKey {
-    const IS_FIXED_SIZE: bool = false;
-    const MAX_SIZE: u32 = 200;
-}
-
 impl Storable for OneTimeKey {
     fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
         let mut bytes = vec![];
@@ -136,6 +131,11 @@ impl Storable for OneTimeKey {
     fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
         from_reader(&mut Cursor::new(&bytes)).unwrap()
     }
+
+    const BOUND: Bound = Bound::Bounded {
+        max_size: 200,
+        is_fixed_size: false,
+    };
 }
 
 #[derive(Default, Debug, Serialize, Clone, CandidType, Deserialize)]
@@ -145,9 +145,21 @@ pub struct AnonymousUserData {
     decryption_key: Option<Vec<u8>>,
 }
 
-impl BoundedStorable for AnonymousUserData {
-    const IS_FIXED_SIZE: bool = false;
-    const MAX_SIZE: u32 = 500;
+impl Storable for AnonymousUserData {
+    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
+        let mut bytes = vec![];
+        into_writer(&self, &mut bytes).unwrap();
+        std::borrow::Cow::Owned(bytes)
+    }
+
+    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
+        from_reader(&mut Cursor::new(&bytes)).unwrap()
+    }
+
+    const BOUND: Bound = Bound::Bounded {
+        max_size: 500,
+        is_fixed_size: false,
+    };
 }
 
 impl AnonymousUserData {
@@ -216,18 +228,6 @@ impl AnonymousUserData {
     }
 }
 
-impl Storable for AnonymousUserData {
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        let mut bytes = vec![];
-        into_writer(&self, &mut bytes).unwrap();
-        std::borrow::Cow::Owned(bytes)
-    }
-
-    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        from_reader(&mut Cursor::new(&bytes)).unwrap()
-    }
-}
-
 #[derive(Serialize, Clone, CandidType, Deserialize)]
 pub struct AuthenticatedSignature {
     pub signature: Vec<u8>,
@@ -241,9 +241,21 @@ pub struct UserData {
     signature: Option<AuthenticatedSignature>,
 }
 
-impl BoundedStorable for UserData {
-    const IS_FIXED_SIZE: bool = false;
-    const MAX_SIZE: u32 = 500;
+impl Storable for UserData {
+    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
+        let mut bytes = vec![];
+        into_writer(&self, &mut bytes).unwrap();
+        std::borrow::Cow::Owned(bytes)
+    }
+
+    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
+        from_reader(&mut Cursor::new(&bytes)).unwrap()
+    }
+
+    const BOUND: Bound = Bound::Bounded {
+        max_size: 500,
+        is_fixed_size: false,
+    };
 }
 
 impl UserData {
@@ -280,18 +292,6 @@ impl UserData {
     }
 }
 
-impl Storable for UserData {
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        let mut bytes = vec![];
-        into_writer(&self, &mut bytes).unwrap();
-        std::borrow::Cow::Owned(bytes)
-    }
-
-    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        from_reader(&mut Cursor::new(&bytes)).unwrap()
-    }
-}
-
 #[derive(CandidType, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Task {
     Initialize,
@@ -318,9 +318,9 @@ impl Storable for Task {
     fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
         from_reader(&mut Cursor::new(&bytes)).unwrap()
     }
-}
 
-impl BoundedStorable for Task {
-    const MAX_SIZE: u32 = 24;
-    const IS_FIXED_SIZE: bool = true;
+    const BOUND: Bound = Bound::Bounded {
+        max_size: 24,
+        is_fixed_size: true,
+    };
 }

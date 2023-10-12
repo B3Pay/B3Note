@@ -1,31 +1,31 @@
 use b3_utils::{
     memory::{
-        timer::TaskTimerPartition,
+        init_stable_mem_refcell,
+        timer::DefaultTaskTimer,
         types::{DefaultVMCell, DefaultVMMap},
-        with_stable_memory_mut,
     },
     nonce::Nonce,
     Subaccount,
 };
-use std::cell::RefCell;
+use std::{cell::RefCell, ops::Add};
 
 use crate::{types::*, utils::vec_to_fixed_array};
 
 thread_local! {
-    pub static TEXT_COUNTER: RefCell<DefaultVMCell<Nonce>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_cell("stable_counter", 100).unwrap()));
+    pub static TEXT_COUNTER: RefCell<DefaultVMCell<Nonce>> = init_stable_mem_refcell("stable_counter", 100).unwrap();
 
     pub static IBE_ENCRYPTION_KEYS: RefCell<EncryptionKey> = RefCell::new([0; 96]);
     pub static SYMMETRIC_ENCRYPTION_KEYS: RefCell<EncryptionKey> = RefCell::new([0; 96]);
 
-    pub static TASK_TIMER: RefCell<TaskTimerPartition<Task>> = RefCell::new(with_stable_memory_mut(|pm| TaskTimerPartition::init(pm, 1)));
+    pub static TASK_TIMER: RefCell<DefaultTaskTimer<Task>> = init_stable_mem_refcell("task_timer", 1).unwrap();
 
-    pub static USERS: RefCell<DefaultVMMap<Subaccount, UserData>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("users", 10).unwrap()));
-    pub static ANONYMOUS_USERS: RefCell<DefaultVMMap<PublicKey, AnonymousUserData>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("anonymous_users", 11).unwrap()));
+    pub static USERS: RefCell<DefaultVMMap<Subaccount, UserData>> = init_stable_mem_refcell("users", 10).unwrap();
+    pub static ANONYMOUS_USERS: RefCell<DefaultVMMap<PublicKey, AnonymousUserData>> = init_stable_mem_refcell("anonymous_users", 11).unwrap();
 
-    pub static USER_PASS: RefCell<DefaultVMMap<UserName, EncryptedHashedPassword>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("password", 12).unwrap()));
+    pub static USER_PASS: RefCell<DefaultVMMap<UserName, EncryptedHashedPassword>> = init_stable_mem_refcell("password", 12).unwrap();
 
-    pub static ONE_TIME_KEYS: RefCell<DefaultVMMap<Nonce, OneTimeKey>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("one_time_key", 13).unwrap()));
-    pub static ENCRYPTED_TEXTS: RefCell<DefaultVMMap<Nonce, EncryptedText>> = RefCell::new(with_stable_memory_mut(|pm| pm.init_btree_map("text", 14).unwrap()));
+    pub static ONE_TIME_KEYS: RefCell<DefaultVMMap<Nonce, OneTimeKey>> = init_stable_mem_refcell("one_time_key", 13).unwrap();
+    pub static ENCRYPTED_TEXTS: RefCell<DefaultVMMap<Nonce, EncryptedText>> = init_stable_mem_refcell("text", 14).unwrap();
 
 }
 
@@ -33,21 +33,13 @@ pub fn increment_nonce() -> Result<Nonce, String> {
     TEXT_COUNTER.with(|nonce| {
         let mut nonce = nonce.borrow_mut();
 
-        let current = nonce.get().add(1);
+        let current = nonce.get().add(Nonce::from(1));
 
         let next = nonce.set(current).map_err(|_| {
             "Error::Nonce counter overflowed. This should never happen, please contact the developers!"
         })?;
 
         Ok(next)
-    })
-}
-
-pub fn get_nonce() -> Nonce {
-    TEXT_COUNTER.with(|nonce| {
-        let nonce = nonce.borrow();
-
-        nonce.get().current()
     })
 }
 
@@ -112,7 +104,7 @@ where
 
 pub fn with_task_timer<F, R>(f: F) -> R
 where
-    F: FnOnce(&mut TaskTimerPartition<Task>) -> R,
+    F: FnOnce(&mut DefaultTaskTimer<Task>) -> R,
 {
     TASK_TIMER.with(|task_timer| f(&mut *task_timer.borrow_mut()))
 }

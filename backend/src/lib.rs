@@ -1,10 +1,9 @@
 use b3_utils::{
-    log,
+    log_cycle,
     logs::{export_log, export_log_messages_page, LogEntry},
     memory::{
-        base::{with_base_partition, with_base_partition_mut},
-        timer::TaskTimerEntry,
-        types::PartitionDetail,
+        timer::TaskTimerEntry, types::PartitionDetail, with_backup_mem, with_backup_mem_mut,
+        with_stable_mem,
     },
     nonce::Nonce,
     report, revert, vec_to_hex_string,
@@ -35,7 +34,7 @@ fn init() {
 
 #[pre_upgrade]
 pub fn pre_upgrade() {
-    log!("Pre_upgrade");
+    log_cycle!("Pre_upgrade");
 
     let ibe_key = get_ibe_encrypted_key().to_vec();
     let sym_key = get_symmetric_encrypted_key().to_vec();
@@ -44,14 +43,14 @@ pub fn pre_upgrade() {
 
     into_writer(&(ibe_key, sym_key), &mut states_bytes).unwrap();
 
-    with_base_partition_mut(|core_partition| core_partition.set_backup(states_bytes));
+    with_backup_mem_mut(|b| b.set_backup(states_bytes));
 }
 
 #[post_upgrade]
 pub fn post_upgrade() {
-    log!("Post_upgrade");
+    log_cycle!("Post_upgrade");
 
-    let states_bytes = with_base_partition(|core_partition| core_partition.get_backup());
+    let states_bytes = with_backup_mem(|b| b.get_backup());
 
     let (ibe_key, sym_key) =
         ciborium::de::from_reader(&*states_bytes).expect("failed to decode state");
@@ -60,7 +59,7 @@ pub fn post_upgrade() {
     set_symmetric_encryption_key(sym_key);
 
     for detail in partition_details() {
-        log!("{:?}", detail);
+        log_cycle!("{:?}", detail);
     }
 
     reschedule();
@@ -205,7 +204,7 @@ async fn save_encrypted_text(encrypted_text: Vec<u8>, public_key: Option<Vec<u8>
         // this is safe because we checked for None above
         let public_key = vec_to_fixed_array(&public_key.unwrap()).unwrap_or_else(revert);
 
-        log!("Adding text id to anonymous user!");
+        log_cycle!("Adding text id to anonymous user!");
         with_anonymous_user_or_add(&public_key, |user| {
             user.add_text_id(text_id.clone()).unwrap_or_else(revert);
 
@@ -351,7 +350,7 @@ async fn symmetric_key_verification_key() -> Vec<u8> {
 async fn two_factor_verification_key() -> String {
     log_caller!("two_factor_verification_key");
 
-    let reponse = VetKDManagement(None)
+    let reponse = VetKDManagement(ic_cdk::id())
         .request_public_key(vec![b"two_factor_authentication".to_vec()])
         .await
         .unwrap_or_else(revert);
@@ -448,45 +447,7 @@ fn print_log_entries_page(page: usize, page_size: Option<usize>) -> Vec<String> 
 
 #[query]
 fn partition_details() -> Vec<PartitionDetail> {
-    let mut details = Vec::new();
-
-    details.push(PartitionDetail {
-        name: "text counter".to_string(),
-        len: get_nonce().into(),
-    });
-
-    details.push(PartitionDetail {
-        name: "users".to_string(),
-        len: USERS.with(|m| m.borrow().len()) as u64,
-    });
-
-    details.push(PartitionDetail {
-        name: "anonymous users".to_string(),
-        len: ANONYMOUS_USERS.with(|s| s.borrow().len()) as u64,
-    });
-
-    details.push(PartitionDetail {
-        name: "password".to_string(),
-        len: USER_PASS.with(|v| v.borrow().len()) as u64,
-    });
-
-    details.push(PartitionDetail {
-        name: "one time keys".to_string(),
-        len: ONE_TIME_KEYS.with(|u| u.borrow().len()) as u64,
-    });
-
-    details.push(PartitionDetail {
-        name: "encrypted text".to_string(),
-        len: ENCRYPTED_TEXTS.with(|s| s.borrow().len()) as u64,
-    });
-
-    TASK_TIMER.with(|tt| {
-        let tt = tt.borrow();
-
-        details.push(tt.details());
-    });
-
-    details
+    with_stable_mem(|p| p.partition_details())
 }
 
 #[query]
@@ -494,7 +455,7 @@ fn timers() -> Vec<TaskTimerEntry<Task>> {
     TASK_TIMER.with(|s| {
         let state = s.borrow();
 
-        state.get_timer()
+        state.get_timers()
     })
 }
 
@@ -535,41 +496,41 @@ fn global_timer() {
 }
 
 async fn fetch_encryption_keys() {
-    log!("Fetching keys...");
-    let symmetric_key = VetKDManagement(None)
+    log_cycle!("Fetching keys...");
+    let symmetric_key = VetKDManagement(ic_cdk::id())
         .request_public_key(vec![b"symmetric_key".to_vec()])
         .await;
 
-    let ibe_encryption_key = VetKDManagement(None)
+    let ibe_encryption_key = VetKDManagement(ic_cdk::id())
         .request_public_key(vec![b"ibe_encryption".to_vec()])
         .await;
 
-    log!("Caching keys...");
+    log_cycle!("Caching keys...");
     if let Ok(symmetric_key) = symmetric_key {
         set_symmetric_encryption_key(symmetric_key);
     } else {
-        log!("Failed to fetch symmetric key");
+        log_cycle!("Failed to fetch symmetric key");
     }
 
     if let Ok(ibe_encryption_key) = ibe_encryption_key {
         set_ibe_encryption_key(ibe_encryption_key);
     } else {
-        log!("Failed to fetch ibe encryption key");
+        log_cycle!("Failed to fetch ibe encryption key");
     }
 }
 
 async fn execute_task(timer: TaskTimerEntry<Task>) {
-    log!("Execute_task: {:?}", timer);
+    log_cycle!("Execute_task: {:?}", timer);
 
     match timer.task {
         Task::Initialize => {
-            log!("Initializing...");
+            log_cycle!("Initializing...");
 
             let now = NanoTimeStamp::now();
 
             fetch_encryption_keys().await;
 
-            log!("Initializing done! Took: {}ms", now.elapsed().to_millis());
+            log_cycle!("Initializing done! Took: {}ms", now.elapsed().to_millis());
 
             schedule_task(3600, Task::CleanUpKeys);
             schedule_task(3600, Task::CleanUpAnonymousUsers);
@@ -577,7 +538,7 @@ async fn execute_task(timer: TaskTimerEntry<Task>) {
             reschedule();
         }
         Task::CleanUpKeys => {
-            log!("Cleaning up keys...");
+            log_cycle!("Cleaning up keys...");
 
             let now = NanoTimeStamp::now();
 
@@ -589,12 +550,12 @@ async fn execute_task(timer: TaskTimerEntry<Task>) {
                     .collect();
 
                 expired_keys.iter().for_each(|id| {
-                    log!("Removing expired key: {:?}", keys.get(id));
+                    log_cycle!("Removing expired key: {:?}", keys.get(id));
                     keys.remove(id);
                 });
             });
 
-            log!(
+            log_cycle!(
                 "Cleaning up keys done! Took: {}ms",
                 now.elapsed().to_millis()
             );
@@ -605,7 +566,7 @@ async fn execute_task(timer: TaskTimerEntry<Task>) {
             reschedule();
         }
         Task::CleanUpAnonymousUsers => {
-            log!("Cleaning up users...");
+            log_cycle!("Cleaning up users...");
 
             let now = NanoTimeStamp::now();
 
@@ -617,12 +578,12 @@ async fn execute_task(timer: TaskTimerEntry<Task>) {
                     .collect();
 
                 expired_users.iter().for_each(|id| {
-                    log!("Removing expired user: {:?}", users.get(id));
+                    log_cycle!("Removing expired user: {:?}", users.get(id));
                     users.remove(id);
                 });
             });
 
-            log!(
+            log_cycle!(
                 "Cleaning up users done! Took: {}ms",
                 now.elapsed().to_millis()
             );
@@ -637,7 +598,7 @@ async fn execute_task(timer: TaskTimerEntry<Task>) {
             body,
             subject,
         } => {
-            log!(
+            log_cycle!(
                 "sending email to: {} with subject: {}, and body: {}",
                 email,
                 subject,
@@ -645,7 +606,7 @@ async fn execute_task(timer: TaskTimerEntry<Task>) {
             );
         }
         Task::SendText { phone_number, body } => {
-            log!("Send text to: {} with body: {}", phone_number, body);
+            log_cycle!("Send text to: {} with body: {}", phone_number, body);
         }
     }
 }
@@ -668,7 +629,7 @@ ic_cdk::export_candid!();
 macro_rules! log_caller {
     ($method:expr) => {{
         let caller = ic_cdk::caller();
-        log!("Method: {}, Caller: {}", $method, caller.to_text());
+        log_cycle!("Method: {}, Caller: {}", $method, caller.to_text());
         caller
     }};
 }

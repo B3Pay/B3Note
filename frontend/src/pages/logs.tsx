@@ -15,7 +15,7 @@ import { fetchLogs, fetchTimers, initBackend } from "contexts/helpers"
 import { useBackendIsInitialized } from "contexts/hooks/useBackend"
 import { useBackendLoading } from "contexts/hooks/useLoading"
 import { LogEntry, TaskTimerEntry } from "declarations/backend/backend.did"
-import { nanoToHumanReadable } from "helper/utils"
+import { formatCyclesToMCycles, nanoToHumanReadable } from "helper/utils"
 import { useEffect, useState } from "react"
 
 interface LogsProps {}
@@ -112,7 +112,8 @@ const Logs: React.FC<LogsProps> = ({}) => {
           <Table size="small" aria-label="simple table">
             <TableHead>
               <TableRow>
-                <TableCell>Time</TableCell>
+                <TableCell width="50px">Time</TableCell>
+                <TableCell width="50px">Cycle</TableCell>
                 <TableCell>Event</TableCell>
                 <TableCell align="right">Version</TableCell>
               </TableRow>
@@ -120,13 +121,16 @@ const Logs: React.FC<LogsProps> = ({}) => {
             <TableBody>
               {logs
                 ?.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map(({ message, timestamp, version }, index) => (
+                .map(({ message, timestamp, cycle, version }, index) => (
                   <TableRow
                     key={index}
                     sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
                   >
                     <TableCell component="th" scope="row">
                       {nanoToHumanReadable(timestamp)}
+                    </TableCell>
+                    <TableCell component="th" scope="row">
+                      {formatCyclesToMCycles(cycle[0])}
                     </TableCell>
                     <TableCell>{message}</TableCell>
                     <TableCell align="right">{version}</TableCell>

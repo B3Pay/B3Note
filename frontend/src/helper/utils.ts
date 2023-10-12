@@ -122,3 +122,9 @@ export function nanoToHumanReadableElapsed(nanoTimestamp: bigint | null) {
 
   return `${hours} hours, ${minutes % 60} minutes, ${seconds % 60} seconds`
 }
+
+export function formatCyclesToMCycles(cycles?: bigint) {
+  if (!cycles) return "0"
+  const mcycles = cycles / BigInt(1_000_000)
+  return mcycles.toString()
+}
