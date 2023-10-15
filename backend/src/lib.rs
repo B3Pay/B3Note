@@ -187,41 +187,16 @@ fn encrypted_texts() -> Vec<UserText> {
 }
 
 #[update]
-async fn add_note(public_key: Option<Vec<u8>>, note: Vec<u8>) -> Nonce {
-    let caller = log_caller!("add_note");
+async fn add_note(public_key: Vec<u8>, note: String) {
+    log_caller!("add_simple_note");
 
-    if caller == Principal::anonymous() {
-        match public_key {
-            Some(public_key) => {
-                let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
+    SIMPLE_NOTES.with(|notes| {
+        let mut notes = notes.borrow_mut();
 
-                with_anonymous_user_or_add(&public_key, |user| {
-                    let text_id = increment_nonce().unwrap_or_else(revert);
+        let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
 
-                    with_encrypted_texts(|texts| {
-                        texts.insert(text_id.clone(), EncryptedText::new(note));
-                    });
-
-                    user.add_text_id(text_id.clone()).unwrap_or_else(revert);
-
-                    text_id
-                })
-            }
-            None => return revert("Error::public key is required for anonymous user"),
-        }
-    } else {
-        let text_id = increment_nonce().unwrap_or_else(revert);
-
-        with_user_or_add(&caller.into(), |user| {
-            with_encrypted_texts(|texts| {
-                texts.insert(text_id.clone(), EncryptedText::new(note));
-            });
-
-            user.add_text_id(text_id.clone()).unwrap_or_else(revert);
-
-            text_id
-        })
-    }
+        notes.insert(public_key, note);
+    })
 }
 
 #[update]
