@@ -187,6 +187,44 @@ fn encrypted_texts() -> Vec<UserText> {
 }
 
 #[update]
+async fn add_note(public_key: Option<Vec<u8>>, note: Vec<u8>) -> Nonce {
+    let caller = log_caller!("add_note");
+
+    if caller == Principal::anonymous() {
+        match public_key {
+            Some(public_key) => {
+                let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
+
+                with_anonymous_user_or_add(&public_key, |user| {
+                    let text_id = increment_nonce().unwrap_or_else(revert);
+
+                    with_encrypted_texts(|texts| {
+                        texts.insert(text_id.clone(), EncryptedText::new(note));
+                    });
+
+                    user.add_text_id(text_id.clone()).unwrap_or_else(revert);
+
+                    text_id
+                })
+            }
+            None => return revert("Error::public key is required for anonymous user"),
+        }
+    } else {
+        let text_id = increment_nonce().unwrap_or_else(revert);
+
+        with_user_or_add(&caller.into(), |user| {
+            with_encrypted_texts(|texts| {
+                texts.insert(text_id.clone(), EncryptedText::new(note));
+            });
+
+            user.add_text_id(text_id.clone()).unwrap_or_else(revert);
+
+            text_id
+        })
+    }
+}
+
+#[update]
 async fn save_encrypted_text(encrypted_text: Vec<u8>, public_key: Option<Vec<u8>>) -> Nonce {
     let caller = log_caller!("save_encrypted_text");
     // public key for anonymous users is required
