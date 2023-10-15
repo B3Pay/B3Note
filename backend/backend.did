@@ -40,7 +40,7 @@ type UserData = record {
 };
 type UserText = record { id : text; "text" : vec nat8 };
 service : () -> {
-  add_note : (vec nat8, text) -> ();
+  add_simple_note : (vec nat8, text) -> ();
   anonymous_user : (vec nat8) -> (AnonymousUserData) query;
   anonymous_user_notes : (vec nat8) -> (vec UserText) query;
   anonymous_users : () -> (vec record { vec nat8; AnonymousUserData }) query;
@@ -63,5 +63,6 @@ service : () -> {
   two_factor_verification_key : () -> (text);
   user_data : () -> (UserData) query;
   user_notes : (opt vec nat8) -> (nat64, vec UserText) query;
+  user_simple_notes : (vec nat8) -> (vec text) query;
   version : () -> (text) query;
 }

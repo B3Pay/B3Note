@@ -73,6 +73,19 @@ fn user_data() -> UserData {
 }
 
 #[query]
+fn user_simple_notes(public_key: Vec<u8>) -> Vec<String> {
+    let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
+
+    SIMPLE_NOTES
+        .with(|notes| {
+            let notes = notes.borrow();
+
+            notes.get(&public_key).cloned()
+        })
+        .unwrap_or(vec![])
+}
+
+#[query]
 fn user_notes(public_key: Option<Vec<u8>>) -> (NanoTimeStamp, Vec<UserText>) {
     let caller = log_caller!("user_notes");
 
@@ -187,7 +200,7 @@ fn encrypted_texts() -> Vec<UserText> {
 }
 
 #[update]
-async fn add_note(public_key: Vec<u8>, note: String) {
+async fn add_simple_note(public_key: Vec<u8>, note: String) {
     log_caller!("add_simple_note");
 
     SIMPLE_NOTES.with(|notes| {
@@ -195,7 +208,9 @@ async fn add_note(public_key: Vec<u8>, note: String) {
 
         let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
 
-        notes.insert(public_key, note);
+        let notes = notes.entry(public_key).or_insert(vec![]);
+
+        notes.push(note);
     })
 }
 

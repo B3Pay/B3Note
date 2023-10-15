@@ -27,7 +27,7 @@ thread_local! {
     pub static ONE_TIME_KEYS: RefCell<DefaultVMMap<Nonce, OneTimeKey>> = init_stable_mem_refcell("one_time_key", 13).unwrap();
     pub static ENCRYPTED_TEXTS: RefCell<DefaultVMMap<Nonce, EncryptedText>> = init_stable_mem_refcell("text", 14).unwrap();
 
-    pub static SIMPLE_NOTES: RefCell<BTreeMap<PublicKey, String>> = RefCell::new(BTreeMap::new());
+    pub static SIMPLE_NOTES: RefCell<BTreeMap<PublicKey, Vec<String>>> = RefCell::new(BTreeMap::new());
 }
 
 pub fn increment_nonce() -> Result<Nonce, String> {
