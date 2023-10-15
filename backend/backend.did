@@ -40,7 +40,7 @@ type UserData = record {
 };
 type UserText = record { id : text; "text" : vec nat8 };
 service : () -> {
-  add_simple_note : (vec nat8, text) -> ();
+  add_simple_note : (vec nat8, text) -> (nat64);
   anonymous_user : (vec nat8) -> (AnonymousUserData) query;
   anonymous_user_notes : (vec nat8) -> (vec UserText) query;
   anonymous_users : () -> (vec record { vec nat8; AnonymousUserData }) query;

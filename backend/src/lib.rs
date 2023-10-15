@@ -200,17 +200,19 @@ fn encrypted_texts() -> Vec<UserText> {
 }
 
 #[update]
-async fn add_simple_note(public_key: Vec<u8>, note: String) {
+async fn add_simple_note(public_key: Vec<u8>, note: String) -> usize {
     log_caller!("add_simple_note");
+
+    let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
 
     SIMPLE_NOTES.with(|notes| {
         let mut notes = notes.borrow_mut();
 
-        let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
-
         let notes = notes.entry(public_key).or_insert(vec![]);
 
         notes.push(note);
+
+        notes.len()
     })
 }
 
