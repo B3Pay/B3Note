@@ -12,7 +12,7 @@ use b3_utils::{
 };
 use candid::Principal;
 use ciborium::into_writer;
-use ic_cdk::{init, post_upgrade, pre_upgrade, query, update};
+use ic_cdk::{api::call::call_with_payment, init, post_upgrade, pre_upgrade, query, update};
 
 mod types;
 use types::*;
@@ -62,7 +62,7 @@ pub fn post_upgrade() {
         log_cycle!("{:?}", detail);
     }
 
-    reschedule();
+    // reschedule();
 }
 
 #[query(guard = "caller_is_not_anonymous")]
@@ -487,6 +487,18 @@ fn timers() -> Vec<TaskTimerEntry<Task>> {
 
         state.get_timers()
     })
+}
+
+#[update(guard = "caller_is_controller")]
+async fn transfer_cycle(canister_id: Principal, amount: u64) {
+    log_cycle!("Send cycle");
+
+    let result = call_with_payment::<(), ()>(canister_id, "wallet_receive", (), amount).await;
+
+    match result {
+        Ok(_) => log_cycle!("Cycle sent!"),
+        Err(err) => log_cycle!("Error: {:?}", err),
+    }
 }
 
 #[query]

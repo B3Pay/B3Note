@@ -23,6 +23,16 @@ pub fn caller_is_not_anonymous() -> Result<(), String> {
     Ok(())
 }
 
+pub fn caller_is_controller() -> Result<(), String> {
+    let caller = ic_cdk::caller();
+
+    if !ic_cdk::api::is_controller(&caller) {
+        return Err("Caller is not the controller".to_string());
+    }
+
+    Ok(())
+}
+
 pub fn get_anonymous_user(public_key: &PublicKey) -> Result<AnonymousUserData, String> {
     with_anonymous_user(public_key, |anonymous_user| Ok(anonymous_user.clone()))
 }

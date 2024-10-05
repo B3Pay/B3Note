@@ -60,6 +60,7 @@ service : () -> {
   set_one_time_key : (nat64, vec nat8) -> ();
   symmetric_key_verification_key : () -> (vec nat8) query;
   timers : () -> (vec TaskTimerEntry) query;
+  transfer_cycle : (principal, nat64) -> ();
   two_factor_verification_key : () -> (text);
   user_data : () -> (UserData) query;
   user_notes : (opt vec nat8) -> (nat64, vec UserText) query;

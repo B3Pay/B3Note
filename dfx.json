@@ -1,59 +1,59 @@
 {
-  "canisters": {
-    "backend": {
-      "candid": "backend/backend.did",
-      "package": "backend",
-      "type": "custom",
-      "wasm": "target/wasm32-unknown-unknown/release/backend.wasm",
-      "build": "sh build.sh backend backend",
-      "declarations": {
-        "output": "frontend/declarations/backend",
-        "node_compatibility": true
-      }
-    },
-    "frontend": {
-      "dependencies": ["backend", "system_api"],
-      "declarations": {
-        "output": "frontend/declarations/frontend",
-        "node_compatibility": true
-      },
-      "frontend": {
-        "entrypoint": "frontend/src/pages/index.tsx"
-      },
-      "source": ["frontend/out"],
-      "type": "assets"
-    },
-    "internet_identity": {
-      "type": "custom",
-      "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
-      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz",
-      "remote": {
-        "id": {
-          "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai"
-        }
-      },
-      "declarations": {
-        "output": "frontend/declarations/internet_identity",
-        "node_compatibility": true
-      },
-      "frontend": {}
-    },
-    "system_api": {
-      "candid": "system_api/vetkd_system_api.did",
-      "package": "vetkd_system_api",
-      "type": "rust",
-      "declarations": {
-        "output": "frontend/declarations/system_api",
-        "node_compatibility": true
-      }
-    }
-  },
-  "defaults": {
-    "build": {
-      "args": "",
-      "packtool": ""
-    }
-  },
-  "output_env_file": "./frontend/.env",
-  "version": 1
+	"canisters": {
+		"backend": {
+			"candid": "backend/backend.did",
+			"package": "backend",
+			"type": "custom",
+			"wasm": "target/wasm32-unknown-unknown/release/backend.wasm",
+			"build": "sh build.sh backend backend",
+			"declarations": {
+				"output": "frontend/declarations/backend",
+				"node_compatibility": true
+			}
+		},
+		"frontend": {
+			"dependencies": ["backend", "system_api"],
+			"declarations": {
+				"output": "frontend/declarations/frontend",
+				"node_compatibility": true
+			},
+			"frontend": {
+				"entrypoint": "frontend/src/pages/index.tsx"
+			},
+			"source": ["frontend/out"],
+			"type": "assets"
+		},
+		"internet_identity": {
+			"type": "custom",
+			"candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
+			"wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz",
+			"remote": {
+				"id": {
+					"ic": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+				}
+			},
+			"declarations": {
+				"output": "frontend/declarations/internet_identity",
+				"node_compatibility": true
+			},
+			"frontend": {}
+		},
+		"system_api": {
+			"candid": "system_api/vetkd_system_api.did",
+			"package": "vetkd_system_api",
+			"type": "rust",
+			"declarations": {
+				"output": "frontend/declarations/system_api",
+				"node_compatibility": true
+			}
+		}
+	},
+	"defaults": {
+		"build": {
+			"args": "",
+			"packtool": ""
+		}
+	},
+	"output_env_file": "./frontend/.env",
+	"version": 1
 }

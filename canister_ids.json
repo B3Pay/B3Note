@@ -1,11 +1,11 @@
 {
-  "backend": {
-    "ic": "xeka7-ryaaa-aaaal-qb57a-cai"
-  },
-  "frontend": {
-    "ic": "4lidq-zqaaa-aaaap-abkbq-cai"
-  },
-  "system_api": {
-    "ic": "wfdtj-lyaaa-aaaap-abakq-cai"
-  }
+	"backend": {
+		"ic": "xeka7-ryaaa-aaaal-qb57a-cai"
+	},
+	"frontend": {
+		"ic": "4lidq-zqaaa-aaaap-abkbq-cai"
+	},
+	"system_api": {
+		"ic": "wfdtj-lyaaa-aaaap-abakq-cai"
+	}
 }
