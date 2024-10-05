@@ -1,6 +1,6 @@
 [package]
 name = "ic-vetkd-utils"
-version = "0.1.2"
+version = "0.3.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -13,7 +13,12 @@ zeroize = { version = "1", features = ["zeroize_derive"] }
 rand = "0.8"
 rand_chacha = "0.3"
 lazy_static = "1.4"
-ic_bls12_381 = { version = "0.8.0", default-features = false, features = ["pairings", "alloc", "experimental", "zeroize"] }
+ic_bls12_381 = { version = "0.8.0", default-features = false, features = [
+    "pairings",
+    "alloc",
+    "experimental",
+    "zeroize",
+] }
 sha2 = "0.9"
 sha3 = "0.9"
 pairing = "0.22"
