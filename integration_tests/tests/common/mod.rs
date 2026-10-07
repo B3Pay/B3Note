@@ -93,7 +93,12 @@ impl TestEnv {
 
         let llm = pic.create_canister_on_subnet(Some(controller), None, app_subnet);
         pic.add_cycles(llm, 10_000_000_000_000);
-        pic.install_canister(llm, mock_llm_wasm(), encode_args(()).unwrap(), Some(controller));
+        pic.install_canister(
+            llm,
+            mock_llm_wasm(),
+            encode_args(()).unwrap(),
+            Some(controller),
+        );
 
         let backend = pic.create_canister_on_subnet(Some(controller), None, app_subnet);
         pic.add_cycles(backend, 100_000_000_000_000);
@@ -364,7 +369,12 @@ impl TestEnv {
     pub fn llm_calls(&self) -> u64 {
         let bytes = self
             .pic
-            .query_call(self.llm, Principal::anonymous(), "calls", encode_args(()).unwrap())
+            .query_call(
+                self.llm,
+                Principal::anonymous(),
+                "calls",
+                encode_args(()).unwrap(),
+            )
             .unwrap();
         decode_one(&bytes).unwrap()
     }

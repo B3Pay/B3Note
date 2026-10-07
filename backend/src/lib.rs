@@ -93,7 +93,20 @@ fn post_upgrade(args: Option<InitArgs>) {
 #[inspect_message]
 fn inspect_message() {
     let method = ic_cdk::api::msg_method_name();
-    let anonymous_allowed = matches!(method.as_str(), "open_share" | "load_public_keys");
+    // Public reads (also callable as updates), opening a share link, and
+    // `update_config`, which checks for a controller itself (a local
+    // network's default identity is anonymous).
+    let anonymous_allowed = matches!(
+        method.as_str(),
+        "open_share"
+            | "load_public_keys"
+            | "get_public_keys"
+            | "get_share"
+            | "get_stats"
+            | "get_config"
+            | "whoami"
+            | "update_config"
+    );
     if !anonymous_allowed && ic_cdk::api::msg_caller() == Principal::anonymous() {
         ic_cdk::trap("sign in first: anonymous callers cannot call this method");
     }

@@ -21,7 +21,10 @@ fn state_survives_an_upgrade() {
     // Notes, shares, counters and cached keys are all still there.
     let notes = env.list_notes(alice);
     assert_eq!(notes, vec![note]);
-    assert_eq!(decrypt_note(&env.user_vetkey(alice), &notes[0]).unwrap(), "before the upgrade");
+    assert_eq!(
+        decrypt_note(&env.user_vetkey(alice), &notes[0]).unwrap(),
+        "before the upgrade"
+    );
     let cached: Result<PublicKeys> = env.query(Principal::anonymous(), "get_public_keys", ());
     assert_eq!(cached.unwrap(), keys_before);
     assert_eq!(env.account(alice).note_count, 1);
@@ -118,4 +121,22 @@ fn public_stats_and_whoami() {
     assert_eq!((stats.users, stats.notes, stats.active_shares), (1, 1, 0));
     assert_eq!(stats.vetkd_key_name, VETKD_KEY);
     assert!(stats.cycles > 0);
+}
+
+#[test]
+fn public_methods_accept_anonymous_update_calls() {
+    let env = TestEnv::new();
+    // e.g. `icp canister call backend get_stats` with the anonymous identity.
+    let bytes = env
+        .update_raw(Principal::anonymous(), "get_stats", ())
+        .expect("public reads are not refused by inspect_message");
+    let stats: Stats = candid::decode_one(&bytes).unwrap();
+    assert_eq!(stats.version, "2.0.0");
+    // update_config gets through to its own controller check.
+    let config: Result<Config> = env.update(
+        Principal::anonymous(),
+        "update_config",
+        (InitArgs::default(),),
+    );
+    assert!(matches!(config, Err(Error::Forbidden(_))));
 }

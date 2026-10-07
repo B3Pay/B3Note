@@ -64,7 +64,10 @@ fn users_cannot_read_or_change_each_others_notes() {
     assert!(decrypt_note(&mallory_key, &note).is_err());
 
     let notes = env.list_notes(alice);
-    assert_eq!(decrypt_note(&alice_key, &notes[0]).unwrap(), "salary negotiation notes");
+    assert_eq!(
+        decrypt_note(&alice_key, &notes[0]).unwrap(),
+        "salary negotiation notes"
+    );
 }
 
 #[test]
@@ -180,7 +183,10 @@ fn quotas_and_validation_are_enforced() {
             },),
         )
     };
-    assert!(matches!(create(random_id().0, 10), Err(Error::QuotaExceeded(_))));
+    assert!(matches!(
+        create(random_id().0, 10),
+        Err(Error::QuotaExceeded(_))
+    ));
 
     let bob = user(2);
     let create_bob = |id: String, bytes: usize| -> Result<Note> {
@@ -194,12 +200,18 @@ fn quotas_and_validation_are_enforced() {
             },),
         )
     };
-    assert!(matches!(create_bob(random_id().0, 201), Err(Error::QuotaExceeded(_))));
+    assert!(matches!(
+        create_bob(random_id().0, 201),
+        Err(Error::QuotaExceeded(_))
+    ));
     assert!(matches!(
         create_bob("not-a-valid-id".into(), 10),
         Err(Error::InvalidArgument(_))
     ));
-    assert!(matches!(create_bob(random_id().0, 0), Err(Error::InvalidArgument(_))));
+    assert!(matches!(
+        create_bob(random_id().0, 0),
+        Err(Error::InvalidArgument(_))
+    ));
     let id = random_id().0;
     create_bob(id.clone(), 10).unwrap();
     assert_eq!(create_bob(id, 10), Err(Error::AlreadyExists));
@@ -249,10 +261,17 @@ fn deleting_the_account_removes_everything() {
     let note = env.create_note(alice, &alice_key, "a");
     env.create_note(alice, &alice_key, "b");
     env.create_note(bob, &bob_key, "bob's");
-    env.create_share(alice, Some(note.id), "a", 1, 3_600).unwrap();
+    env.create_share(alice, Some(note.id), "a", 1, 3_600)
+        .unwrap();
 
     let deleted: Result<DeletedAccount> = env.update(alice, "delete_account", ());
-    assert_eq!(deleted, Ok(DeletedAccount { notes: 2, shares: 1 }));
+    assert_eq!(
+        deleted,
+        Ok(DeletedAccount {
+            notes: 2,
+            shares: 1
+        })
+    );
     assert!(env.list_notes(alice).is_empty());
     assert_eq!(env.account(alice).note_count, 0);
     let stats = env.stats();

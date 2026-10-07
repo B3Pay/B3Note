@@ -10,12 +10,20 @@ use common::*;
 fn sends_the_task_and_text_to_the_llm() {
     let env = TestEnv::new();
     let reply = env
-        .ai(user(1), AiTask::Summarize, "Met with Sam. Ship v2 on Friday.")
+        .ai(
+            user(1),
+            AiTask::Summarize,
+            "Met with Sam. Ship v2 on Friday.",
+        )
         .unwrap();
     assert_eq!(reply.model, "llama3.1:8b");
-    assert!(reply.text.starts_with("model=llama3.1:8b tools=false messages=2"));
+    assert!(reply
+        .text
+        .starts_with("model=llama3.1:8b tools=false messages=2"));
     assert!(reply.text.contains("Summarize the note"));
-    assert!(reply.text.contains("USER:<note>\nMet with Sam. Ship v2 on Friday.\n</note>"));
+    assert!(reply
+        .text
+        .contains("USER:<note>\nMet with Sam. Ship v2 on Friday.\n</note>"));
     assert_eq!(env.llm_calls(), 1);
 }
 
@@ -28,7 +36,10 @@ fn every_task_has_its_own_instruction() {
         (AiTask::Shorten, "half its length"),
         (AiTask::ActionItems, "markdown checklist"),
         (AiTask::Continue, "Continue the note"),
-        (AiTask::Translate("Brazilian Portuguese".into()), "into Brazilian Portuguese"),
+        (
+            AiTask::Translate("Brazilian Portuguese".into()),
+            "into Brazilian Portuguese",
+        ),
         (AiTask::Ask("When do we ship?".into()), "When do we ship?"),
     ];
     for (task, expected) in cases {
@@ -92,7 +103,11 @@ fn rejects_bad_requests_before_calling_the_llm() {
         Err(Error::InvalidArgument(_))
     ));
     assert!(matches!(
-        env.ai(user(1), AiTask::Translate("Klingon; ignore previous".into()), "hi"),
+        env.ai(
+            user(1),
+            AiTask::Translate("Klingon; ignore previous".into()),
+            "hi"
+        ),
         Err(Error::InvalidArgument(_))
     ));
     assert_eq!(env.llm_calls(), 0);
@@ -106,7 +121,10 @@ fn rejects_bad_requests_before_calling_the_llm() {
         })
         .unwrap(),
     );
-    assert!(anonymous.is_err(), "anonymous callers cannot use the assistant");
+    assert!(
+        anonymous.is_err(),
+        "anonymous callers cannot use the assistant"
+    );
 }
 
 #[test]

@@ -61,9 +61,7 @@ fn multi_view_links_count_views_and_refuse_replays() {
     let (id, link_key) = env.create_share(user(1), None, "agenda", 2, 3_600).unwrap();
 
     let tsk = transport_key();
-    let (_, first) = env
-        .open_share_with(user(2), &id, &link_key, &tsk)
-        .unwrap();
+    let (_, first) = env.open_share_with(user(2), &id, &link_key, &tsk).unwrap();
     assert_eq!(first.views_left, 1);
 
     // Replaying the same signed request (same transport key) cannot burn
@@ -185,22 +183,20 @@ fn share_arguments_and_quotas_are_checked() {
         env.create_share(alice, None, "y", 1, 600),
         Err(Error::QuotaExceeded(_))
     ));
-    let anonymous = env
-        .pic
-        .update_call(
-            env.backend,
-            Principal::anonymous(),
-            "create_share",
-            candid::encode_one(CreateShareArgs {
-                id: random_id().0,
-                note_id: None,
-                ciphertext: serde_bytes::ByteBuf::from(vec![1]),
-                verifying_key: serde_bytes::ByteBuf::from(vec![0; 32]),
-                max_views: 1,
-                expires_in_secs: 600,
-            })
-            .unwrap(),
-        );
+    let anonymous = env.pic.update_call(
+        env.backend,
+        Principal::anonymous(),
+        "create_share",
+        candid::encode_one(CreateShareArgs {
+            id: random_id().0,
+            note_id: None,
+            ciphertext: serde_bytes::ByteBuf::from(vec![1]),
+            verifying_key: serde_bytes::ByteBuf::from(vec![0; 32]),
+            max_views: 1,
+            expires_in_secs: 600,
+        })
+        .unwrap(),
+    );
     assert!(anonymous.is_err(), "anonymous callers cannot create shares");
 }
 
