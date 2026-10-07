@@ -1,7 +1,8 @@
 import { Check, Copy, RotateCcw, Sparkles } from "lucide-react"
+import { useClient } from "@ic-reactor/react"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { useState } from "react"
 import { toast } from "sonner"
-import { aiAssistMutation, getAccountQuery } from "../declarations/backend"
 import {
   AI_ACTIONS,
   LANGUAGES,
@@ -17,6 +18,7 @@ import { AiConsentDialog } from "./AiConsentDialog"
 import { Dialog } from "./Dialog"
 import { Markdown } from "./Markdown"
 import { Button, Notice, Select, Spinner, cn } from "./ui"
+import { backendOf } from "../reactor"
 
 export interface AiSelection {
   start: number
@@ -48,8 +50,11 @@ export function AiPanel({
   const [language, setLanguage] = useState("English")
   const [result, setResult] = useState<string | null>(null)
   const [consentFor, setConsentFor] = useState<AiAction | null>(null)
-  const account = getAccountQuery.useQuery({ enabled: open })
-  const assist = aiAssistMutation.useMutation()
+  const client = useClient()
+  const backend = backendOf(client)
+  const account = useQuery({ ...client.queryOptions(backend, "get_account"), enabled: open })
+  // AI requests change nothing a read shows: invalidate nothing.
+  const assist = useMutation(client.mutationOptions(backend, "ai_assist", { invalidates: [] }))
 
   const maxBytes = account.data?.limits.max_ai_input_bytes ?? 8_000
   const input = selection ? selection.text : noteAsPrompt(content.title, content.body)
@@ -64,7 +69,7 @@ export function AiPanel({
     setAction(chosen)
     setResult(null)
     try {
-      const reply = await assist.mutateAsync([{ task: toAiTask(chosen.id, language), text: input }])
+      const reply = await assist.mutateAsync({ task: toAiTask(chosen.id, language), text: input })
       setResult(reply.text)
     } catch (error) {
       toast.error(errorMessage(error))

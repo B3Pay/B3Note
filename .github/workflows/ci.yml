@@ -68,6 +68,9 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      # The build regenerates src/canisters from backend/backend.did.
+      - name: Generated bindings match backend.did
+        run: git diff --exit-code -- src/canisters
       - uses: actions/download-artifact@v4
         with:
           name: canisters

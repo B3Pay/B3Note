@@ -1,10 +1,12 @@
 import { Navigate } from "@tanstack/react-router"
 import { Flame, KeyRound, Lock, ShieldCheck, Sparkles, UserRound } from "lucide-react"
 import { useState } from "react"
-import { session, useSession } from "../app/session"
+import { continueAsGuest, signInWithInternetIdentity, useSession } from "../app/session"
 import { Dialog } from "../components/Dialog"
-import { Button, Card, Notice, Spinner, Textarea } from "../components/ui"
-import { parseRecoveryKey } from "../lib/session"
+import { Button, Card, Notice, Textarea } from "../components/ui"
+import { errorMessage } from "../lib/errors"
+import { parseRecoveryKey } from "../lib/sessionAuth"
+import { sessionAuth } from "../reactor"
 
 const FEATURES = [
   {
@@ -30,10 +32,24 @@ const FEATURES = [
 ]
 
 export function LandingPage() {
-  const { session: current, busy, error } = useSession()
+  const { signedIn, status } = useSession()
   const [importOpen, setImportOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  if (current.status === "signedIn") return <Navigate to="/notes" />
+  if (signedIn) return <Navigate to="/notes" />
+
+  const run = async (signIn: () => Promise<void>) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await signIn()
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:py-16">
@@ -55,38 +71,35 @@ export function LandingPage() {
         <Card className="p-6">
           <h2 className="text-lg font-semibold">Get started</h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">No email, no password.</p>
-          {current.status === "restoring" ? (
-            <div className="py-10 text-center">
-              <Spinner label="Checking your session…" />
-            </div>
-          ) : (
-            <div className="mt-5 flex flex-col gap-3">
-              <Button
-                variant="primary"
-                size="lg"
-                loading={busy}
-                onClick={() => void session.signInWithInternetIdentity()}
-              >
-                <KeyRound className="h-5 w-5" /> Sign in with Internet Identity
-              </Button>
-              <Button size="lg" disabled={busy} onClick={() => session.continueAsGuest()}>
-                <UserRound className="h-5 w-5" />
-                {session.hasGuestKey ? "Continue with your guest key" : "Try it as a guest"}
-              </Button>
-              <button
-                type="button"
-                className="text-sm text-brand-700 hover:underline dark:text-brand-300"
-                onClick={() => setImportOpen(true)}
-              >
-                I have a recovery key
-              </button>
-              {error ? <Notice tone="danger">{error}</Notice> : null}
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                A guest key is a private key stored in this browser. Save its recovery key in Settings, or you
-                lose your notes when the browser data is cleared.
-              </p>
-            </div>
-          )}
+          <div className="mt-5 flex flex-col gap-3">
+            {status === "expired" ? (
+              <Notice tone="warning">Your Internet Identity session expired. Sign in again.</Notice>
+            ) : null}
+            <Button
+              variant="primary"
+              size="lg"
+              loading={busy}
+              onClick={() => void run(signInWithInternetIdentity)}
+            >
+              <KeyRound className="h-5 w-5" /> Sign in with Internet Identity
+            </Button>
+            <Button size="lg" disabled={busy} onClick={() => void run(() => continueAsGuest())}>
+              <UserRound className="h-5 w-5" />
+              {sessionAuth().hasGuestKey ? "Continue with your guest key" : "Try it as a guest"}
+            </Button>
+            <button
+              type="button"
+              className="text-sm text-brand-700 hover:underline dark:text-brand-300"
+              onClick={() => setImportOpen(true)}
+            >
+              I have a recovery key
+            </button>
+            {error ? <Notice tone="danger">{error}</Notice> : null}
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              A guest key is a private key stored in this browser. Save its recovery key in Settings, or you
+              lose your notes when the browser data is cleared.
+            </p>
+          </div>
         </Card>
       </section>
 
@@ -124,7 +137,7 @@ function ImportKeyDialog({ open, onClose }: { open: boolean; onClose: () => void
             setInvalid(true)
             return
           }
-          session.continueAsGuest(seed)
+          void continueAsGuest(seed)
           onClose()
         }}
       >

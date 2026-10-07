@@ -2,14 +2,14 @@
  * Unlocks the signed-in user's vault (their vetKey-derived note key) once per
  * principal and shares it with every component.
  */
-import type { Principal } from "@icp-sdk/core/principal"
+import { Principal } from "@icp-sdk/core/principal"
 import { del, get, set } from "idb-keyval"
 import { useEffect, useSyncExternalStore } from "react"
-import { clientManager } from "../clients"
-import { backendReactor, getConfigQuery, getEncryptedUserKeyMutation } from "../declarations/backend"
 import { errorMessage } from "../lib/errors"
 import { expectedPublicKey, USER_KEY_CONTEXT } from "../lib/keys"
 import { unlockVault, vaultCacheKey, type KeyCache, type Vault } from "../lib/vault"
+import { backendOf, client } from "../reactor"
+import { canisterIdOf, isMainnet } from "./canister"
 import { useSession } from "./session"
 
 export type VaultState =
@@ -37,41 +37,37 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener)
 }
 
-export async function unlock(principal: Principal): Promise<void> {
-  const id = principal.toText()
-  if ((state.status === "ready" || state.status === "unlocking") && state.principal === id) return
-  publish({ status: "unlocking", principal: id })
+/** Unlocks the vault of `principal`, who must be the current caller. */
+export async function unlock(principal: string): Promise<void> {
+  if ((state.status === "ready" || state.status === "unlocking") && state.principal === principal) return
+  publish({ status: "unlocking", principal })
   try {
-    const config = await getConfigQuery.fetch()
+    const backend = backendOf(client)
+    const canisterId = Principal.fromText(canisterIdOf(client, backend))
+    const config = await backend.get_config()
     const vault = await unlockVault({
-      principal,
-      canisterId: backendReactor.canisterId,
-      fetchEncryptedKey: (transportPublicKey) => getEncryptedUserKeyMutation.execute([transportPublicKey]),
-      expectedKey: expectedPublicKey(
-        config.vetkd_key_name,
-        backendReactor.canisterId,
-        USER_KEY_CONTEXT,
-        clientManager.isLocal,
-      ),
+      principal: Principal.fromText(principal),
+      canisterId,
+      // A direct call: sent as the caller current when it runs.
+      fetchEncryptedKey: (transportPublicKey) => backend.get_encrypted_user_key(transportPublicKey),
+      expectedKey: expectedPublicKey(config.vetkd_key_name, canisterId, USER_KEY_CONTEXT, !isMainnet(client)),
       cache: keyCache,
     })
-    if (state.status === "unlocking" && state.principal === id) {
-      publish({ status: "ready", principal: id, vault })
+    if (state.status === "unlocking" && state.principal === principal) {
+      publish({ status: "ready", principal, vault })
     }
   } catch (error) {
-    if (state.status === "unlocking" && state.principal === id) {
-      publish({ status: "error", principal: id, error: errorMessage(error) })
+    if (state.status === "unlocking" && state.principal === principal) {
+      publish({ status: "error", principal, error: errorMessage(error) })
     }
   }
 }
 
 /** Drops the in-memory key and the copy cached in this browser. */
-export async function forgetVaultKey(principal: Principal): Promise<void> {
-  if (state.status !== "locked" && state.principal === principal.toText()) {
-    publish({ status: "locked" })
-  }
+export async function forgetVaultKey(principal: string): Promise<void> {
+  if (state.status !== "locked" && state.principal === principal) publish({ status: "locked" })
   try {
-    await keyCache.del(vaultCacheKey(backendReactor.canisterId.toText(), principal.toText()))
+    await keyCache.del(vaultCacheKey(canisterIdOf(client, backendOf(client)), principal))
   } catch {
     // Nothing cached.
   }
@@ -79,35 +75,35 @@ export async function forgetVaultKey(principal: Principal): Promise<void> {
 
 /** The vault of the signed-in user, unlocking it on first use. */
 export function useVault(): VaultState {
-  const { session } = useSession()
+  const { signedIn, principal } = useSession()
   const current = useSyncExternalStore(subscribe, () => state)
-  const principal = session.status === "signedIn" ? session.principal : null
+  const caller = signedIn ? principal : null
 
   useEffect(() => {
-    if (principal) void unlock(principal)
-  }, [principal])
+    if (caller) void unlock(caller)
+  }, [caller])
 
-  if (!principal) return { status: "locked" }
-  if (current.status !== "locked" && current.principal !== principal.toText()) {
-    return { status: "unlocking", principal: principal.toText() }
+  if (!caller) return { status: "locked" }
+  if (current.status !== "locked" && current.principal !== caller) {
+    return { status: "unlocking", principal: caller }
   }
   return current
 }
 
-export function retryUnlock(principal: Principal): void {
+export function retryUnlock(principal: string): void {
   publish({ status: "locked" })
   void unlock(principal)
 }
 
 /** Unlocks (if needed) and returns the vault of `principal`. */
-export async function readyVault(principal: Principal): Promise<Vault> {
+export async function readyVault(principal: string): Promise<Vault> {
   await unlock(principal)
   const current = state
-  if (current.status === "ready" && current.principal === principal.toText()) return current.vault
+  if (current.status === "ready" && current.principal === principal) return current.vault
   if (current.status === "error") throw new Error(current.error)
   return new Promise((resolve, reject) => {
     const stop = subscribe(() => {
-      if (state.status === "ready" && state.principal === principal.toText()) {
+      if (state.status === "ready" && state.principal === principal) {
         stop()
         resolve(state.vault)
       } else if (state.status === "error" || state.status === "locked") {

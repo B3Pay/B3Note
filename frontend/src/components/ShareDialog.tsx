@@ -1,22 +1,18 @@
+import type { Client } from "@ic-reactor/core"
+import { useClient } from "@ic-reactor/react"
+import { Principal } from "@icp-sdk/core/principal"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { Check, Copy, Flame, Link2, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
-import { clientManager } from "../clients"
-import {
-  backendReactor,
-  createShareMutation,
-  getConfigQuery,
-  getPublicKeysQuery,
-  listSharesQuery,
-  loadPublicKeysMutation,
-  revokeShareMutation,
-} from "../declarations/backend"
-import { errorMessage } from "../lib/errors"
+import { canisterIdOf, isMainnet } from "../app/canister"
+import { toBytes } from "../lib/bytes"
+import { backendErrorTag, errorMessage } from "../lib/errors"
 import { DURATION_CHOICES, nanosToDate, relativeTime } from "../lib/format"
 import { checkedPublicKey, expectedPublicKey, SHARE_KEY_CONTEXT } from "../lib/keys"
 import type { NoteContent } from "../lib/note"
 import { prepareShare, shareLink } from "../lib/share"
-import { toBytes } from "../lib/bytes"
+import { backendOf, type Backend } from "../reactor"
 import { Dialog } from "./Dialog"
 import { Button, Notice, Select } from "./ui"
 
@@ -26,12 +22,23 @@ const VIEW_CHOICES = [
   { value: "10", label: "10 times" },
 ]
 
-async function sharePublicKey() {
+/** The canister's share key, checked offline against the IC master key on mainnet. */
+async function verifiedShareKey(client: Client, backend: Backend): Promise<Uint8Array> {
+  const config = await client.queryClient.fetchQuery(client.queryOptions(backend, "get_config"))
+  let keys
   try {
-    return (await getPublicKeysQuery.fetch()).share_key
-  } catch {
-    return (await loadPublicKeysMutation.execute([])).share_key
+    keys = await client.queryClient.fetchQuery(client.queryOptions(backend, "get_public_keys"))
+  } catch (error) {
+    if (backendErrorTag(error) !== "NotReady") throw error
+    keys = await backend.load_public_keys()
   }
+  const canisterId = Principal.fromText(canisterIdOf(client, backend))
+  // Encrypt only to the genuine share key.
+  checkedPublicKey(
+    toBytes(keys.share_key),
+    expectedPublicKey(config.vetkd_key_name, canisterId, SHARE_KEY_CONTEXT, !isMainnet(client)),
+  )
+  return keys.share_key
 }
 
 export function ShareDialog({
@@ -50,36 +57,24 @@ export function ShareDialog({
   const [ttl, setTtl] = useState(String(DURATION_CHOICES[1].seconds))
   const [link, setLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const createShare = createShareMutation.useMutation()
-  const shares = listSharesQuery.useQuery({ enabled: open })
-  const revoke = revokeShareMutation.useMutation({ onSuccess: () => toast.success("Link revoked") })
-  const noteShares = (shares.data ?? []).filter((share) => share.note_id[0] === noteId)
+  const client = useClient()
+  const backend = backendOf(client)
+  const createShare = useMutation(client.mutationOptions(backend, "create_share"))
+  const shares = useQuery({ ...client.queryOptions(backend, "list_shares"), enabled: open })
+  const revoke = useMutation(client.mutationOptions(backend, "revoke_share"))
+  const noteShares = (shares.data ?? []).filter((share) => share.note_id === noteId)
 
   const create = async () => {
     try {
-      const config = await getConfigQuery.fetch()
-      const reported = await sharePublicKey()
-      // Encrypt only to the genuine share key (checked offline on mainnet).
-      checkedPublicKey(
-        toBytes(reported),
-        expectedPublicKey(
-          config.vetkd_key_name,
-          backendReactor.canisterId,
-          SHARE_KEY_CONTEXT,
-          clientManager.isLocal,
-        ),
-      )
-      const prepared = prepareShare(content, reported)
-      await createShare.mutateAsync([
-        {
-          id: prepared.id,
-          note_id: noteId ? [noteId] : [],
-          ciphertext: prepared.ciphertext,
-          verifying_key: prepared.verifyingKey,
-          max_views: Number(views),
-          expires_in_secs: BigInt(ttl),
-        },
-      ])
+      const prepared = prepareShare(content, await verifiedShareKey(client, backend))
+      await createShare.mutateAsync({
+        id: prepared.id,
+        note_id: noteId,
+        ciphertext: prepared.ciphertext,
+        verifying_key: prepared.verifyingKey,
+        max_views: Number(views),
+        expires_in_secs: BigInt(ttl),
+      })
       setLink(shareLink(window.location.origin, prepared.id, prepared.secret))
       setCopied(false)
     } catch (error) {
@@ -177,8 +172,13 @@ export function ShareDialog({
                   variant="ghost"
                   className="ml-auto"
                   aria-label="Revoke link"
-                  loading={revoke.isPending && revoke.variables?.[0] === share.id}
-                  onClick={() => revoke.mutate([share.id])}
+                  loading={revoke.isPending && revoke.variables === share.id}
+                  onClick={() =>
+                    revoke.mutate(share.id, {
+                      onSuccess: () => toast.success("Link revoked"),
+                      onError: (error) => toast.error(errorMessage(error)),
+                    })
+                  }
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>

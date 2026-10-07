@@ -1,18 +1,13 @@
-import { skipToken } from "@ic-reactor/react"
+import { useClient } from "@ic-reactor/react"
+import { Principal } from "@icp-sdk/core/principal"
+import { skipToken, useMutation, useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
 import { Copy, Download, Eye, Flame, Lock, Save, ShieldCheck } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
+import { canisterIdOf, isMainnet } from "../app/canister"
 import { useSession } from "../app/session"
 import { readyVault } from "../app/vault"
-import { clientManager } from "../clients"
-import {
-  backendReactor,
-  createNoteMutation,
-  getConfigQuery,
-  getShareQuery,
-  openShareMutation,
-} from "../declarations/backend"
 import { Markdown } from "../components/Markdown"
 import { Button, Card, EmptyState, Notice, Spinner, TagChip } from "../components/ui"
 import { newId } from "../lib/bytes"
@@ -21,18 +16,41 @@ import { formatBytes, formatDateTime, nanosToDate, relativeTime } from "../lib/f
 import { SHARE_KEY_CONTEXT, expectedPublicKey } from "../lib/keys"
 import { decryptOpenedShare, openShareRequest, parseShareSecret, type SharePayload } from "../lib/share"
 import { download, markdownFileName, noteToMarkdown } from "../lib/transfer"
+import { backendOf, createReaderClient } from "../reactor"
 
 export function SharedNotePage() {
   const { shareId } = useParams({ strict: false }) as { shareId: string }
   const secret = useMemo(() => parseShareSecret(window.location.hash), [])
   const validId = /^[0-9a-f]{32}$/.test(shareId)
-  const info = getShareQuery(validId && secret ? [shareId] : skipToken).useQuery({
+  const client = useClient()
+  const backend = backendOf(client)
+  const info = useQuery({
+    ...client.queryOptions(backend, "get_share", validId && secret ? shareId : skipToken),
     retry: false,
     staleTime: 0,
   })
-  const open = openShareMutation.useMutation()
-  const [opened, setOpened] = useState<{ payload: SharePayload; viewsLeft: number } | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const open = useMutation({
+    mutationFn: async (secretKey: Uint8Array) => {
+      const request = await openShareRequest(shareId, secretKey)
+      // Opened anonymously, so the reader's account is not linked to the share.
+      const reader = createReaderClient()
+      try {
+        const readerBackend = backendOf(reader)
+        const reply = await readerBackend.open_share(request.args)
+        const config = await readerBackend.get_config()
+        const canisterId = Principal.fromText(canisterIdOf(reader, readerBackend))
+        const payload = decryptOpenedShare(
+          shareId,
+          request.transportKey,
+          reply,
+          expectedPublicKey(config.vetkd_key_name, canisterId, SHARE_KEY_CONTEXT, !isMainnet(reader)),
+        )
+        return { payload, viewsLeft: reply.views_left }
+      } finally {
+        reader.dispose()
+      }
+    },
+  })
 
   if (!validId || !secret) {
     return (
@@ -42,33 +60,10 @@ export function SharedNotePage() {
     )
   }
 
-  const reveal = async () => {
-    setError(null)
-    try {
-      const request = await openShareRequest(shareId, secret)
-      const reply = await open.mutateAsync([request.args])
-      const config = await getConfigQuery.fetch()
-      const payload = decryptOpenedShare(
-        shareId,
-        request.transportKey,
-        reply,
-        expectedPublicKey(
-          config.vetkd_key_name,
-          backendReactor.canisterId,
-          SHARE_KEY_CONTEXT,
-          clientManager.isLocal,
-        ),
-      )
-      setOpened({ payload, viewsLeft: reply.views_left })
-    } catch (e) {
-      setError(errorMessage(e))
-    }
-  }
-
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      {opened ? (
-        <OpenedNote payload={opened.payload} viewsLeft={opened.viewsLeft} />
+      {open.data ? (
+        <OpenedNote payload={open.data.payload} viewsLeft={open.data.viewsLeft} />
       ) : (
         <Card className="p-8 text-center">
           <Flame className="mx-auto h-10 w-10 text-orange-500" />
@@ -93,13 +88,18 @@ export function SharedNotePage() {
                 {formatBytes(info.data.size)} encrypted · shared{" "}
                 {formatDateTime(nanosToDate(info.data.created_at))}
               </p>
-              {error ? (
+              {open.error ? (
                 <Notice tone="danger" className="mt-4">
-                  {error}
+                  {errorMessage(open.error)}
                 </Notice>
               ) : null}
               <div className="mt-6 flex flex-col items-center gap-3">
-                <Button variant="primary" size="lg" loading={open.isPending} onClick={() => void reveal()}>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  loading={open.isPending}
+                  onClick={() => open.mutate(secret)}
+                >
                   <Eye className="h-5 w-5" /> Open the note
                 </Button>
                 <p className="inline-flex items-center gap-1 text-xs text-zinc-500">
@@ -115,17 +115,18 @@ export function SharedNotePage() {
 }
 
 function OpenedNote({ payload, viewsLeft }: { payload: SharePayload; viewsLeft: number }) {
-  const { session } = useSession()
-  const save = createNoteMutation.useMutation()
+  const { signedIn, principal } = useSession()
+  const client = useClient()
+  const save = useMutation(client.mutationOptions(backendOf(client), "create_note"))
   const [saved, setSaved] = useState(false)
   const content = { title: payload.title, body: payload.body, tags: payload.tags, pinned: false }
 
   const saveToMyNotes = async () => {
-    if (session.status !== "signedIn") return
+    if (!signedIn) return
     try {
-      const vault = await readyVault(session.principal)
+      const vault = await readyVault(principal)
       const { id } = newId()
-      await save.mutateAsync([{ id, ciphertext: await vault.encrypt(id, content), expires_at: [] }])
+      await save.mutateAsync({ id, ciphertext: await vault.encrypt(id, content), expires_at: null })
       setSaved(true)
       toast.success("Saved to your notes")
     } catch (e) {
@@ -168,7 +169,7 @@ function OpenedNote({ payload, viewsLeft }: { payload: SharePayload; viewsLeft: 
         <Button onClick={() => download(markdownFileName(content), noteToMarkdown(content), "text/markdown")}>
           <Download className="h-4 w-4" /> Download
         </Button>
-        {session.status === "signedIn" ? (
+        {signedIn ? (
           <Button
             variant="primary"
             loading={save.isPending}

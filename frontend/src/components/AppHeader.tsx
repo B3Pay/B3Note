@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { LogOut, Monitor, Moon, NotebookPen, Settings, Sparkles, Sun } from "lucide-react"
-import { session, useSession } from "../app/session"
+import { useState } from "react"
+import { signOut, useSession } from "../app/session"
 import { setTheme, useTheme, type Theme } from "../app/theme"
 import { shortPrincipal } from "../lib/format"
 import { Button, cn } from "./ui"
@@ -39,9 +40,9 @@ const navLink =
 const activeNavLink = "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
 
 export function AppHeader() {
-  const { session: current, busy } = useSession()
+  const { signedIn, principal, kind } = useSession()
   const navigate = useNavigate()
-  const signedIn = current.status === "signedIn"
+  const [busy, setBusy] = useState(false)
 
   return (
     <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
@@ -65,14 +66,14 @@ export function AppHeader() {
         ) : null}
         <div className="ml-auto flex items-center gap-1">
           <ThemeToggle />
-          {current.status === "signedIn" ? (
+          {signedIn ? (
             <>
               <span
                 className="hidden rounded-full bg-zinc-100 px-3 py-1 font-mono text-xs text-zinc-600 md:inline dark:bg-zinc-800 dark:text-zinc-300"
-                title={current.principal.toText()}
+                title={principal}
               >
-                {current.kind === "guest" ? "Guest · " : ""}
-                {shortPrincipal(current.principal.toText())}
+                {kind === "guest" ? "Guest · " : ""}
+                {shortPrincipal(principal)}
               </span>
               <Button
                 variant="ghost"
@@ -81,8 +82,13 @@ export function AppHeader() {
                 aria-label="Sign out"
                 title="Sign out"
                 onClick={async () => {
-                  await session.signOut()
-                  await navigate({ to: "/" })
+                  setBusy(true)
+                  try {
+                    await signOut()
+                    await navigate({ to: "/" })
+                  } finally {
+                    setBusy(false)
+                  }
                 }}
               >
                 {busy ? null : <LogOut className="h-4 w-4" />}

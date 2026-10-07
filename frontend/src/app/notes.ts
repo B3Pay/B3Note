@@ -1,10 +1,13 @@
 /** The signed-in user's notes, decrypted. */
-import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { useClient } from "@ic-reactor/react"
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { useEffect, useMemo } from "react"
-import { queryClient } from "../clients"
-import { notesQuery, type Note } from "../declarations/backend"
+import type { Note } from "../canisters/backend"
 import type { NoteContent } from "../lib/note"
 import type { Vault } from "../lib/vault"
+import { backendOf } from "../reactor"
+
+const PAGE_SIZE = 200
 
 export interface DecryptedNote {
   id: string
@@ -31,7 +34,7 @@ async function decryptAll(vault: Vault, notes: Note[]): Promise<DecryptedNote[]>
         version: note.version,
         createdAt: note.created_at,
         updatedAt: note.updated_at,
-        expiresAt: note.expires_at[0] ?? null,
+        expiresAt: note.expires_at,
         size: note.ciphertext.length,
         content,
       }
@@ -40,7 +43,24 @@ async function decryptAll(vault: Vault, notes: Note[]): Promise<DecryptedNote[]>
 }
 
 export function useNotes(vault: Vault | null) {
-  const list = notesQuery.useInfiniteQuery({ enabled: vault !== null })
+  const client = useClient()
+  const backend = backendOf(client)
+
+  // ic-reactor 4 builds no infinite query, so each page is a read the client
+  // builds (caller-scoped key, cancellation on a change of caller), and the
+  // list lives under the same caller-scoped prefix. A write to the backend
+  // invalidates both.
+  const list = useInfiniteQuery({
+    queryKey: [...client.queryKey(backend, "list_notes"), "pages"],
+    queryFn: ({ pageParam }) =>
+      client.queryClient.fetchQuery(
+        client.queryOptions(backend, "list_notes", { cursor: pageParam, limit: PAGE_SIZE }),
+      ),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.next_cursor,
+    enabled: vault !== null,
+    staleTime: 15_000,
+  })
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = list
   const pageCount = list.data?.pages.length ?? 0
 
@@ -53,18 +73,19 @@ export function useNotes(vault: Vault | null) {
 
   const raw = useMemo(() => list.data?.pages.flatMap((page) => page.notes) ?? [], [list.data])
   const signature = useMemo(() => raw.map((n) => `${n.id}:${n.version}`).join(","), [raw])
+  const caller = client.caller()
 
-  const decrypted = useQuery(
-    {
-      queryKey: ["b3note", "decrypted-notes", vault?.principal ?? "", signature],
-      queryFn: () => decryptAll(vault as Vault, raw),
-      enabled: vault !== null && list.isSuccess,
-      placeholderData: keepPreviousData,
-      staleTime: Infinity,
-      gcTime: 5 * 60_000,
-    },
-    queryClient,
-  )
+  const decrypted = useQuery({
+    queryKey: [...client.queryKey(backend, "list_notes"), "decrypted", signature],
+    queryFn: () => decryptAll(vault as Vault, raw),
+    enabled: vault !== null && list.isSuccess,
+    // Keep showing the list while a changed note decrypts, but never across
+    // callers (the key's third segment).
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[2] === caller ? previous : undefined,
+    staleTime: Infinity,
+    gcTime: 5 * 60_000,
+  })
 
   return {
     notes: decrypted.data ?? [],
@@ -72,6 +93,6 @@ export function useNotes(vault: Vault | null) {
     isRefreshing: list.isFetching,
     loadingMore: hasNextPage === true,
     error: list.error ?? decrypted.error,
-    refetch: () => list.refetch(),
+    refetch: () => void list.refetch(),
   }
 }

@@ -1,4 +1,4 @@
-import type { AiTask } from "../declarations/backend/declarations/backend"
+import type { AiTask } from "../canisters/backend"
 
 export type AiActionId =
   | "Summarize"
@@ -52,26 +52,7 @@ export const LANGUAGES = [
 ]
 
 export function toAiTask(id: AiActionId, language = "English"): AiTask {
-  switch (id) {
-    case "Translate":
-      return { Translate: language }
-    case "Summarize":
-      return { Summarize: null }
-    case "SuggestTitle":
-      return { SuggestTitle: null }
-    case "SuggestTags":
-      return { SuggestTags: null }
-    case "Improve":
-      return { Improve: null }
-    case "FixGrammar":
-      return { FixGrammar: null }
-    case "Shorten":
-      return { Shorten: null }
-    case "ActionItems":
-      return { ActionItems: null }
-    case "Continue":
-      return { Continue: null }
-  }
+  return id === "Translate" ? { tag: "Translate", value: language } : { tag: id }
 }
 
 /** The text sent to the assistant for a note: its title and body. */

@@ -1,4 +1,4 @@
 dist
 node_modules
 pnpm-lock.yaml
-src/declarations/**/declarations
+src/canisters

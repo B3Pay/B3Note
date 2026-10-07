@@ -3,21 +3,14 @@ import { KeyRound, ShieldAlert } from "lucide-react"
 import { useSession } from "../app/session"
 import { retryUnlock, useVault } from "../app/vault"
 import { WorkspaceProvider } from "../app/workspace"
-import { Button, EmptyState, Spinner } from "../components/ui"
+import { Button, EmptyState } from "../components/ui"
 
 /** Requires a signed-in user and an unlocked vault for every child route. */
 export function SignedInLayout() {
-  const { session } = useSession()
+  const { signedIn, principal } = useSession()
   const vault = useVault()
 
-  if (session.status === "restoring") {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Spinner label="Checking your session…" />
-      </div>
-    )
-  }
-  if (session.status === "signedOut") return <Navigate to="/" />
+  if (!signedIn) return <Navigate to="/" />
 
   if (vault.status === "error") {
     return (
@@ -25,7 +18,7 @@ export function SignedInLayout() {
         icon={<ShieldAlert className="h-10 w-10" />}
         title="Could not unlock your notes"
         action={
-          <Button variant="primary" onClick={() => retryUnlock(session.principal)}>
+          <Button variant="primary" onClick={() => retryUnlock(principal)}>
             Try again
           </Button>
         }

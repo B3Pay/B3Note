@@ -1,4 +1,5 @@
-import { isCanisterError } from "@ic-reactor/react"
+import { useClient } from "@ic-reactor/react"
+import { useMutation } from "@tanstack/react-query"
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import {
   ArrowLeft,
@@ -26,8 +27,7 @@ import { Markdown } from "../components/Markdown"
 import { ShareDialog } from "../components/ShareDialog"
 import { TagEditor } from "../components/TagEditor"
 import { Button, EmptyState, Notice, Spinner, cn } from "../components/ui"
-import { createNoteMutation, deleteNoteMutation, updateNoteMutation } from "../declarations/backend"
-import { errorMessage } from "../lib/errors"
+import { backendErrorTag, errorMessage } from "../lib/errors"
 import {
   DURATION_CHOICES,
   dateToNanos,
@@ -39,6 +39,7 @@ import {
 import { EMPTY_NOTE, displayTitle, normalizeTags, toggleTask, type NoteContent } from "../lib/note"
 import { download, markdownFileName, noteToMarkdown } from "../lib/transfer"
 import type { Vault } from "../lib/vault"
+import { backendOf } from "../reactor"
 
 const AUTOSAVE_DELAY_MS = 900
 
@@ -83,6 +84,14 @@ function isEmpty(content: NoteContent) {
 function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote | null; vault: Vault }) {
   const navigate = useNavigate()
   const { notes } = useWorkspace()
+  const client = useClient()
+  const backend = backendOf(client)
+  // Each write invalidates the backend's reads (the note list, the account).
+  const createNote = useMutation(client.mutationOptions(backend, "create_note"))
+  const updateNote = useMutation(client.mutationOptions(backend, "update_note"))
+  const deleteNote = useMutation(client.mutationOptions(backend, "delete_note"))
+  const { mutateAsync: createAsync } = createNote
+  const { mutateAsync: updateAsync } = updateNote
   const [content, setContent] = useState<NoteContent>(initial?.content ?? EMPTY_NOTE)
   const [expiresAt, setExpiresAt] = useState<bigint | null>(initial?.expiresAt ?? null)
   const [status, setStatus] = useState<SaveStatus>("saved")
@@ -118,18 +127,15 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
       const run = (async () => {
         try {
           const ciphertext = await vault.encrypt(id, current)
-          const expires_at: [] | [bigint] = expiry ? [expiry] : []
           const saved =
             version.current === null
-              ? await createNoteMutation.execute([{ id, ciphertext, expires_at }])
-              : await updateNoteMutation.execute([
-                  {
-                    id,
-                    ciphertext,
-                    expires_at,
-                    expected_version: force ? [] : [version.current],
-                  },
-                ])
+              ? await createAsync({ id, ciphertext, expires_at: expiry })
+              : await updateAsync({
+                  id,
+                  ciphertext,
+                  expires_at: expiry,
+                  expected_version: force ? null : version.current,
+                })
           const created = version.current === null
           version.current = saved.version
           setStatus(pending.current ? "dirty" : "saved")
@@ -138,7 +144,7 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
             void navigate({ to: "/notes/$noteId", params: { noteId: id }, search: {}, replace: true })
           }
         } catch (error) {
-          if (isCanisterError(error) && error.code === "Conflict") {
+          if (backendErrorTag(error) === "Conflict") {
             setStatus("conflict")
           } else {
             setStatus("error")
@@ -156,7 +162,7 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
         await save()
       }
     },
-    [id, vault, navigate],
+    [id, vault, navigate, createAsync, updateAsync],
   )
 
   // Autosave shortly after the last change.
@@ -229,7 +235,7 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
       return
     }
     try {
-      await deleteNoteMutation.execute([id])
+      await deleteNote.mutateAsync(id)
       toast.success("Note deleted")
       await navigate({ to: "/notes" })
     } catch (error) {

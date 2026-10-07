@@ -1,11 +1,13 @@
 import { Link } from "@tanstack/react-router"
 import { FileText, Send, Sparkles } from "lucide-react"
+import { useClient } from "@ic-reactor/react"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { useMemo, useState } from "react"
 import { useWorkspace } from "../app/workspace"
 import { AiConsentDialog } from "../components/AiConsentDialog"
 import { Markdown } from "../components/Markdown"
 import { Button, Card, EmptyState, Notice, Spinner, Textarea } from "../components/ui"
-import { aiAssistMutation, getAccountQuery } from "../declarations/backend"
+import { backendOf } from "../reactor"
 import { hasAiConsent } from "../lib/ai"
 import { errorMessage } from "../lib/errors"
 import { displayTitle } from "../lib/note"
@@ -26,8 +28,10 @@ const EXAMPLES = [
 
 export function AskPage() {
   const { notes } = useWorkspace()
-  const account = getAccountQuery.useQuery()
-  const assist = aiAssistMutation.useMutation()
+  const client = useClient()
+  const backend = backendOf(client)
+  const account = useQuery(client.queryOptions(backend, "get_account"))
+  const assist = useMutation(client.mutationOptions(backend, "ai_assist", { invalidates: [] }))
   const [question, setQuestion] = useState("")
   const [history, setHistory] = useState<Exchange[]>([])
   const [consentOpen, setConsentOpen] = useState(false)
@@ -55,7 +59,7 @@ export function AskPage() {
     setHistory((h) => [exchange, ...h])
     setQuestion("")
     try {
-      const reply = await assist.mutateAsync([{ task: { Ask: q }, text: context }])
+      const reply = await assist.mutateAsync({ task: { tag: "Ask", value: q }, text: context })
       setHistory((h) => h.map((e) => (e === exchange ? { ...e, answer: reply.text } : e)))
     } catch (error) {
       setHistory((h) => h.map((e) => (e === exchange ? { ...e, error: errorMessage(error) } : e)))

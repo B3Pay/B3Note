@@ -15,25 +15,20 @@ import {
 } from "lucide-react"
 import { useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
-import { session, useSession } from "../app/session"
+import { signOut, useSession } from "../app/session"
 import { forgetVaultKey } from "../app/vault"
 import { useWorkspace } from "../app/workspace"
 import { Dialog } from "../components/Dialog"
 import { Button, Card, Input, Notice, Spinner, cn } from "../components/ui"
-import {
-  backendReactor,
-  createNoteMutation,
-  deleteAccountMutation,
-  getAccountQuery,
-  getStatsQuery,
-  listSharesQuery,
-  revokeShareMutation,
-} from "../declarations/backend"
 import { hasAiConsent, setAiConsent } from "../lib/ai"
 import { newId } from "../lib/bytes"
 import { errorMessage } from "../lib/errors"
 import { formatBytes, nanosToDate, relativeTime } from "../lib/format"
-import { formatRecoveryKey } from "../lib/session"
+import { formatRecoveryKey } from "../lib/sessionAuth"
+import { backendOf, sessionAuth } from "../reactor"
+import { canisterIdOf } from "../app/canister"
+import { useClient } from "@ic-reactor/react"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { buildExport, download, noteToMarkdown, parseImport } from "../lib/transfer"
 
 function Section({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
@@ -69,15 +64,16 @@ function UsageBar({ label, used, total }: { label: string; used: number; total: 
 }
 
 export function SettingsPage() {
-  const { session: current } = useSession()
+  const { signedIn, principal, kind } = useSession()
   const { notes, vault } = useWorkspace()
   const navigate = useNavigate()
-  const account = getAccountQuery.useQuery()
-  const stats = getStatsQuery.useQuery()
-  const shares = listSharesQuery.useQuery()
-  const revoke = revokeShareMutation.useMutation({ onSuccess: () => toast.success("Link revoked") })
-  const createNote = createNoteMutation.useMutation()
-  const deleteAccount = deleteAccountMutation.useMutation()
+  const client = useClient()
+  const backend = backendOf(client)
+  const account = useQuery(client.queryOptions(backend, "get_account"))
+  const stats = useQuery(client.queryOptions(backend, "get_stats"))
+  const shares = useQuery(client.queryOptions(backend, "list_shares"))
+  const revoke = useMutation(client.mutationOptions(backend, "revoke_share"))
+  const deleteAccount = useMutation(client.mutationOptions(backend, "delete_account"))
   const [showKey, setShowKey] = useState(false)
   const [aiConsent, setConsentState] = useState(hasAiConsent())
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
@@ -85,9 +81,8 @@ export function SettingsPage() {
   const [confirmText, setConfirmText] = useState("")
   const fileInput = useRef<HTMLInputElement>(null)
 
-  if (current.status !== "signedIn") return null
-  const principal = current.principal.toText()
-  const guestSeed = current.kind === "guest" ? session.guestSeed() : null
+  if (!signedIn) return null
+  const guestSeed = kind === "guest" ? sessionAuth().guestSeed() : null
   const recoveryKey = guestSeed ? formatRecoveryKey(guestSeed) : null
   const readable = notes.flatMap((n) => (n.content ? [{ ...n, content: n.content }] : []))
 
@@ -118,10 +113,16 @@ export function SettingsPage() {
         await Promise.all([...files].map(async (file) => parseImport(file.name, await file.text())))
       ).flat()
       setImporting({ done: 0, total: parsed.length })
-      for (const [index, note] of parsed.entries()) {
-        const { id } = newId()
-        await createNote.mutateAsync([{ id, ciphertext: await vault.encrypt(id, note), expires_at: [] }])
-        setImporting({ done: index + 1, total: parsed.length })
+      // Direct calls touch no cache: one invalidation after the batch
+      // instead of a refetch of the list after every note.
+      try {
+        for (const [index, note] of parsed.entries()) {
+          const { id } = newId()
+          await backend.create_note({ id, ciphertext: await vault.encrypt(id, note), expires_at: null })
+          setImporting({ done: index + 1, total: parsed.length })
+        }
+      } finally {
+        await client.queryClient.invalidateQueries({ queryKey: client.queryKey(backend) })
       }
       toast.success(`Imported ${parsed.length} note${parsed.length === 1 ? "" : "s"}`)
     } catch (error) {
@@ -134,11 +135,12 @@ export function SettingsPage() {
 
   const removeAccount = async () => {
     try {
-      const result = await deleteAccount.mutateAsync([])
+      const result = await deleteAccount.mutateAsync()
       toast.success(`Deleted ${result.notes} notes and ${result.shares} links`)
       setDeleteOpen(false)
-      await session.signOut()
-      if (current.kind === "guest") session.forgetGuestKey()
+      const wasGuest = kind === "guest"
+      await signOut()
+      if (wasGuest) sessionAuth().forgetGuestKey()
       await navigate({ to: "/" })
     } catch (error) {
       toast.error(errorMessage(error))
@@ -152,7 +154,7 @@ export function SettingsPage() {
       <Section icon={<User className="h-5 w-5" />} title="Account">
         <dl className="grid gap-3 text-sm sm:grid-cols-[10rem_1fr]">
           <dt className="text-zinc-500">Signed in with</dt>
-          <dd>{current.kind === "ii" ? "Internet Identity" : "Guest key (this browser)"}</dd>
+          <dd>{kind === "ii" ? "Internet Identity" : "Guest key (this browser)"}</dd>
           <dt className="text-zinc-500">Principal</dt>
           <dd className="flex items-center gap-2 font-mono text-xs break-all">
             {principal}
@@ -236,7 +238,7 @@ export function SettingsPage() {
         <Button
           className="mt-4"
           onClick={async () => {
-            await forgetVaultKey(current.principal)
+            await forgetVaultKey(principal)
             toast.success("Cached key removed. It will be derived again.")
           }}
         >
@@ -298,7 +300,7 @@ export function SettingsPage() {
         ) : (
           <ul className="space-y-1.5">
             {(shares.data ?? []).map((share) => {
-              const note = notes.find((n) => n.id === share.note_id[0])
+              const note = notes.find((n) => n.id === share.note_id)
               return (
                 <li
                   key={share.id}
@@ -313,7 +315,12 @@ export function SettingsPage() {
                     size="sm"
                     variant="ghost"
                     aria-label="Revoke link"
-                    onClick={() => revoke.mutate([share.id])}
+                    onClick={() =>
+                      revoke.mutate(share.id, {
+                        onSuccess: () => toast.success("Link revoked"),
+                        onError: (error) => toast.error(errorMessage(error)),
+                      })
+                    }
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -335,7 +342,7 @@ export function SettingsPage() {
 
       {stats.data ? (
         <p className="px-1 text-xs text-zinc-400">
-          B3Note backend v{stats.data.version} · canister {backendReactor.canisterId.toText()} · vetKD key{" "}
+          B3Note backend v{stats.data.version} · canister {canisterIdOf(client, backend)} · vetKD key{" "}
           {stats.data.vetkd_key_name} · {String(stats.data.users)} users · {String(stats.data.notes)} notes
         </p>
       ) : null}

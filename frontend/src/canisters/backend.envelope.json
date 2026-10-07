@@ -1,0 +1,1991 @@
+{
+  "contract": {
+    "actor": {
+      "class": 0,
+      "kind": "class"
+    },
+    "canonicalization_profile": "candid-core-canon-1",
+    "declarations": [
+      {
+        "name": "Account",
+        "type": 28
+      },
+      {
+        "name": "AiRequest",
+        "type": 22
+      },
+      {
+        "name": "AiResponse",
+        "type": 25
+      },
+      {
+        "name": "AiTask",
+        "type": 23
+      },
+      {
+        "name": "Config",
+        "type": 31
+      },
+      {
+        "name": "CreateNoteArgs",
+        "type": 56
+      },
+      {
+        "name": "CreateShareArgs",
+        "type": 42
+      },
+      {
+        "name": "DeletedAccount",
+        "type": 40
+      },
+      {
+        "name": "EncryptedUserKey",
+        "type": 75
+      },
+      {
+        "name": "Error",
+        "type": 18
+      },
+      {
+        "name": "InitArgs",
+        "type": 2
+      },
+      {
+        "name": "Limits",
+        "type": 12
+      },
+      {
+        "name": "ListNotesArgs",
+        "type": 67
+      },
+      {
+        "name": "Note",
+        "type": 37
+      },
+      {
+        "name": "NotePage",
+        "type": 70
+      },
+      {
+        "name": "OpenShareArgs",
+        "type": 52
+      },
+      {
+        "name": "OpenedShare",
+        "type": 54
+      },
+      {
+        "name": "PublicKeys",
+        "type": 50
+      },
+      {
+        "name": "PublicShareInfo",
+        "type": 60
+      },
+      {
+        "name": "Result",
+        "type": 24
+      },
+      {
+        "name": "Result_1",
+        "type": 36
+      },
+      {
+        "name": "Result_10",
+        "type": 46
+      },
+      {
+        "name": "Result_11",
+        "type": 53
+      },
+      {
+        "name": "Result_12",
+        "type": 30
+      },
+      {
+        "name": "Result_2",
+        "type": 43
+      },
+      {
+        "name": "Result_3",
+        "type": 39
+      },
+      {
+        "name": "Result_4",
+        "type": 16
+      },
+      {
+        "name": "Result_5",
+        "type": 27
+      },
+      {
+        "name": "Result_6",
+        "type": 74
+      },
+      {
+        "name": "Result_7",
+        "type": 49
+      },
+      {
+        "name": "Result_8",
+        "type": 59
+      },
+      {
+        "name": "Result_9",
+        "type": 69
+      },
+      {
+        "name": "ShareInfo",
+        "type": 44
+      },
+      {
+        "name": "Stats",
+        "type": 63
+      },
+      {
+        "name": "UpdateNoteArgs",
+        "type": 33
+      }
+    ],
+    "format": "candid-core",
+    "format_version": 1,
+    "identities": {
+      "contract": "candid-core:contract:v1:sha256:88dae8f6aa7a5835a9900e0eaeb01ce3d758e2ee3c1aaa86e2ed6e8cd76c18b4",
+      "interface": "candid-core:interface:v1:sha256:780555b4a921495f8b66bd4a047faec764fd2c21bcac9d51acc96a1ad95162e9"
+    },
+    "producer": {
+      "candid_parser_version": "0.4.0",
+      "candid_version": "0.10.30",
+      "name": "candid-core",
+      "version": "0.1.0-beta.3"
+    },
+    "semantics_profile": "candid-1",
+    "types": [
+      {
+        "init": [
+          1
+        ],
+        "kind": "class",
+        "service": 14
+      },
+      {
+        "inner": 2,
+        "kind": "opt"
+      },
+      {
+        "fields": [
+          {
+            "id": 421845738,
+            "type": 3
+          },
+          {
+            "id": 1612264864,
+            "type": 5
+          },
+          {
+            "id": 3691211927,
+            "type": 7
+          },
+          {
+            "id": 3736543737,
+            "type": 9
+          },
+          {
+            "id": 3959043288,
+            "type": 11
+          },
+          {
+            "id": 4202954892,
+            "type": 7
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "inner": 4,
+        "kind": "opt"
+      },
+      {
+        "kind": "primitive",
+        "primitive": "bool"
+      },
+      {
+        "inner": 6,
+        "kind": "opt"
+      },
+      {
+        "kind": "primitive",
+        "primitive": "nat64"
+      },
+      {
+        "inner": 8,
+        "kind": "opt"
+      },
+      {
+        "kind": "primitive",
+        "primitive": "text"
+      },
+      {
+        "inner": 10,
+        "kind": "opt"
+      },
+      {
+        "kind": "primitive",
+        "primitive": "principal"
+      },
+      {
+        "inner": 12,
+        "kind": "opt"
+      },
+      {
+        "fields": [
+          {
+            "id": 419440153,
+            "type": 13
+          },
+          {
+            "id": 449318525,
+            "type": 13
+          },
+          {
+            "id": 546816980,
+            "type": 13
+          },
+          {
+            "id": 979930789,
+            "type": 13
+          },
+          {
+            "id": 1191178832,
+            "type": 6
+          },
+          {
+            "id": 1309319795,
+            "type": 13
+          },
+          {
+            "id": 1322416550,
+            "type": 13
+          },
+          {
+            "id": 1521175706,
+            "type": 13
+          },
+          {
+            "id": 2826669949,
+            "type": 13
+          },
+          {
+            "id": 4013731558,
+            "type": 13
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "kind": "primitive",
+        "primitive": "nat32"
+      },
+      {
+        "kind": "service",
+        "methods": [
+          {
+            "function": 15,
+            "id": 1090278,
+            "name": "revoke_share"
+          },
+          {
+            "function": 21,
+            "id": 497482336,
+            "name": "ai_assist"
+          },
+          {
+            "function": 26,
+            "id": 659840196,
+            "name": "get_account"
+          },
+          {
+            "function": 29,
+            "id": 879142264,
+            "name": "update_config"
+          },
+          {
+            "function": 32,
+            "id": 1317416232,
+            "name": "update_note"
+          },
+          {
+            "function": 38,
+            "id": 1530378585,
+            "name": "delete_account"
+          },
+          {
+            "function": 41,
+            "id": 1707407388,
+            "name": "create_share"
+          },
+          {
+            "function": 45,
+            "id": 1968225205,
+            "name": "list_shares"
+          },
+          {
+            "function": 48,
+            "id": 2208706593,
+            "name": "get_public_keys"
+          },
+          {
+            "function": 51,
+            "id": 2433491818,
+            "name": "open_share"
+          },
+          {
+            "function": 55,
+            "id": 2456353621,
+            "name": "create_note"
+          },
+          {
+            "function": 57,
+            "id": 3092891275,
+            "name": "get_config"
+          },
+          {
+            "function": 58,
+            "id": 3217441078,
+            "name": "get_share"
+          },
+          {
+            "function": 61,
+            "id": 3217878399,
+            "name": "whoami"
+          },
+          {
+            "function": 62,
+            "id": 3350516342,
+            "name": "get_stats"
+          },
+          {
+            "function": 65,
+            "id": 3368342395,
+            "name": "get_note"
+          },
+          {
+            "function": 66,
+            "id": 3380861536,
+            "name": "list_notes"
+          },
+          {
+            "function": 72,
+            "id": 3440861617,
+            "name": "load_public_keys"
+          },
+          {
+            "function": 73,
+            "id": 3855218831,
+            "name": "get_encrypted_user_key"
+          },
+          {
+            "function": 15,
+            "id": 4175624134,
+            "name": "delete_note"
+          }
+        ]
+      },
+      {
+        "args": [
+          8
+        ],
+        "kind": "func",
+        "mode": "update",
+        "results": [
+          16
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 17
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "kind": "primitive",
+        "primitive": "null"
+      },
+      {
+        "fields": [
+          {
+            "id": 14600,
+            "type": 8
+          },
+          {
+            "id": 38457449,
+            "type": 17
+          },
+          {
+            "id": 1350250096,
+            "type": 17
+          },
+          {
+            "id": 1851232335,
+            "type": 17
+          },
+          {
+            "id": 2488679284,
+            "type": 17
+          },
+          {
+            "id": 2785379642,
+            "type": 19
+          },
+          {
+            "id": 2913107620,
+            "type": 17
+          },
+          {
+            "id": 3028638836,
+            "type": 8
+          },
+          {
+            "id": 3348150078,
+            "type": 8
+          },
+          {
+            "id": 3856853209,
+            "type": 8
+          },
+          {
+            "id": 4072376197,
+            "type": 17
+          },
+          {
+            "id": 4136693259,
+            "type": 8
+          },
+          {
+            "id": 4240144534,
+            "type": 17
+          },
+          {
+            "id": 4258678386,
+            "type": 20
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 1984574140,
+            "type": 6
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "fields": [
+          {
+            "id": 2974432722,
+            "type": 6
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "args": [
+          22
+        ],
+        "kind": "func",
+        "mode": "update",
+        "results": [
+          24
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 1291239237,
+            "type": 23
+          },
+          {
+            "id": 1291439277,
+            "type": 8
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "fields": [
+          {
+            "id": 3258137,
+            "type": 8
+          },
+          {
+            "id": 192584839,
+            "type": 17
+          },
+          {
+            "id": 677837298,
+            "type": 17
+          },
+          {
+            "id": 957685272,
+            "type": 17
+          },
+          {
+            "id": 1170217925,
+            "type": 17
+          },
+          {
+            "id": 2024031306,
+            "type": 17
+          },
+          {
+            "id": 3081291988,
+            "type": 17
+          },
+          {
+            "id": 3948066606,
+            "type": 8
+          },
+          {
+            "id": 4058004765,
+            "type": 17
+          },
+          {
+            "id": 4150642465,
+            "type": 17
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 25
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 207102889,
+            "type": 8
+          },
+          {
+            "id": 1291439277,
+            "type": 8
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "args": [],
+        "kind": "func",
+        "mode": "query",
+        "results": [
+          27
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 28
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 302796462,
+            "type": 10
+          },
+          {
+            "id": 375185967,
+            "type": 13
+          },
+          {
+            "id": 421845738,
+            "type": 4
+          },
+          {
+            "id": 1779848746,
+            "type": 6
+          },
+          {
+            "id": 2949260674,
+            "type": 13
+          },
+          {
+            "id": 3020672295,
+            "type": 6
+          },
+          {
+            "id": 3265945042,
+            "type": 8
+          },
+          {
+            "id": 3959043288,
+            "type": 12
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "args": [
+          2
+        ],
+        "kind": "func",
+        "mode": "update",
+        "results": [
+          30
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 31
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 421845738,
+            "type": 4
+          },
+          {
+            "id": 1612264864,
+            "type": 6
+          },
+          {
+            "id": 3691211927,
+            "type": 8
+          },
+          {
+            "id": 3736543737,
+            "type": 9
+          },
+          {
+            "id": 3959043288,
+            "type": 12
+          },
+          {
+            "id": 4202954892,
+            "type": 8
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "args": [
+          33
+        ],
+        "kind": "func",
+        "mode": "update",
+        "results": [
+          36
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 23515,
+            "type": 8
+          },
+          {
+            "id": 525203512,
+            "type": 34
+          },
+          {
+            "id": 3680359390,
+            "type": 5
+          },
+          {
+            "id": 3907102481,
+            "type": 5
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "inner": 35,
+        "kind": "vec"
+      },
+      {
+        "kind": "primitive",
+        "primitive": "nat8"
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 37
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 23515,
+            "type": 8
+          },
+          {
+            "id": 272465847,
+            "type": 6
+          },
+          {
+            "id": 525203512,
+            "type": 34
+          },
+          {
+            "id": 1779848746,
+            "type": 6
+          },
+          {
+            "id": 2096228120,
+            "type": 6
+          },
+          {
+            "id": 3680359390,
+            "type": 5
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "args": [],
+        "kind": "func",
+        "mode": "update",
+        "results": [
+          39
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 40
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 489381556,
+            "type": 13
+          },
+          {
+            "id": 2680872001,
+            "type": 13
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "args": [
+          42
+        ],
+        "kind": "func",
+        "mode": "update",
+        "results": [
+          43
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 23515,
+            "type": 8
+          },
+          {
+            "id": 80790057,
+            "type": 34
+          },
+          {
+            "id": 525203512,
+            "type": 34
+          },
+          {
+            "id": 769313619,
+            "type": 13
+          },
+          {
+            "id": 1297898824,
+            "type": 7
+          },
+          {
+            "id": 3385365201,
+            "type": 6
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 44
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 23515,
+            "type": 8
+          },
+          {
+            "id": 42217144,
+            "type": 13
+          },
+          {
+            "id": 769313619,
+            "type": 13
+          },
+          {
+            "id": 1280549057,
+            "type": 13
+          },
+          {
+            "id": 1297898824,
+            "type": 7
+          },
+          {
+            "id": 1779848746,
+            "type": 6
+          },
+          {
+            "id": 3680359390,
+            "type": 6
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "args": [],
+        "kind": "func",
+        "mode": "query",
+        "results": [
+          46
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 47
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "inner": 44,
+        "kind": "vec"
+      },
+      {
+        "args": [],
+        "kind": "func",
+        "mode": "query",
+        "results": [
+          49
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 50
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 386458219,
+            "type": 34
+          },
+          {
+            "id": 3151433471,
+            "type": 34
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "args": [
+          52
+        ],
+        "kind": "func",
+        "mode": "update",
+        "results": [
+          53
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 23515,
+            "type": 8
+          },
+          {
+            "id": 359375608,
+            "type": 34
+          },
+          {
+            "id": 3581318111,
+            "type": 34
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 54
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 42217144,
+            "type": 13
+          },
+          {
+            "id": 58727076,
+            "type": 34
+          },
+          {
+            "id": 525203512,
+            "type": 34
+          },
+          {
+            "id": 743930811,
+            "type": 34
+          },
+          {
+            "id": 3680359390,
+            "type": 6
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "args": [
+          56
+        ],
+        "kind": "func",
+        "mode": "update",
+        "results": [
+          36
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 23515,
+            "type": 8
+          },
+          {
+            "id": 525203512,
+            "type": 34
+          },
+          {
+            "id": 3680359390,
+            "type": 5
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "args": [],
+        "kind": "func",
+        "mode": "query",
+        "results": [
+          31
+        ]
+      },
+      {
+        "args": [
+          8
+        ],
+        "kind": "func",
+        "mode": "query",
+        "results": [
+          59
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 60
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 42217144,
+            "type": 13
+          },
+          {
+            "id": 1280549057,
+            "type": 13
+          },
+          {
+            "id": 1779848746,
+            "type": 6
+          },
+          {
+            "id": 3680359390,
+            "type": 6
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "args": [],
+        "kind": "func",
+        "mode": "query",
+        "results": [
+          10
+        ]
+      },
+      {
+        "args": [],
+        "kind": "func",
+        "mode": "query",
+        "results": [
+          63
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 421845738,
+            "type": 4
+          },
+          {
+            "id": 1981453133,
+            "type": 6
+          },
+          {
+            "id": 2096228120,
+            "type": 8
+          },
+          {
+            "id": 2190693645,
+            "type": 64
+          },
+          {
+            "id": 2680872001,
+            "type": 6
+          },
+          {
+            "id": 2855432136,
+            "type": 6
+          },
+          {
+            "id": 3265945042,
+            "type": 8
+          },
+          {
+            "id": 4202954892,
+            "type": 8
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "kind": "primitive",
+        "primitive": "nat"
+      },
+      {
+        "args": [
+          8
+        ],
+        "kind": "func",
+        "mode": "query",
+        "results": [
+          36
+        ]
+      },
+      {
+        "args": [
+          67
+        ],
+        "kind": "func",
+        "mode": "query",
+        "results": [
+          69
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 1055428310,
+            "type": 7
+          },
+          {
+            "id": 1963007803,
+            "type": 68
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "inner": 13,
+        "kind": "opt"
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 70
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 2680872001,
+            "type": 71
+          },
+          {
+            "id": 3059216354,
+            "type": 7
+          }
+        ],
+        "kind": "record"
+      },
+      {
+        "inner": 37,
+        "kind": "vec"
+      },
+      {
+        "args": [],
+        "kind": "func",
+        "mode": "update",
+        "results": [
+          49
+        ]
+      },
+      {
+        "args": [
+          34
+        ],
+        "kind": "func",
+        "mode": "update",
+        "results": [
+          74
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": 17724,
+            "type": 75
+          },
+          {
+            "id": 3456837,
+            "type": 18
+          }
+        ],
+        "kind": "variant"
+      },
+      {
+        "fields": [
+          {
+            "id": 58727076,
+            "type": 34
+          },
+          {
+            "id": 743930811,
+            "type": 34
+          }
+        ],
+        "kind": "record"
+      }
+    ]
+  },
+  "extensions": {
+    "org.candid-core.field-names/v1": [
+      [
+        2,
+        421845738,
+        "ai_enabled"
+      ],
+      [
+        2,
+        1612264864,
+        "llm_cycles_per_call"
+      ],
+      [
+        2,
+        3691211927,
+        "llm_model"
+      ],
+      [
+        2,
+        3736543737,
+        "llm_canister"
+      ],
+      [
+        2,
+        3959043288,
+        "limits"
+      ],
+      [
+        2,
+        4202954892,
+        "vetkd_key_name"
+      ],
+      [
+        12,
+        419440153,
+        "max_note_bytes"
+      ],
+      [
+        12,
+        449318525,
+        "key_requests_per_user_per_hour"
+      ],
+      [
+        12,
+        546816980,
+        "ai_requests_per_user_per_hour"
+      ],
+      [
+        12,
+        979930789,
+        "global_key_requests_per_hour"
+      ],
+      [
+        12,
+        1191178832,
+        "max_share_ttl_secs"
+      ],
+      [
+        12,
+        1309319795,
+        "max_share_views"
+      ],
+      [
+        12,
+        1322416550,
+        "max_notes_per_user"
+      ],
+      [
+        12,
+        1521175706,
+        "max_ai_input_bytes"
+      ],
+      [
+        12,
+        2826669949,
+        "max_shares_per_user"
+      ],
+      [
+        12,
+        4013731558,
+        "global_ai_requests_per_hour"
+      ],
+      [
+        16,
+        17724,
+        "Ok"
+      ],
+      [
+        16,
+        3456837,
+        "Err"
+      ],
+      [
+        18,
+        14600,
+        "Ai"
+      ],
+      [
+        18,
+        38457449,
+        "Exhausted"
+      ],
+      [
+        18,
+        1350250096,
+        "NotReady"
+      ],
+      [
+        18,
+        1851232335,
+        "NotFound"
+      ],
+      [
+        18,
+        2488679284,
+        "AlreadyExists"
+      ],
+      [
+        18,
+        2785379642,
+        "RateLimited"
+      ],
+      [
+        18,
+        2913107620,
+        "AiDisabled"
+      ],
+      [
+        18,
+        3028638836,
+        "InvalidArgument"
+      ],
+      [
+        18,
+        3348150078,
+        "VetKd"
+      ],
+      [
+        18,
+        3856853209,
+        "Forbidden"
+      ],
+      [
+        18,
+        4072376197,
+        "Expired"
+      ],
+      [
+        18,
+        4136693259,
+        "QuotaExceeded"
+      ],
+      [
+        18,
+        4240144534,
+        "Unauthenticated"
+      ],
+      [
+        18,
+        4258678386,
+        "Conflict"
+      ],
+      [
+        19,
+        1984574140,
+        "retry_after_secs"
+      ],
+      [
+        20,
+        2974432722,
+        "current_version"
+      ],
+      [
+        22,
+        1291239237,
+        "task"
+      ],
+      [
+        22,
+        1291439277,
+        "text"
+      ],
+      [
+        23,
+        3258137,
+        "Ask"
+      ],
+      [
+        23,
+        192584839,
+        "Continue"
+      ],
+      [
+        23,
+        677837298,
+        "FixGrammar"
+      ],
+      [
+        23,
+        957685272,
+        "Improve"
+      ],
+      [
+        23,
+        1170217925,
+        "Shorten"
+      ],
+      [
+        23,
+        2024031306,
+        "ActionItems"
+      ],
+      [
+        23,
+        3081291988,
+        "SuggestTitle"
+      ],
+      [
+        23,
+        3948066606,
+        "Translate"
+      ],
+      [
+        23,
+        4058004765,
+        "SuggestTags"
+      ],
+      [
+        23,
+        4150642465,
+        "Summarize"
+      ],
+      [
+        24,
+        17724,
+        "Ok"
+      ],
+      [
+        24,
+        3456837,
+        "Err"
+      ],
+      [
+        25,
+        207102889,
+        "model"
+      ],
+      [
+        25,
+        1291439277,
+        "text"
+      ],
+      [
+        27,
+        17724,
+        "Ok"
+      ],
+      [
+        27,
+        3456837,
+        "Err"
+      ],
+      [
+        28,
+        302796462,
+        "principal"
+      ],
+      [
+        28,
+        375185967,
+        "share_count"
+      ],
+      [
+        28,
+        421845738,
+        "ai_enabled"
+      ],
+      [
+        28,
+        1779848746,
+        "created_at"
+      ],
+      [
+        28,
+        2949260674,
+        "note_count"
+      ],
+      [
+        28,
+        3020672295,
+        "storage_bytes"
+      ],
+      [
+        28,
+        3265945042,
+        "ai_model"
+      ],
+      [
+        28,
+        3959043288,
+        "limits"
+      ],
+      [
+        30,
+        17724,
+        "Ok"
+      ],
+      [
+        30,
+        3456837,
+        "Err"
+      ],
+      [
+        31,
+        421845738,
+        "ai_enabled"
+      ],
+      [
+        31,
+        1612264864,
+        "llm_cycles_per_call"
+      ],
+      [
+        31,
+        3691211927,
+        "llm_model"
+      ],
+      [
+        31,
+        3736543737,
+        "llm_canister"
+      ],
+      [
+        31,
+        3959043288,
+        "limits"
+      ],
+      [
+        31,
+        4202954892,
+        "vetkd_key_name"
+      ],
+      [
+        33,
+        23515,
+        "id"
+      ],
+      [
+        33,
+        525203512,
+        "ciphertext"
+      ],
+      [
+        33,
+        3680359390,
+        "expires_at"
+      ],
+      [
+        33,
+        3907102481,
+        "expected_version"
+      ],
+      [
+        36,
+        17724,
+        "Ok"
+      ],
+      [
+        36,
+        3456837,
+        "Err"
+      ],
+      [
+        37,
+        23515,
+        "id"
+      ],
+      [
+        37,
+        272465847,
+        "updated_at"
+      ],
+      [
+        37,
+        525203512,
+        "ciphertext"
+      ],
+      [
+        37,
+        1779848746,
+        "created_at"
+      ],
+      [
+        37,
+        2096228120,
+        "version"
+      ],
+      [
+        37,
+        3680359390,
+        "expires_at"
+      ],
+      [
+        39,
+        17724,
+        "Ok"
+      ],
+      [
+        39,
+        3456837,
+        "Err"
+      ],
+      [
+        40,
+        489381556,
+        "shares"
+      ],
+      [
+        40,
+        2680872001,
+        "notes"
+      ],
+      [
+        42,
+        23515,
+        "id"
+      ],
+      [
+        42,
+        80790057,
+        "verifying_key"
+      ],
+      [
+        42,
+        525203512,
+        "ciphertext"
+      ],
+      [
+        42,
+        769313619,
+        "max_views"
+      ],
+      [
+        42,
+        1297898824,
+        "note_id"
+      ],
+      [
+        42,
+        3385365201,
+        "expires_in_secs"
+      ],
+      [
+        43,
+        17724,
+        "Ok"
+      ],
+      [
+        43,
+        3456837,
+        "Err"
+      ],
+      [
+        44,
+        23515,
+        "id"
+      ],
+      [
+        44,
+        42217144,
+        "views_left"
+      ],
+      [
+        44,
+        769313619,
+        "max_views"
+      ],
+      [
+        44,
+        1280549057,
+        "size"
+      ],
+      [
+        44,
+        1297898824,
+        "note_id"
+      ],
+      [
+        44,
+        1779848746,
+        "created_at"
+      ],
+      [
+        44,
+        3680359390,
+        "expires_at"
+      ],
+      [
+        46,
+        17724,
+        "Ok"
+      ],
+      [
+        46,
+        3456837,
+        "Err"
+      ],
+      [
+        49,
+        17724,
+        "Ok"
+      ],
+      [
+        49,
+        3456837,
+        "Err"
+      ],
+      [
+        50,
+        386458219,
+        "user_key"
+      ],
+      [
+        50,
+        3151433471,
+        "share_key"
+      ],
+      [
+        52,
+        23515,
+        "id"
+      ],
+      [
+        52,
+        359375608,
+        "signature"
+      ],
+      [
+        52,
+        3581318111,
+        "transport_public_key"
+      ],
+      [
+        53,
+        17724,
+        "Ok"
+      ],
+      [
+        53,
+        3456837,
+        "Err"
+      ],
+      [
+        54,
+        42217144,
+        "views_left"
+      ],
+      [
+        54,
+        58727076,
+        "encrypted_key"
+      ],
+      [
+        54,
+        525203512,
+        "ciphertext"
+      ],
+      [
+        54,
+        743930811,
+        "verification_key"
+      ],
+      [
+        54,
+        3680359390,
+        "expires_at"
+      ],
+      [
+        56,
+        23515,
+        "id"
+      ],
+      [
+        56,
+        525203512,
+        "ciphertext"
+      ],
+      [
+        56,
+        3680359390,
+        "expires_at"
+      ],
+      [
+        59,
+        17724,
+        "Ok"
+      ],
+      [
+        59,
+        3456837,
+        "Err"
+      ],
+      [
+        60,
+        42217144,
+        "views_left"
+      ],
+      [
+        60,
+        1280549057,
+        "size"
+      ],
+      [
+        60,
+        1779848746,
+        "created_at"
+      ],
+      [
+        60,
+        3680359390,
+        "expires_at"
+      ],
+      [
+        63,
+        421845738,
+        "ai_enabled"
+      ],
+      [
+        63,
+        1981453133,
+        "active_shares"
+      ],
+      [
+        63,
+        2096228120,
+        "version"
+      ],
+      [
+        63,
+        2190693645,
+        "cycles"
+      ],
+      [
+        63,
+        2680872001,
+        "notes"
+      ],
+      [
+        63,
+        2855432136,
+        "users"
+      ],
+      [
+        63,
+        3265945042,
+        "ai_model"
+      ],
+      [
+        63,
+        4202954892,
+        "vetkd_key_name"
+      ],
+      [
+        67,
+        1055428310,
+        "cursor"
+      ],
+      [
+        67,
+        1963007803,
+        "limit"
+      ],
+      [
+        69,
+        17724,
+        "Ok"
+      ],
+      [
+        69,
+        3456837,
+        "Err"
+      ],
+      [
+        70,
+        2680872001,
+        "notes"
+      ],
+      [
+        70,
+        3059216354,
+        "next_cursor"
+      ],
+      [
+        74,
+        17724,
+        "Ok"
+      ],
+      [
+        74,
+        3456837,
+        "Err"
+      ],
+      [
+        75,
+        58727076,
+        "encrypted_key"
+      ],
+      [
+        75,
+        743930811,
+        "verification_key"
+      ]
+    ]
+  }
+}

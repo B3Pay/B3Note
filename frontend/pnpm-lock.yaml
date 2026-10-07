@@ -8,9 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@candid-core/schema':
+        specifier: 0.3.0
+        version: 0.3.0
+      '@ic-reactor/core':
+        specifier: 4.0.0-beta.3
+        version: 4.0.0-beta.3(@candid-core/schema@0.3.0)(@icp-sdk/core@6.1.0)(@noble/curves@1.9.7)(@tanstack/query-core@5.104.1)
       '@ic-reactor/react':
-        specifier: ^3.13.0
-        version: 3.13.0(@icp-sdk/auth@10.0.1(@icp-sdk/core@6.1.0))(@icp-sdk/core@6.1.0)(@noble/curves@1.9.7)(@tanstack/query-core@5.104.1)(@tanstack/react-query@5.104.1(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: 4.0.0-beta.3
+        version: 4.0.0-beta.3(@ic-reactor/core@4.0.0-beta.3(@candid-core/schema@0.3.0)(@icp-sdk/core@6.1.0)(@noble/curves@1.9.7)(@tanstack/query-core@5.104.1))(@tanstack/react-query@5.104.1(react@19.3.0))(react@19.3.0)
       '@icp-sdk/auth':
         specifier: ^10.0.1
         version: 10.0.1(@icp-sdk/core@6.1.0)
@@ -51,12 +57,15 @@ importers:
         specifier: ^2.0.7
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
     devDependencies:
+      '@candid-core/cli':
+        specifier: 0.2.0
+        version: 0.2.0(@candid-core/schema@0.3.0)
       '@dfinity/pic':
         specifier: ^0.25.0
         version: 0.25.0(@icp-sdk/core@6.1.0)
       '@ic-reactor/vite-plugin':
-        specifier: ^0.15.1
-        version: 0.15.1(vite@8.3.3(@types/node@26.6.4)(jiti@2.7.0))
+        specifier: 4.0.0-beta.3
+        version: 4.0.0-beta.3(@candid-core/cli@0.2.0(@candid-core/schema@0.3.0))(vite@8.3.3(@types/node@26.6.4)(jiti@2.7.0))
       '@noble/curves':
         specifier: 1.9.7
         version: 1.9.7
@@ -135,6 +144,18 @@ packages:
     resolution: {integrity: sha512-0GEz8qJWokkUVYQYRukmkSHIFNoBH8QTreeHrAFbvz1XFYc3Y+puhMs8PQ5x8GNugiC2l5jvDBXKLbBIByeSBw==}
     hasBin: true
 
+  '@candid-core/cli@0.2.0':
+    resolution: {integrity: sha512-7YkBSKesUA+OxbGkfQQffuJXw2jrlNsUbqt2TY9yoxYPiAYFdF52DCfuCPt5U2ScNE+7zqu06wbo/bXAQ5aQCA==}
+    hasBin: true
+    peerDependencies:
+      '@candid-core/schema': 0.3.0
+    peerDependenciesMeta:
+      '@candid-core/schema':
+        optional: true
+
+  '@candid-core/schema@0.3.0':
+    resolution: {integrity: sha512-4dvVrkIcU/YXFQv8VOcrs9DwIGwXVQQcBmbkr3ujDqtLsXcdvBFWQhmck0MgiA1niR8KWOj1VbLZETjEiyjheA==}
+
   '@csstools/color-helpers@6.1.2':
     resolution: {integrity: sha512-grhRy3OKmniaAEKXMjua5z/EODX0MSqBGjunw8+j/3HQjOnahs2AGhvEOIYVUWcU6ScApbhLhVrQTX8XqrMrow==}
     engines: {node: '>=20.19.0'}
@@ -189,46 +210,30 @@ packages:
       '@noble/hashes':
         optional: true
 
-  '@ic-reactor/codegen@0.15.1':
-    resolution: {integrity: sha512-7tEZ7ZO1VRgvhz4WDv6pUDj4Ws9Fwu6r6UZuX8c/zlzoc/J3eqJQ3W6c9Eigusay63mGymUZkPumvVGMrYFOgQ==}
-
-  '@ic-reactor/core@3.13.0':
-    resolution: {integrity: sha512-Lqsuk+MUfxncNDVb3qRhXzsXDDqzPU5i5stnTX4SUN8eN1HgtodwUWerVrtWmUNkYntz8LGMcvq2Uh9ZXQz/tQ==}
+  '@ic-reactor/core@4.0.0-beta.3':
+    resolution: {integrity: sha512-8UwwxiAHIlu80LC3FLyBdEHhe24uIuUiMofAzU9NvB1cVbM0F/RE9SpGKPyMqwwIobWIg/+cPSWe+WG+5hXv+Q==}
     engines: {node: '>=18'}
     peerDependencies:
+      '@candid-core/schema': 0.3.0
       '@icp-sdk/core': ^6.1.0
       '@noble/curves': ^2.2.0
-      '@tanstack/query-core': ^5.0.0
+      '@tanstack/query-core': ^5.62.0
     peerDependenciesMeta:
       '@noble/curves':
         optional: true
-      '@tanstack/query-core':
-        optional: true
 
-  '@ic-reactor/parser@0.6.0':
-    resolution: {integrity: sha512-sjtzvD9f09AqOO6Y/LUzk4kAqtKhqkaV2OaFgJQvWK9GW8X4ISoTHmJGe/i6+qFTMoj9ZE2Sw4dIDjaRYE6d+w==}
-
-  '@ic-reactor/react@3.13.0':
-    resolution: {integrity: sha512-akMB2cbss4uvEZMaVqglXQt8vz8uZCGw9pT5+ce/IerG60oRURgTrdgczF80LiNEmTVX7VSosZUfq8C61Lrc3w==}
+  '@ic-reactor/react@4.0.0-beta.3':
+    resolution: {integrity: sha512-a6MRPq/WCotDOZedDeZTL/0jxPBZWTFq8peAHK7hfM5+tcL/plmkXi4dhk2ijNzyHpncI9dav7DYJtMhz9d8Cw==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@icp-sdk/auth': ^8.0.0 || ^10.0.0
-      '@icp-sdk/core': ^6.1.0
-      '@noble/curves': ^2.2.0
+      '@ic-reactor/core': 4.0.0-beta.3
       '@tanstack/react-query': ^5.90.2
       react: '>=18.0.0'
-      react-dom: '>=18.0.0'
-    peerDependenciesMeta:
-      '@icp-sdk/auth':
-        optional: true
-      '@noble/curves':
-        optional: true
-      react-dom:
-        optional: true
 
-  '@ic-reactor/vite-plugin@0.15.1':
-    resolution: {integrity: sha512-ouvgCPj9I46AyDHGHg7GX+Ir89GFg1oU+w96vW2MgCyF76kmv4mrN2cH9n+auJWiJkZpZsKxUarpjMcvjZLLjg==}
+  '@ic-reactor/vite-plugin@4.0.0-beta.3':
+    resolution: {integrity: sha512-KqrShJPRLG9AcW23a+2CzPHQNtgkUihXv+/HWP817rpuu8viK5omFHa1DfxUJ43VA2VRlDZvKGkz+gjQP5T+iw==}
     peerDependencies:
+      '@candid-core/cli': 0.2.0
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
 
   '@icp-sdk/auth@10.0.1':
@@ -653,9 +658,6 @@ packages:
   chai@6.3.0:
     resolution: {integrity: sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg==}
     engines: {node: '>=18'}
-
-  change-case@5.4.4:
-    resolution: {integrity: sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w==}
 
   character-entities-html4@2.1.0:
     resolution: {integrity: sha512-1v7fgQRj6hnSwFpq1Eu0ynr/CDEw0rXo2B61qXrLNdHZmPKgb7fqS1a2JwF0rISo9q77jDI8VMEHoApn8qDoZA==}
@@ -1501,9 +1503,6 @@ packages:
   xmlchars@2.2.0:
     resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
 
-  zod@4.6.5:
-    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
-
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
@@ -1539,6 +1538,12 @@ snapshots:
   '@bramus/specificity@2.4.3':
     dependencies:
       css-tree: 3.2.1
+
+  '@candid-core/cli@0.2.0(@candid-core/schema@0.3.0)':
+    optionalDependencies:
+      '@candid-core/schema': 0.3.0
+
+  '@candid-core/schema@0.3.0': {}
 
   '@csstools/color-helpers@6.1.2': {}
 
@@ -1576,37 +1581,23 @@ snapshots:
     optionalDependencies:
       '@noble/hashes': 2.4.0
 
-  '@ic-reactor/codegen@0.15.1':
+  '@ic-reactor/core@4.0.0-beta.3(@candid-core/schema@0.3.0)(@icp-sdk/core@6.1.0)(@noble/curves@1.9.7)(@tanstack/query-core@5.104.1)':
     dependencies:
-      '@ic-reactor/parser': 0.6.0
-      change-case: 5.4.4
-
-  '@ic-reactor/core@3.13.0(@icp-sdk/core@6.1.0)(@noble/curves@1.9.7)(@tanstack/query-core@5.104.1)':
-    dependencies:
+      '@candid-core/schema': 0.3.0
       '@icp-sdk/core': 6.1.0
-      zod: 4.6.5
+      '@tanstack/query-core': 5.104.1
     optionalDependencies:
       '@noble/curves': 1.9.7
-      '@tanstack/query-core': 5.104.1
 
-  '@ic-reactor/parser@0.6.0': {}
-
-  '@ic-reactor/react@3.13.0(@icp-sdk/auth@10.0.1(@icp-sdk/core@6.1.0))(@icp-sdk/core@6.1.0)(@noble/curves@1.9.7)(@tanstack/query-core@5.104.1)(@tanstack/react-query@5.104.1(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@ic-reactor/react@4.0.0-beta.3(@ic-reactor/core@4.0.0-beta.3(@candid-core/schema@0.3.0)(@icp-sdk/core@6.1.0)(@noble/curves@1.9.7)(@tanstack/query-core@5.104.1))(@tanstack/react-query@5.104.1(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@ic-reactor/core': 3.13.0(@icp-sdk/core@6.1.0)(@noble/curves@1.9.7)(@tanstack/query-core@5.104.1)
-      '@icp-sdk/core': 6.1.0
+      '@ic-reactor/core': 4.0.0-beta.3(@candid-core/schema@0.3.0)(@icp-sdk/core@6.1.0)(@noble/curves@1.9.7)(@tanstack/query-core@5.104.1)
       '@tanstack/react-query': 5.104.1(react@19.3.0)
       react: 19.3.0
-    optionalDependencies:
-      '@icp-sdk/auth': 10.0.1(@icp-sdk/core@6.1.0)
-      '@noble/curves': 1.9.7
-      react-dom: 19.3.0(react@19.3.0)
-    transitivePeerDependencies:
-      - '@tanstack/query-core'
 
-  '@ic-reactor/vite-plugin@0.15.1(vite@8.3.3(@types/node@26.6.4)(jiti@2.7.0))':
+  '@ic-reactor/vite-plugin@4.0.0-beta.3(@candid-core/cli@0.2.0(@candid-core/schema@0.3.0))(vite@8.3.3(@types/node@26.6.4)(jiti@2.7.0))':
     dependencies:
-      '@ic-reactor/codegen': 0.15.1
+      '@candid-core/cli': 0.2.0(@candid-core/schema@0.3.0)
       vite: 8.3.3(@types/node@26.6.4)(jiti@2.7.0)
 
   '@icp-sdk/auth@10.0.1(@icp-sdk/core@6.1.0)':
@@ -1959,8 +1950,6 @@ snapshots:
   ccount@2.0.1: {}
 
   chai@6.3.0: {}
-
-  change-case@5.4.4: {}
 
   character-entities-html4@2.1.0: {}
 
@@ -2946,7 +2935,5 @@ snapshots:
   xml-name-validator@5.0.0: {}
 
   xmlchars@2.2.0: {}
-
-  zod@4.6.5: {}
 
   zwitch@2.0.4: {}

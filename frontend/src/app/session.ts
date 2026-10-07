@@ -1,25 +1,41 @@
-import { useSyncExternalStore } from "react"
-import { authentication, clientManager } from "../clients"
-import { SessionStore, type SessionSnapshot } from "../lib/session"
+/** Who is signed in, in components: ic-reactor's `useAuth()` plus the source. */
+import { useAuth } from "@ic-reactor/react"
+import { client, sessionAuth } from "../reactor"
+import type { SessionKind, SignInOptions } from "../lib/sessionAuth"
 import { forgetVaultKey } from "./vault"
 
-function storage(): Storage {
-  try {
-    return window.localStorage
-  } catch {
-    // Private mode without storage: keep the session in memory.
-    const memory = new Map<string, string>()
-    return {
-      getItem: (key) => memory.get(key) ?? null,
-      setItem: (key, value) => void memory.set(key, value),
-      removeItem: (key) => void memory.delete(key),
-    } as Storage
+export interface Session {
+  status: ReturnType<typeof useAuth>["status"]
+  signedIn: boolean
+  /** The caller's principal text (`2vxsx-fae` when nobody is signed in). */
+  principal: string
+  kind: SessionKind | null
+}
+
+export function useSession(): Session {
+  const auth = useAuth()
+  const signedIn = auth.status === "signed-in"
+  return {
+    status: auth.status,
+    signedIn,
+    principal: auth.principal,
+    kind: signedIn ? sessionAuth().kind : null,
   }
 }
 
-export const session = new SessionStore(authentication, clientManager, storage())
-session.onSignOut = (principal) => forgetVaultKey(principal)
+/** Opens Internet Identity. Call it from a click handler. */
+export function signInWithInternetIdentity(): Promise<void> {
+  return client.signIn({ method: "ii" } satisfies SignInOptions)
+}
 
-export function useSession(): SessionSnapshot {
-  return useSyncExternalStore(session.subscribe, () => session.snapshot)
+/** Signs in with the stored guest key, an imported one (`seed`), or a new one. */
+export function continueAsGuest(seed?: Uint8Array): Promise<void> {
+  return client.signIn({ method: "guest", seed } satisfies SignInOptions)
+}
+
+/** Signs out and drops this account's cached note key from the browser. */
+export async function signOut(): Promise<void> {
+  const principal = client.caller()
+  await forgetVaultKey(principal)
+  await client.signOut()
 }

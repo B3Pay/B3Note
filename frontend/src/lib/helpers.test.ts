@@ -117,9 +117,9 @@ describe("transfer", () => {
 })
 
 describe("ai helpers", () => {
-  it("maps actions to Candid tasks", () => {
-    expect(toAiTask("Translate", "German")).toEqual({ Translate: "German" })
-    expect(toAiTask("Summarize")).toEqual({ Summarize: null })
+  it("maps actions to backend tasks", () => {
+    expect(toAiTask("Translate", "German")).toEqual({ tag: "Translate", value: "German" })
+    expect(toAiTask("Summarize")).toEqual({ tag: "Summarize" })
     expect(AI_ACTIONS.map((a) => a.id)).toContain("ActionItems")
     expect(noteAsPrompt("Title", "Body")).toBe("# Title\n\nBody")
     expect(noteAsPrompt(" ", "Body")).toBe("Body")

@@ -5,30 +5,23 @@ import { defineConfig, loadEnv } from "vite"
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "")
-  // Set by scripts/pocketic-dev.mjs: a PocketIC gateway instead of icp-cli's
+  // Set by scripts/pocketic-dev.ts: a PocketIC gateway instead of icp-cli's
   // local network, and the `ic_env` cookie a local asset canister would set.
   const gateway = env.B3NOTE_GATEWAY
   return {
     plugins: [
       react(),
       tailwindcss(),
+      // ic-reactor 4: runs `candid-core-cli gen` on the backend's .did and
+      // writes src/canisters/backend.ts (the `actor` schema and `type Actor`).
       icReactor({
-        canisters: [
-          {
-            name: "backend",
-            didFile: "../backend/backend.did",
-            // Raw Candid values: the crypto code works on Uint8Array blobs.
-            mode: "Reactor",
-            factories: true,
-            // Written into the generated reactor for deployed builds. Without
-            // it the app reads the id from the `ic_env` cookie the local
-            // network (and the asset canister) sets.
-            canisterId: env.CANISTER_ID_BACKEND || undefined,
-          },
-        ],
+        canisters: { backend: { didFile: "../backend/backend.did" } },
         injectEnvironment: !gateway,
       }),
     ],
+    // `CANISTER_ID_BACKEND` bakes the backend's id into a deployed build.
+    // Without it the app reads the id from the `ic_env` cookie.
+    envPrefix: ["VITE_", "CANISTER_ID_"],
     server: gateway
       ? {
           proxy: { "/api": { target: gateway, changeOrigin: true } },
