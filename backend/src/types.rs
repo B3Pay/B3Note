@@ -1,326 +1,275 @@
-use b3_utils::{
-    memory::types::{Bound, Storable},
-    nonce::Nonce,
-    NanoTimeStamp,
-};
-use candid::CandidType;
-use ciborium::de::from_reader;
-use ciborium::ser::into_writer;
+//! Public Candid types of the B3Note backend.
+//!
+//! Everything a user writes (title, body, tags, ...) is encrypted in the
+//! browser before it reaches this canister. The canister only stores opaque
+//! ciphertext plus the metadata it needs to enforce ownership, quotas and
+//! expiry.
+
+use candid::{CandidType, Principal};
 use serde::{Deserialize, Serialize};
-use std::io::Cursor;
+use serde_bytes::ByteBuf;
 
-const ONE_TIME_KEY_EXPIRATION: u64 = 60 * 60 * 24 * 1; // 1 days
-const ANONYMOUS_USER_DATA_EXPIRATION: u64 = 60 * 60 * 24 * 1; // 1 days
-
-pub type PublicKey = [u8; 48];
-
-pub type EncryptionKey = [u8; 96];
-
-#[derive(CandidType, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
-pub struct UserName(String);
-
-impl Storable for UserName {
-    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        Self(String::from_utf8(bytes.into_owned()).unwrap())
-    }
-
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        self.0.as_bytes().to_vec().into()
-    }
-
-    const BOUND: Bound = Bound::Bounded {
-        max_size: 100,
-        is_fixed_size: false,
-    };
+/// Errors returned by every fallible endpoint.
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub enum Error {
+    /// The caller must sign in (anonymous callers are not allowed here).
+    Unauthenticated,
+    /// The caller is not allowed to perform this action.
+    Forbidden(String),
+    NotFound,
+    AlreadyExists,
+    InvalidArgument(String),
+    /// A per-user or global quota would be exceeded.
+    QuotaExceeded(String),
+    /// Too many requests; retry after the given number of seconds.
+    RateLimited {
+        retry_after_secs: u64,
+    },
+    /// The note changed since the caller last read it.
+    Conflict {
+        current_version: u64,
+    },
+    /// The share link or note has expired.
+    Expired,
+    /// The share link has no views left.
+    Exhausted,
+    /// The public keys have not been fetched from the management canister yet.
+    NotReady,
+    /// A call to the vetKD system API failed.
+    VetKd(String),
+    /// AI features are disabled on this deployment.
+    AiDisabled,
+    /// The call to the LLM canister failed.
+    Ai(String),
 }
 
-#[derive(CandidType, Clone, Deserialize)]
-pub struct EncryptedHashedPassword(Vec<u8>);
+pub type Result<T> = std::result::Result<T, Error>;
 
-impl Storable for EncryptedHashedPassword {
-    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        Self(bytes.into_owned())
-    }
-
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        self.0.clone().into()
-    }
-
-    const BOUND: Bound = Bound::Bounded {
-        max_size: 100,
-        is_fixed_size: false,
-    };
+/// Hard limits enforced by the canister. Controllers can change them.
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Limits {
+    pub max_notes_per_user: u32,
+    /// Maximum size of one encrypted note, in bytes.
+    pub max_note_bytes: u32,
+    pub max_shares_per_user: u32,
+    pub max_share_views: u32,
+    pub max_share_ttl_secs: u64,
+    /// vetKD derivations (user key + share opens) one principal may request per hour.
+    pub key_requests_per_user_per_hour: u32,
+    /// vetKD derivations the whole canister may request per hour (protects its cycles).
+    pub global_key_requests_per_hour: u32,
+    pub ai_requests_per_user_per_hour: u32,
+    pub global_ai_requests_per_hour: u32,
+    /// Maximum number of UTF-8 bytes sent to the LLM in one request.
+    pub max_ai_input_bytes: u32,
 }
 
-#[derive(candid::CandidType, Clone, Deserialize)]
-pub struct UserText {
+/// The canister configuration.
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Config {
+    /// Name of the vetKD master key: `key_1` on mainnet, `test_key_1` or
+    /// `dfx_test_key` on a local network.
+    pub vetkd_key_name: String,
+    pub ai_enabled: bool,
+    /// The LLM canister. `None` resolves `PUBLIC_CANISTER_ID:llm` (set by
+    /// `icp deploy`) and falls back to the mainnet LLM canister.
+    pub llm_canister: Option<Principal>,
+    pub llm_model: String,
+    /// Cycles attached to each LLM call (0 for the free models).
+    pub llm_cycles_per_call: u64,
+    pub limits: Limits,
+}
+
+/// Install and upgrade arguments. Every field is optional; `None` keeps the
+/// current (or default) value.
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
+pub struct InitArgs {
+    pub vetkd_key_name: Option<String>,
+    pub ai_enabled: Option<bool>,
+    pub llm_canister: Option<Principal>,
+    pub llm_model: Option<String>,
+    pub llm_cycles_per_call: Option<u64>,
+    pub limits: Option<Limits>,
+}
+
+/// An encrypted note as stored by the canister.
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Note {
+    /// 32 lowercase hex characters (16 random bytes chosen by the client).
     pub id: String,
-    pub text: Vec<u8>,
+    /// AES-GCM ciphertext produced with the owner's vetKey-derived key.
+    pub ciphertext: ByteBuf,
+    pub created_at: u64,
+    pub updated_at: u64,
+    /// The note deletes itself at this time (nanoseconds since the epoch).
+    pub expires_at: Option<u64>,
+    /// Incremented on every update, for optimistic concurrency control.
+    pub version: u64,
 }
 
-#[derive(candid::CandidType, Clone, Deserialize)]
-pub struct EncryptedText(Vec<u8>);
-
-impl EncryptedText {
-    pub fn new(text: Vec<u8>) -> Self {
-        Self(text)
-    }
-
-    pub fn clone(&self) -> Vec<u8> {
-        self.0.clone()
-    }
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, Default)]
+pub struct ListNotesArgs {
+    /// Return notes whose id sorts after this one.
+    pub cursor: Option<String>,
+    pub limit: Option<u32>,
 }
 
-impl Storable for EncryptedText {
-    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        Self(bytes.into_owned())
-    }
-
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        self.0.clone().into()
-    }
-
-    const BOUND: Bound = Bound::Bounded {
-        max_size: 1128,
-        is_fixed_size: false,
-    };
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct NotePage {
+    pub notes: Vec<Note>,
+    pub next_cursor: Option<String>,
 }
 
-#[derive(Default, Debug, Serialize, Clone, CandidType, Deserialize)]
-pub struct OneTimeKey {
-    time_lock: NanoTimeStamp,
-    public_key: Vec<u8>,
-    tries: u8,
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct CreateNoteArgs {
+    pub id: String,
+    pub ciphertext: ByteBuf,
+    pub expires_at: Option<u64>,
 }
 
-impl OneTimeKey {
-    pub fn new(public_key: PublicKey) -> Self {
-        let public_key = public_key.to_vec();
-
-        Self {
-            time_lock: NanoTimeStamp::now().add_secs(ONE_TIME_KEY_EXPIRATION),
-            public_key,
-            tries: 0,
-        }
-    }
-
-    pub fn out_of_tries(&self) -> bool {
-        self.tries >= 3
-    }
-
-    pub fn add_try(&mut self) {
-        self.tries += 1;
-    }
-
-    pub fn is_expired(&self) -> bool {
-        self.time_lock.has_passed()
-    }
-
-    pub fn public_key(&self) -> &[u8] {
-        &self.public_key
-    }
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct UpdateNoteArgs {
+    pub id: String,
+    pub ciphertext: ByteBuf,
+    /// Replaces the note's expiry (`None` removes it).
+    pub expires_at: Option<u64>,
+    /// Reject the update with `Conflict` unless the note is at this version.
+    pub expected_version: Option<u64>,
 }
 
-impl Storable for OneTimeKey {
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        let mut bytes = vec![];
-        into_writer(&self, &mut bytes).unwrap();
-        std::borrow::Cow::Owned(bytes)
-    }
-
-    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        from_reader(&mut Cursor::new(&bytes)).unwrap()
-    }
-
-    const BOUND: Bound = Bound::Bounded {
-        max_size: 200,
-        is_fixed_size: false,
-    };
+/// The owner's encrypted vetKey and the public key to verify it with.
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct EncryptedUserKey {
+    pub encrypted_key: ByteBuf,
+    pub verification_key: ByteBuf,
 }
 
-#[derive(Default, Debug, Serialize, Clone, CandidType, Deserialize)]
-pub struct AnonymousUserData {
-    texts: Vec<Nonce>,
-    created_at: NanoTimeStamp,
-    decryption_key: Option<Vec<u8>>,
+/// Derived public keys of this canister.
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct PublicKeys {
+    /// Verifies users' vetKeys (input: the user's principal).
+    pub user_key: ByteBuf,
+    /// IBE-encrypts share payloads (identity: the share id).
+    pub share_key: ByteBuf,
 }
 
-impl Storable for AnonymousUserData {
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        let mut bytes = vec![];
-        into_writer(&self, &mut bytes).unwrap();
-        std::borrow::Cow::Owned(bytes)
-    }
-
-    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        from_reader(&mut Cursor::new(&bytes)).unwrap()
-    }
-
-    const BOUND: Bound = Bound::Bounded {
-        max_size: 500,
-        is_fixed_size: false,
-    };
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct CreateShareArgs {
+    /// 32 lowercase hex characters (16 random bytes chosen by the client).
+    pub id: String,
+    /// The note this share was created from, so deleting it revokes the share.
+    pub note_id: Option<String>,
+    /// IBE ciphertext for the identity `id`, under `PublicKeys.share_key`.
+    pub ciphertext: ByteBuf,
+    /// Ed25519 public key (32 bytes) whose secret key travels in the link.
+    pub verifying_key: ByteBuf,
+    pub max_views: u32,
+    pub expires_in_secs: u64,
 }
 
-impl AnonymousUserData {
-    pub fn new(decryption_key: Option<Vec<u8>>) -> Self {
-        Self {
-            texts: vec![],
-            created_at: NanoTimeStamp::now(),
-            decryption_key,
-        }
-    }
-
-    pub fn set_decryption_key(&mut self, key: Vec<u8>) {
-        self.decryption_key = Some(key);
-    }
-
-    pub fn is_expired(&self) -> bool {
-        self.created_at.elapsed().to_secs() > ANONYMOUS_USER_DATA_EXPIRATION
-    }
-
-    pub fn has_text_id(&self, text_id: &Nonce) -> bool {
-        self.texts.contains(text_id)
-    }
-
-    pub fn add_text_id(&mut self, text_id: Nonce) -> Result<(), &'static str> {
-        if self.texts.len() >= 5 {
-            return Err("Maximum of 5 text are allowed");
-        }
-
-        self.texts.push(text_id);
-
-        Ok(())
-    }
-
-    pub fn remove_text_id(&mut self, text_id: &Nonce) -> Result<(), &'static str> {
-        if self.texts.len() < 1 {
-            return Err("No text to remove");
-        }
-
-        self.texts.retain(|id| id != text_id);
-
-        Ok(())
-    }
-
-    pub fn iter_texts(&self) -> impl Iterator<Item = &Nonce> {
-        self.texts.iter()
-    }
-
-    pub fn get_created_at(&self) -> NanoTimeStamp {
-        self.created_at.clone()
-    }
-
-    pub fn get_decryption_key(&self) -> Result<Vec<u8>, String> {
-        if self.is_expired() {
-            return Err("Decryption key expired".to_string());
-        }
-
-        if let Some(decryption_key) = self.decryption_key.clone() {
-            if decryption_key.len() != 192 {
-                return Err("Decryption key is not Valid!".to_string());
-            }
-
-            return Ok(decryption_key);
-        } else {
-            return Err("No decryption key found".to_string());
-        }
-    }
+/// A share as its owner sees it.
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct ShareInfo {
+    pub id: String,
+    pub note_id: Option<String>,
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub max_views: u32,
+    pub views_left: u32,
+    pub size: u32,
 }
 
-#[derive(Serialize, Clone, CandidType, Deserialize)]
-pub struct AuthenticatedSignature {
-    pub signature: Vec<u8>,
-    pub created_at: NanoTimeStamp,
+/// What anyone holding a share id may learn before opening it.
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct PublicShareInfo {
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub views_left: u32,
+    pub size: u32,
 }
 
-#[derive(Default, Serialize, Clone, CandidType, Deserialize)]
-pub struct UserData {
-    texts: Vec<Nonce>,
-    public_key: Vec<u8>,
-    signature: Option<AuthenticatedSignature>,
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct OpenShareArgs {
+    pub id: String,
+    /// A fresh BLS12-381 G1 transport public key (48 bytes).
+    pub transport_public_key: ByteBuf,
+    /// Ed25519 signature over `SHARE_OPEN_DOMAIN || id bytes || transport_public_key`.
+    pub signature: ByteBuf,
 }
 
-impl Storable for UserData {
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        let mut bytes = vec![];
-        into_writer(&self, &mut bytes).unwrap();
-        std::borrow::Cow::Owned(bytes)
-    }
-
-    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        from_reader(&mut Cursor::new(&bytes)).unwrap()
-    }
-
-    const BOUND: Bound = Bound::Bounded {
-        max_size: 500,
-        is_fixed_size: false,
-    };
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct OpenedShare {
+    pub ciphertext: ByteBuf,
+    /// The vetKey for the share id, encrypted to the transport public key.
+    pub encrypted_key: ByteBuf,
+    pub verification_key: ByteBuf,
+    pub views_left: u32,
+    pub expires_at: u64,
 }
 
-impl UserData {
-    pub fn new(public_key: Vec<u8>, text_id: Option<Nonce>) -> Self {
-        Self {
-            texts: text_id.into_iter().collect(),
-            public_key,
-            signature: None,
-        }
-    }
-
-    pub fn add_text_id(&mut self, text_id: Nonce) -> Result<(), &'static str> {
-        if self.texts.len() > 10 {
-            return Err("Maximum of 10 text are allowed");
-        }
-
-        self.texts.push(text_id);
-
-        Ok(())
-    }
-
-    pub fn remove_text_id(&mut self, text_id: &Nonce) -> Result<(), &'static str> {
-        if self.texts.len() < 1 {
-            return Err("No text to remove");
-        }
-
-        self.texts.retain(|id| id != text_id);
-
-        Ok(())
-    }
-
-    pub fn iter_texts(&self) -> impl Iterator<Item = &Nonce> {
-        self.texts.iter()
-    }
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Account {
+    pub principal: Principal,
+    pub created_at: u64,
+    pub note_count: u32,
+    pub storage_bytes: u64,
+    pub share_count: u32,
+    pub limits: Limits,
+    pub ai_enabled: bool,
+    pub ai_model: String,
 }
 
-#[derive(CandidType, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub enum Task {
-    Initialize,
-    CleanUpAnonymousUsers,
-    CleanUpKeys,
-    SendEmail {
-        email: String,
-        subject: String,
-        body: String,
-    },
-    SendText {
-        phone_number: String,
-        body: String,
-    },
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct DeletedAccount {
+    pub notes: u32,
+    pub shares: u32,
 }
 
-impl Storable for Task {
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        let mut bytes = vec![];
-        into_writer(&self, &mut bytes).unwrap();
-        std::borrow::Cow::Owned(bytes)
-    }
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Stats {
+    pub version: String,
+    pub users: u64,
+    pub notes: u64,
+    pub active_shares: u64,
+    pub vetkd_key_name: String,
+    pub ai_enabled: bool,
+    pub ai_model: String,
+    pub cycles: u128,
+}
 
-    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        from_reader(&mut Cursor::new(&bytes)).unwrap()
-    }
+/// What the AI assistant should do with the text.
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub enum AiTask {
+    /// A short summary.
+    Summarize,
+    /// A title of a few words.
+    SuggestTitle,
+    /// Comma-separated topic tags.
+    SuggestTags,
+    /// Clearer, better structured wording.
+    Improve,
+    /// Spelling and grammar only.
+    FixGrammar,
+    /// A shorter version.
+    Shorten,
+    /// A markdown checklist of the action items.
+    ActionItems,
+    /// A translation into the named language.
+    Translate(String),
+    /// More text in the same style.
+    Continue,
+    /// Answer a question using the text (the user's notes) as context.
+    Ask(String),
+}
 
-    const BOUND: Bound = Bound::Bounded {
-        max_size: 24,
-        is_fixed_size: true,
-    };
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct AiRequest {
+    pub task: AiTask,
+    pub text: String,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct AiResponse {
+    pub text: String,
+    pub model: String,
 }

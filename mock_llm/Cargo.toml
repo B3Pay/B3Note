@@ -1,0 +1,16 @@
+[package]
+name = "mock_llm"
+version = "0.1.0"
+description = "Test double of the LLM canister's v1_chat endpoint, used by the PocketIC tests"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+candid.workspace = true
+ic-cdk.workspace = true
+ic-llm = "2"
+serde.workspace = true

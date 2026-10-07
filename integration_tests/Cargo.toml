@@ -1,0 +1,22 @@
+[package]
+name = "integration_tests"
+version = "0.1.0"
+description = "PocketIC tests of the B3Note backend"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+
+[dev-dependencies]
+backend = { path = "../backend" }
+candid.workspace = true
+serde.workspace = true
+serde_bytes.workspace = true
+hex.workspace = true
+pocket-ic = "16"
+ic-vetkeys = "0.9"
+# The key-id type ic-vetkeys 0.9 takes.
+vetkeys-management-canister = { package = "ic-cdk-management-canister", version = "0.1" }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
