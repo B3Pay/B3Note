@@ -4,14 +4,13 @@
 # identity that controls the v1 canisters:
 #
 #   ./scripts/migrate-mainnet.sh preflight          read-only: identity, controllers, cycles, tools
-#   ./scripts/migrate-mainnet.sh migrate            snapshot v1, then reinstall backend + frontend with v2
+#   ./scripts/migrate-mainnet.sh migrate            reinstall backend + frontend with v2
 #   ./scripts/migrate-mainnet.sh verify             smoke checks against the new deployment
 #   ./scripts/migrate-mainnet.sh retire-system-api  stop and delete v1's system_api canister
-#   ./scripts/migrate-mainnet.sh rollback           put v1 back from the snapshots `migrate` took
-#   ./scripts/migrate-mainnet.sh drop-snapshots     delete those snapshots (after you are happy)
 #
-# `migrate` wipes v1's data. A keyless public backup was taken on 2026-10-08; the snapshots
-# that `migrate` takes keep everything (controller-only) until you drop them.
+# `migrate` reinstalls rather than upgrades: v2 cannot read v1's stable memory. That wipes v1's
+# data, and no snapshot is taken (a keyless public backup was taken on 2026-10-08), so there is
+# no way back to v1 afterwards.
 #
 # Overrides (for a rehearsal on a local network): ENVIRONMENT, NETWORK, BACKEND_ID,
 # FRONTEND_ID, SYSTEM_API_ID, MIN_BACKEND_CYCLES, APP_URL.
@@ -26,7 +25,6 @@ SYSTEM_API_ID="${SYSTEM_API_ID:-wfdtj-lyaaa-aaaap-abakq-cai}"
 # 0.026 T each; production allows at most 20 an hour). Top up as real use grows.
 MIN_BACKEND_CYCLES="${MIN_BACKEND_CYCLES:-1000000000000}"
 APP_URL="${APP_URL:-https://${FRONTEND_ID}.icp0.io}"
-STATE_DIR=".icp/migration-${ENVIRONMENT}"
 
 cd "$(dirname "$0")/.."
 
@@ -75,28 +73,11 @@ preflight() {
   say "Preflight passed"
 }
 
-snapshot() {
-  local id="$1" name="$2" snap previous=()
-  icp canister stop "$id" -n "$NETWORK"
-  # A re-run replaces the snapshot an earlier run took instead of adding another.
-  if [[ -s "$STATE_DIR/$name-snapshot" ]]; then previous=(--replace "$(cat "$STATE_DIR/$name-snapshot")"); fi
-  snap="$(icp canister snapshot create "$id" -n "$NETWORK" -q "${previous[@]}")"
-  echo "$snap" >"$STATE_DIR/$name-snapshot"
-  echo "$name snapshot: $snap (saved in $STATE_DIR/$name-snapshot)"
-}
-
 migrate() {
   preflight
-  mkdir -p "$STATE_DIR"
-  confirm MIGRATE "This reinstalls $BACKEND_ID and $FRONTEND_ID with v2 on '$NETWORK' and wipes v1's data (snapshots are taken first)."
+  confirm MIGRATE "This reinstalls $BACKEND_ID and $FRONTEND_ID with v2 on '$NETWORK'. v1's data is wiped and no snapshot is taken."
 
-  # If anything below fails, the canisters are restarted (whatever code they hold) and the way
-  # back is printed, so a failed run never leaves the app stopped.
   trap 'on_migrate_failure' ERR
-
-  say "Snapshotting v1"
-  snapshot "$BACKEND_ID" backend
-  snapshot "$FRONTEND_ID" frontend
 
   say "Linking v1's canister IDs to this project's '$ENVIRONMENT' environment"
   icp canister link backend "$BACKEND_ID" -e "$ENVIRONMENT" --force
@@ -105,25 +86,22 @@ migrate() {
   say "Installing v2"
   icp deploy backend -e "$ENVIRONMENT" --mode reinstall --no-create -y
   icp deploy frontend -e "$ENVIRONMENT" --mode reinstall --no-create -y
+  # In case either was stopped before: the app must be running for `verify`.
   icp canister start "$BACKEND_ID" -n "$NETWORK" || true
   icp canister start "$FRONTEND_ID" -n "$NETWORK" || true
 
   trap - ERR
   verify
   echo
-  echo "Done. Keep the snapshots until you are happy, then: $0 drop-snapshots"
-  echo "To undo: $0 rollback"
+  echo "Done. v2 is live at $APP_URL"
 }
 
 on_migrate_failure() {
   trap - ERR
-  printf '\nThe migration stopped early. Restarting both canisters...\n' >&2
-  icp canister start "$BACKEND_ID" -n "$NETWORK" || true
-  icp canister start "$FRONTEND_ID" -n "$NETWORK" || true
   cat >&2 <<MSG
-Nothing is lost: the v1 snapshots are recorded in $STATE_DIR.
-  - Retry:            $0 migrate   (an "install code rate limited" error clears after a few minutes)
-  - Go back to v1:    $0 rollback
+
+The migration stopped early. Run it again: $0 migrate
+(An "install code rate limited" error clears after a few minutes.)
 MSG
 }
 
@@ -146,28 +124,6 @@ verify() {
   echo "$APP_URL serves v2 and points at $BACKEND_ID"
 }
 
-rollback() {
-  local backend frontend
-  backend="$(cat "$STATE_DIR/backend-snapshot")" || die "no backend snapshot recorded in $STATE_DIR"
-  frontend="$(cat "$STATE_DIR/frontend-snapshot")" || die "no frontend snapshot recorded in $STATE_DIR"
-  confirm ROLLBACK "This puts v1 back on $BACKEND_ID and $FRONTEND_ID (anything written to v2 since is lost)."
-  for pair in "$BACKEND_ID:$backend" "$FRONTEND_ID:$frontend"; do
-    local id="${pair%%:*}" snap="${pair#*:}"
-    icp canister stop "$id" -n "$NETWORK"
-    icp canister snapshot restore "$id" "$snap" -n "$NETWORK"
-    icp canister start "$id" -n "$NETWORK"
-  done
-  say "v1 restored"
-}
-
-drop_snapshots() {
-  confirm DROP "This deletes the v1 snapshots; rollback is impossible afterwards."
-  icp canister snapshot delete "$BACKEND_ID" "$(cat "$STATE_DIR/backend-snapshot")" -n "$NETWORK"
-  icp canister snapshot delete "$FRONTEND_ID" "$(cat "$STATE_DIR/frontend-snapshot")" -n "$NETWORK"
-  rm -f "$STATE_DIR/backend-snapshot" "$STATE_DIR/frontend-snapshot"
-  say "Snapshots deleted"
-}
-
 retire_system_api() {
   confirm RETIRE "This stops and deletes $SYSTEM_API_ID (v1's insecure vetKD stand-in). Its cycles go to your cycles-ledger account."
   icp canister stop "$SYSTEM_API_ID" -n "$NETWORK"
@@ -179,8 +135,6 @@ case "${1:-}" in
   preflight) preflight ;;
   migrate) migrate ;;
   verify) verify ;;
-  rollback) rollback ;;
-  drop-snapshots) drop_snapshots ;;
   retire-system-api) retire_system_api ;;
-  *) sed -n '2,20p' "$0"; exit 2 ;;
+  *) sed -n '2,16p' "$0"; exit 2 ;;
 esac

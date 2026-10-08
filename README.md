@@ -162,16 +162,15 @@ Operating notes:
 - The LLM's free models need no cycles. Set `llm_cycles_per_call` for paid models.
 
 - **Upgrading from B3Note v1:** v2 has a new stable-memory layout, so install it as a new canister or
-  reinstall. v1 notes cannot be migrated: they were encrypted with keys from an insecure demo vetKD
-  canister (see below). `scripts/migrate-mainnet.sh` reinstalls v1's mainnet canisters with v2,
-  keeping their IDs and URL. Run it with an identity that controls them:
+  reinstall; an in-place upgrade cannot read v1's state. v1 notes cannot be migrated: they were
+  encrypted with keys from an insecure demo vetKD canister (see below). `scripts/migrate-mainnet.sh`
+  reinstalls v1's mainnet canisters with v2, keeping their IDs and URL, without taking a snapshot
+  (there is no way back to v1). Run it with an identity that controls them:
 
   ```bash
   ./scripts/migrate-mainnet.sh preflight          # read-only: identity, controllers, cycles (≥ 1 T)
-  ./scripts/migrate-mainnet.sh migrate            # snapshots v1, then reinstalls backend + frontend
+  ./scripts/migrate-mainnet.sh migrate            # reinstalls backend + frontend with v2, then verifies
   ./scripts/migrate-mainnet.sh retire-system-api  # deletes v1's insecure vetKD canister, recovering its cycles
-  ./scripts/migrate-mainnet.sh rollback           # puts v1 back from the snapshots, until you
-  ./scripts/migrate-mainnet.sh drop-snapshots     # ...delete them
   ```
 
 ## Testing
