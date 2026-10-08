@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Must match the `pocket-ic` crate (integration_tests) and @dfinity/pic.
+  POCKET_IC_VERSION: 16.0.0
+
+jobs:
+  backend:
+    name: Backend (Rust, PocketIC)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: |
+          cargo clippy --locked --target wasm32-unknown-unknown -p backend -p mock_llm -- -D warnings
+          cargo clippy --locked -p backend -p integration_tests --tests -- -D warnings
+      - name: Install PocketIC
+        run: |
+          curl -sSfL "https://github.com/dfinity/pocketic/releases/download/${POCKET_IC_VERSION}/pocket-ic-x86_64-linux.gz" | gunzip > "$RUNNER_TEMP/pocket-ic"
+          chmod +x "$RUNNER_TEMP/pocket-ic"
+          echo "POCKET_IC_BIN=$RUNNER_TEMP/pocket-ic" >> "$GITHUB_ENV"
+      - name: Unit and PocketIC tests
+        run: ./scripts/test-backend.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: canisters
+          path: |
+            target/wasm32-unknown-unknown/release/backend.wasm
+            target/wasm32-unknown-unknown/release/mock_llm.wasm
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    needs: backend
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      # The build regenerates src/canisters from backend/backend.did.
+      - name: Generated bindings match backend.did
+        run: git diff --exit-code -- src/canisters
+      - uses: actions/download-artifact@v4
+        with:
+          name: canisters
+          path: target/wasm32-unknown-unknown/release
+      - name: Install PocketIC
+        run: |
+          curl -sSfL "https://github.com/dfinity/pocketic/releases/download/${POCKET_IC_VERSION}/pocket-ic-x86_64-linux.gz" | gunzip > "$RUNNER_TEMP/pocket-ic"
+          chmod +x "$RUNNER_TEMP/pocket-ic"
+          echo "POCKET_IC_BIN=$RUNNER_TEMP/pocket-ic" >> "$GITHUB_ENV"
+      - name: Frontend against the real canister (PicJS)
+        run: pnpm test:pic

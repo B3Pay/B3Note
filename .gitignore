@@ -1,10 +1,23 @@
-node_modules
-dist
-target
-.next
-.dfx
+# Rust
+target/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+# icp-cli / dfx state
+.icp/
+.dfx/
+
+# Environment
 .env
-declarations
-out
-.react-email
-sw.js
+.env.local
+.env.*.local
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

@@ -1,15 +1,19 @@
 {
-  "name": "b3-note",
-  "version": "1.0.0",
+  "name": "b3note",
+  "private": true,
+  "version": "2.0.0",
   "license": "MIT",
+  "description": "End-to-end encrypted notes on the Internet Computer with vetKeys, burn-after-reading links and an on-chain AI assistant",
   "scripts": {
-    "dfx:start": "sh dfx-start.sh",
-    "deploy": "dfx deploy",
-    "generate": "dfx generate",
-    "dev": "source ./frontend/.env && cd frontend && yarn dev",
-    "build": "cd frontend && yarn build",
-    "start": "cd frontend && yarn start",
-    "lint": "cd frontend && yarn lint",
-    "wasm-pack": "cd ic-vetkd-utils && wasm-pack build --release --target web && wasm-pack pack"
-  }
+    "build:canisters": "./scripts/build-canisters.sh",
+    "test:backend": "./scripts/test-backend.sh",
+    "test:frontend": "pnpm --dir frontend test",
+    "test:e2e": "pnpm --dir frontend test:pic",
+    "test": "./scripts/test-backend.sh && pnpm --dir frontend test && pnpm --dir frontend test:pic",
+    "dev": "pnpm --dir frontend dev",
+    "dev:pocketic": "pnpm --dir frontend dev:pocketic",
+    "deploy": "icp deploy",
+    "deploy:production": "icp deploy -e production"
+  },
+  "packageManager": "pnpm@10.28.0"
 }

@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://github.com/dfinity/icp-cli/raw/refs/tags/v1.6.0/docs/schemas/icp-yaml-schema.json
+#
+# B3Note: `icp network start -d && icp deploy` for a local deployment,
+# `icp deploy -e production` for mainnet.
+
+canisters:
+  - name: backend
+    recipe:
+      type: "@dfinity/rust@v3.4.0"
+      configuration:
+        package: backend
+        candid: backend/backend.did
+        locked: true
+        shrink: true
+        compress: true
+    settings:
+      log_visibility: controllers
+    # A local network has the vetKD keys `test_key_1` and `dfx_test_key`.
+    init_args: '(opt record { vetkd_key_name = opt "dfx_test_key" })'
+
+  - name: frontend
+    recipe:
+      type: "@dfinity/asset-canister@v2.2.1"
+      configuration:
+        dir: frontend/dist
+        build:
+          - pnpm --dir frontend install --frozen-lockfile
+          - pnpm --dir frontend run build
+
+networks:
+  - name: local
+    mode: managed
+    ii: true
+
+environments:
+  - name: production
+    network: ic
+    settings:
+      backend:
+        freezing_threshold: 90d
+    init_args:
+      backend: '(opt record { vetkd_key_name = opt "key_1" })'

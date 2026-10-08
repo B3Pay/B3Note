@@ -1,682 +1,407 @@
-use b3_utils::{
-    log_cycle,
-    logs::{export_log, export_log_messages_page, LogEntry},
-    memory::{
-        timer::TaskTimerEntry, types::PartitionDetail, with_backup_mem, with_backup_mem_mut,
-        with_stable_mem,
-    },
-    nonce::Nonce,
-    report, revert, vec_to_hex_string,
-    vetkd::{verify_pairing, VetKD, VetKDManagement},
-    NanoTimeStamp,
-};
-use candid::Principal;
-use ciborium::into_writer;
-use ic_cdk::{api::call::call_with_payment, init, post_upgrade, pre_upgrade, query, update};
+//! B3Note backend canister.
+//!
+//! - Notes are encrypted in the browser with an AES-GCM key derived from the
+//!   user's vetKey (`get_encrypted_user_key`). The canister stores ciphertext
+//!   and enforces ownership, quotas and self-destruct timers.
+//! - Burn-after-reading links (`create_share` / `open_share`) use identity
+//!   based encryption: only the canister can have the share's decryption key
+//!   derived, and it does so once per view for whoever proves they hold the
+//!   link.
+//! - `ai_assist` sends text the user chose to the on-chain LLM canister.
 
-mod types;
+use std::time::Duration;
+
+use candid::Principal;
+use ic_cdk::{init, inspect_message, post_upgrade, query, update};
+use serde_bytes::ByteBuf;
+
+mod ai;
+mod config;
+mod ids;
+mod keys;
+mod notes;
+mod rate_limit;
+mod shares;
+mod state;
+pub mod types;
+
+pub use keys::{SHARE_KEY_CONTEXT, USER_KEY_CONTEXT};
+pub use shares::SHARE_OPEN_DOMAIN;
+
+use rate_limit::{Action, LIMITER};
 use types::*;
 
-mod store;
-use store::*;
+const CLEANUP_INTERVAL: Duration = Duration::from_secs(5 * 60);
+const CLEANUP_BATCH: usize = 500;
+/// Ingress messages larger than this are rejected before they are executed.
+const MAX_INGRESS_BYTES: usize = 1_200_000;
 
-mod utils;
-use utils::*;
-
-#[init]
-fn init() {
-    log_caller!("init");
-
-    schedule_task(10, Task::Initialize);
-
-    reschedule();
+fn now() -> u64 {
+    ic_cdk::api::time()
 }
 
-#[pre_upgrade]
-pub fn pre_upgrade() {
-    log_cycle!("Pre_upgrade");
+fn authenticated() -> Result<Principal> {
+    let caller = ic_cdk::api::msg_caller();
+    if caller == Principal::anonymous() {
+        Err(Error::Unauthenticated)
+    } else {
+        Ok(caller)
+    }
+}
 
-    let ibe_key = get_ibe_encrypted_key().to_vec();
-    let sym_key = get_symmetric_encrypted_key().to_vec();
+fn apply_args(args: Option<InitArgs>) {
+    if let Some(args) = args {
+        let next = state::config()
+            .with_args(args)
+            .unwrap_or_else(|e| ic_cdk::trap(format!("invalid install arguments: {e}")));
+        state::set_config(next);
+    }
+}
 
-    let mut states_bytes = vec![];
+fn cleanup() {
+    let now = now();
+    let notes = notes::delete_expired(now, CLEANUP_BATCH);
+    let shares = shares::delete_expired(now, CLEANUP_BATCH);
+    LIMITER.with_borrow_mut(|limiter| limiter.prune(now));
+    if notes + shares > 0 {
+        ic_cdk::println!("cleanup: removed {notes} expired notes and {shares} expired shares");
+    }
+}
 
-    into_writer(&(ibe_key, sym_key), &mut states_bytes).unwrap();
+fn start_timers() {
+    ic_cdk_timers::set_timer(Duration::ZERO, async {
+        if let Err(e) = keys::ensure_public_keys().await {
+            ic_cdk::println!("could not fetch the vetKD public keys yet: {e:?}");
+        }
+    });
+    ic_cdk_timers::set_timer_interval(CLEANUP_INTERVAL, || async { cleanup() });
+}
 
-    with_backup_mem_mut(|b| b.set_backup(states_bytes));
+#[init]
+fn init(args: Option<InitArgs>) {
+    apply_args(args);
+    start_timers();
 }
 
 #[post_upgrade]
-pub fn post_upgrade() {
-    log_cycle!("Post_upgrade");
-
-    let states_bytes = with_backup_mem(|b| b.get_backup());
-
-    let (ibe_key, sym_key) =
-        ciborium::de::from_reader(&*states_bytes).expect("failed to decode state");
-
-    set_ibe_encryption_key(ibe_key);
-    set_symmetric_encryption_key(sym_key);
-
-    for detail in partition_details() {
-        log_cycle!("{:?}", detail);
-    }
-
-    // reschedule();
+fn post_upgrade(args: Option<InitArgs>) {
+    apply_args(args);
+    start_timers();
 }
 
-#[query(guard = "caller_is_not_anonymous")]
-fn user_data() -> UserData {
-    let caller = log_caller!("user_data");
-
-    with_user(&caller.into(), |user| Ok(user.clone())).unwrap_or_else(revert)
-}
-
-#[query]
-fn user_simple_notes(public_key: Vec<u8>) -> Vec<String> {
-    let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
-
-    SIMPLE_NOTES
-        .with(|notes| {
-            let notes = notes.borrow();
-
-            notes.get(&public_key).cloned()
-        })
-        .unwrap_or(vec![])
-}
-
-#[query]
-fn user_notes(public_key: Option<Vec<u8>>) -> (NanoTimeStamp, Vec<UserText>) {
-    let caller = log_caller!("user_notes");
-
-    if caller == Principal::anonymous() {
-        match public_key {
-            Some(public_key) => {
-                let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
-
-                with_anonymous_user_or_add(&public_key, |user| {
-                    let texts = user
-                        .iter_texts()
-                        .map(|text_id| {
-                            with_encrypted_texts(|texts| {
-                                let text = texts.get(text_id).unwrap();
-
-                                UserText {
-                                    id: text_id.to_string(),
-                                    text: text.clone(),
-                                }
-                            })
-                        })
-                        .collect();
-
-                    (user.get_created_at(), texts)
-                })
-            }
-            None => return revert("Error::public key is required for anonymous user"),
-        }
-    } else {
-        let time = NanoTimeStamp::default();
-        with_user(&caller.into(), |user| {
-            let texts = user
-                .iter_texts()
-                .map(|text_id| {
-                    with_encrypted_texts(|texts| {
-                        let text = texts.get(text_id).unwrap();
-
-                        UserText {
-                            id: text_id.to_string(),
-                            text: text.clone(),
-                        }
-                    })
-                })
-                .collect();
-
-            Ok((time.clone(), texts))
-        })
-        .unwrap_or((time, vec![]))
-    }
-}
-
-#[query]
-fn anonymous_users() -> Vec<(PublicKey, AnonymousUserData)> {
-    log_caller!("anonymous_users");
-
-    with_anonymous_users(|users| {
-        users
-            .iter()
-            .map(|(key, user)| (key.clone(), user.clone()))
-            .collect()
-    })
-}
-
-#[query]
-fn anonymous_user(public_key: Vec<u8>) -> AnonymousUserData {
-    log_caller!("anonymous_user");
-
-    let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
-
-    get_anonymous_user(&public_key).unwrap_or_else(revert)
-}
-
-#[query]
-fn anonymous_user_notes(public_key: Vec<u8>) -> Vec<UserText> {
-    log_caller!("anonymous_user_notes");
-
-    let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
-
-    with_anonymous_user(&public_key, |user| {
-        let texts = user
-            .iter_texts()
-            .map(|text_id| {
-                with_encrypted_texts(|texts| {
-                    let text = texts.get(text_id).unwrap();
-
-                    UserText {
-                        id: text_id.to_string(),
-                        text: text.clone(),
-                    }
-                })
-            })
-            .collect();
-
-        Ok(texts)
-    })
-    .unwrap_or(vec![])
-}
-
-#[query]
-fn encrypted_texts() -> Vec<UserText> {
-    log_caller!("encrypted_texts");
-
-    with_encrypted_texts(|texts| {
-        texts
-            .iter()
-            .map(|(id, text)| UserText {
-                id: id.to_string(),
-                text: text.clone(),
-            })
-            .collect()
-    })
-}
-
-#[update]
-async fn add_simple_note(public_key: Vec<u8>, note: String) -> usize {
-    log_caller!("add_simple_note");
-
-    let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
-
-    SIMPLE_NOTES.with(|notes| {
-        let mut notes = notes.borrow_mut();
-
-        let notes = notes.entry(public_key).or_insert(vec![]);
-
-        notes.push(note);
-
-        notes.len()
-    })
-}
-
-#[update]
-async fn save_encrypted_text(encrypted_text: Vec<u8>, public_key: Option<Vec<u8>>) -> Nonce {
-    let caller = log_caller!("save_encrypted_text");
-    // public key for anonymous users is required
-    if caller == Principal::anonymous() && public_key.is_none() {
-        return revert("Error::public key is required for anonymous user!");
-    }
-
-    let text_id = increment_nonce().unwrap_or_else(revert);
-
-    with_encrypted_texts(|texts| {
-        texts.insert(text_id, EncryptedText::new(encrypted_text));
-    });
-
-    if caller == Principal::anonymous() {
-        // this is safe because we checked for None above
-        let public_key = vec_to_fixed_array(&public_key.unwrap()).unwrap_or_else(revert);
-
-        log_cycle!("Adding text id to anonymous user!");
-        with_anonymous_user_or_add(&public_key, |user| {
-            user.add_text_id(text_id.clone()).unwrap_or_else(revert);
-
-            text_id
-        })
-    } else {
-        with_user_or_add(&caller.into(), |user| {
-            user.add_text_id(text_id.clone()).unwrap_or_else(revert);
-
-            text_id
-        })
-    }
-}
-
-#[update]
-fn edit_encrypted_text(text_id: Nonce, encrypted_text: Vec<u8>, public_key: Option<Vec<u8>>) {
-    let caller = log_caller!("edit_encrypted_text");
-
-    if caller == Principal::anonymous() {
-        match public_key {
-            Some(public_key) => {
-                let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
-
-                with_anonymous_user(&public_key, |data| {
-                    data.remove_text_id(&text_id).unwrap_or_else(revert);
-
-                    with_encrypted_texts(|texts| {
-                        texts.insert(text_id.clone(), EncryptedText::new(encrypted_text));
-                    });
-
-                    data.add_text_id(text_id).unwrap_or_else(revert);
-
-                    Ok(())
-                })
-                .unwrap_or_else(revert)
-            }
-            None => revert("Error::public key is required!"),
-        }
-    } else {
-        with_user(&caller.into(), |user| {
-            user.remove_text_id(&text_id).unwrap_or_else(revert);
-
-            with_encrypted_texts(|texts| {
-                texts.insert(text_id.clone(), EncryptedText::new(encrypted_text));
-            });
-
-            user.add_text_id(text_id).unwrap_or_else(revert);
-
-            Ok(())
-        })
-        .unwrap_or_else(revert)
-    }
-}
-
-#[query]
-fn get_one_time_key(text_id: Nonce) -> Vec<u8> {
-    log_caller!("get_one_time_key");
-
-    with_one_time_key(&text_id, |key| Ok(key.public_key().to_vec())).unwrap_or_else(revert)
-}
-
-#[query]
-fn get_one_time_key_details(text_id: Nonce) -> OneTimeKey {
-    log_caller!("get_one_time_key");
-
-    with_one_time_key(&text_id, |key| Ok(key.clone())).unwrap_or_else(revert)
-}
-
-#[update]
-fn set_one_time_key(text_id: Nonce, public_key: Vec<u8>) {
-    log_caller!("set_one_time_key");
-
-    let public_key = vec_to_fixed_array(&public_key).unwrap_or_else(revert);
-
-    // check if user own the text_id want to share
-    let user_data = get_anonymous_user(&public_key).unwrap_or_else(revert);
-
-    if !user_data.has_text_id(&text_id) {
-        return revert("Error::User does not own the text_id!");
-    }
-
-    with_one_time_keys(|keys| {
-        keys.insert(text_id, OneTimeKey::new(public_key));
-    });
-}
-
-#[update]
-async fn read_with_one_time_key(
-    text_id: Nonce,
-    signature: Vec<u8>,
-    reader_public_key: Vec<u8>,
-) -> Result<(Vec<u8>, Vec<u8>), String> {
-    let caller = log_caller!("read_with_one_time_key");
-
-    let one_time_key =
-        with_one_time_key_and_try(&text_id, |key| Ok(key.clone())).unwrap_or_else(revert);
-
-    if one_time_key.out_of_tries() {
-        return report("Error::One time key is out of tries!");
-    }
-
-    if one_time_key.is_expired() {
-        return report("Error::One time key is expired!");
-    }
-
-    let verified = verify_pairing(
-        &one_time_key.public_key(),
-        &signature,
-        &text_id.to_le_bytes(),
+/// Rejects ingress messages that would fail anyway, before they cost cycles.
+#[inspect_message]
+fn inspect_message() {
+    let method = ic_cdk::api::msg_method_name();
+    // Public reads (also callable as updates), opening a share link, and
+    // `update_config`, which checks for a controller itself (a local
+    // network's default identity is anonymous).
+    let anonymous_allowed = matches!(
+        method.as_str(),
+        "open_share"
+            | "load_public_keys"
+            | "get_public_keys"
+            | "get_share"
+            | "get_stats"
+            | "get_config"
+            | "whoami"
+            | "update_config"
     );
-
-    match verified {
-        Ok(_) => {
-            let encrypted_text =
-                with_encrypted_text(&text_id, |text| Ok(text.clone())).unwrap_or_else(revert);
-
-            let encrypted_key = VetKD::new(caller.into())
-                .request_encrypted_key(vec![b"ibe_encryption".to_vec()], reader_public_key)
-                .await
-                .unwrap_or_else(revert);
-
-            with_one_time_keys(|keys| {
-                keys.remove(&text_id).unwrap();
-            });
-
-            Ok((encrypted_text, encrypted_key))
-        }
-        Err(_) => report("Error::Invalid signature!"),
+    if !anonymous_allowed && ic_cdk::api::msg_caller() == Principal::anonymous() {
+        ic_cdk::trap("sign in first: anonymous callers cannot call this method");
     }
-}
-
-#[query]
-async fn ibe_encryption_key() -> Vec<u8> {
-    get_ibe_encrypted_key().to_vec()
-}
-
-#[query]
-async fn symmetric_key_verification_key() -> Vec<u8> {
-    get_symmetric_encrypted_key().to_vec()
-}
-
-#[update(guard = "caller_is_not_anonymous")]
-async fn two_factor_verification_key() -> String {
-    log_caller!("two_factor_verification_key");
-
-    let reponse = VetKDManagement(ic_cdk::id())
-        .request_public_key(vec![b"two_factor_authentication".to_vec()])
-        .await
-        .unwrap_or_else(revert);
-
-    vec_to_hex_string(reponse)
-}
-
-#[update(guard = "caller_is_not_anonymous")]
-async fn request_two_factor_authentication(encryption_public_key: Vec<u8>) -> String {
-    log_caller!("request_two_factor_authentication");
-
-    let encrypted_key = VetKD::new(ic_cdk::caller().into())
-        .request_encrypted_key(
-            vec![b"two_factor_authentication".to_vec()],
-            encryption_public_key,
-        )
-        .await
-        .unwrap_or_else(revert);
-
-    vec_to_hex_string(encrypted_key)
-}
-
-#[update]
-async fn encrypted_ibe_decryption_key_for_caller(encryption_public_key: Vec<u8>) -> Vec<u8> {
-    let caller = log_caller!("encrypted_ibe_decryption_key_for_caller");
-
-    let public_key = vec_to_fixed_array(&encryption_public_key).unwrap_or_else(revert);
-
-    // check for cached key
-    if let Ok(user_data) = get_anonymous_user(&public_key) {
-        if let Some(decryption_key) = user_data.get_decryption_key().ok() {
-            return decryption_key;
-        }
+    if ic_cdk::api::msg_arg_data().len() > MAX_INGRESS_BYTES {
+        ic_cdk::trap("the request is too large");
     }
-
-    // request key from VetKD Api
-    let encrypted_key = VetKD::new(caller.into())
-        .request_encrypted_key(vec![b"ibe_encryption".to_vec()], encryption_public_key)
-        .await
-        .unwrap_or_else(revert);
-
-    // cache key
-    with_anonymous_user_or_add(&public_key, |user| {
-        user.set_decryption_key(encrypted_key.clone());
-    });
-
-    encrypted_key
+    ic_cdk::api::accept_message();
 }
 
-#[update]
-async fn encrypted_symmetric_key_for_caller(encryption_public_key: Vec<u8>) -> Vec<u8> {
-    let caller = log_caller!("encrypted_symmetric_key_for_caller");
-
-    let public_key = vec_to_fixed_array(&encryption_public_key).unwrap_or_else(revert);
-
-    // check for cached key
-    if let Ok(user_data) = get_anonymous_user(&public_key) {
-        if let Some(decryption_key) = user_data.get_decryption_key().ok() {
-            return decryption_key;
-        }
-    }
-
-    // request key from VetKD Api
-    let encrypted_key = VetKD::new(caller.into())
-        .request_encrypted_key(vec![b"symmetric_key".to_vec()], encryption_public_key)
-        .await
-        .unwrap_or_else(revert);
-
-    // cache key
-    if caller == Principal::anonymous() {
-        with_anonymous_user_or_add(&public_key, |user| {
-            user.set_decryption_key(encrypted_key.clone());
-        });
-    } else {
-        with_users(|keys| {
-            let user_data = UserData::new(encrypted_key.clone(), None);
-
-            keys.insert(caller.into(), user_data);
-        });
-    }
-
-    encrypted_key
-}
-
-#[query]
-fn print_log_entries() -> Vec<LogEntry> {
-    export_log()
-}
-
-#[query]
-fn print_log_entries_page(page: usize, page_size: Option<usize>) -> Vec<String> {
-    export_log_messages_page(page, page_size)
-}
-
-#[query]
-fn partition_details() -> Vec<PartitionDetail> {
-    with_stable_mem(|p| p.partition_details())
-}
-
-#[query]
-fn timers() -> Vec<TaskTimerEntry<Task>> {
-    TASK_TIMER.with(|s| {
-        let state = s.borrow();
-
-        state.get_timers()
+fn consume(action: Action, caller: Principal, per_user: Option<u32>, global: u32) -> Result<()> {
+    LIMITER.with_borrow_mut(|limiter| {
+        limiter.check_and_consume(action, caller, per_user, global, now())
     })
 }
 
-#[update(guard = "caller_is_controller")]
-async fn transfer_cycle(canister_id: Principal, amount: u64) {
-    log_cycle!("Send cycle");
+fn refund(action: Action, caller: Principal, per_user: bool) {
+    LIMITER.with_borrow_mut(|limiter| limiter.refund(action, caller, per_user));
+}
 
-    let result = call_with_payment::<(), ()>(canister_id, "wallet_receive", (), amount).await;
+// ---------------------------------------------------------------------------
+// Account and configuration
+// ---------------------------------------------------------------------------
 
-    match result {
-        Ok(_) => log_cycle!("Cycle sent!"),
-        Err(err) => log_cycle!("Error: {:?}", err),
+#[query]
+fn whoami() -> Principal {
+    ic_cdk::api::msg_caller()
+}
+
+#[query]
+fn get_config() -> Config {
+    state::config()
+}
+
+/// Changes the configuration. Controllers only.
+#[update]
+fn update_config(args: InitArgs) -> Result<Config> {
+    let caller = ic_cdk::api::msg_caller();
+    if !ic_cdk::api::is_controller(&caller) {
+        return Err(Error::Forbidden(
+            "only controllers can change the configuration".into(),
+        ));
+    }
+    let next = state::config()
+        .with_args(args)
+        .map_err(Error::InvalidArgument)?;
+    state::set_config(next.clone());
+    Ok(next)
+}
+
+#[query]
+fn get_stats() -> Stats {
+    let config = state::config();
+    Stats {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        users: state::USERS_MAP.with_borrow(|users| users.len()),
+        notes: state::NOTES_MAP.with_borrow(|notes| notes.len()),
+        active_shares: state::SHARES_MAP.with_borrow(|shares| shares.len()),
+        vetkd_key_name: config.vetkd_key_name,
+        ai_enabled: config.ai_enabled,
+        ai_model: config.llm_model,
+        cycles: ic_cdk::api::canister_cycle_balance(),
     }
 }
 
 #[query]
-fn version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
+fn get_account() -> Result<Account> {
+    let caller = authenticated()?;
+    let config = state::config();
+    let user = state::user(&caller).unwrap_or_default();
+    Ok(Account {
+        principal: caller,
+        created_at: user.created_at,
+        note_count: user.note_count,
+        storage_bytes: user.note_bytes,
+        share_count: user.share_count,
+        limits: config.limits,
+        ai_enabled: config.ai_enabled,
+        ai_model: config.llm_model,
+    })
 }
 
-fn schedule_task(after_sec: u64, task: Task) {
-    log_caller!(format!(
-        "schedule_task: {:?} after {} secs",
-        task, after_sec
-    ));
+/// Deletes every note and share of the caller.
+#[update]
+fn delete_account() -> Result<DeletedAccount> {
+    let caller = authenticated()?;
+    let shares = shares::delete_all(caller);
+    let notes = notes::delete_all(caller);
+    state::USERS_MAP.with_borrow_mut(|users| users.remove(&caller));
+    Ok(DeletedAccount { notes, shares })
+}
 
-    let time = NanoTimeStamp::now().add_secs(after_sec);
+// ---------------------------------------------------------------------------
+// Keys
+// ---------------------------------------------------------------------------
 
-    let timer = TaskTimerEntry { task, time };
+/// The derived public keys, once the canister has fetched them.
+#[query]
+fn get_public_keys() -> Result<PublicKeys> {
+    state::public_keys().ok_or(Error::NotReady)
+}
 
-    with_task_timer(|tt| {
-        tt.push_timer(&timer)
-            .unwrap_or_else(|_| revert("Error::Failed to push timer!"))
+/// Like `get_public_keys`, but fetches the keys if they are not cached yet.
+#[update]
+async fn load_public_keys() -> Result<PublicKeys> {
+    keys::ensure_public_keys().await
+}
+
+/// The caller's vetKey, encrypted to `transport_public_key`, and the public
+/// key that verifies it. The vetKey's input is the caller's principal.
+#[update]
+async fn get_encrypted_user_key(transport_public_key: ByteBuf) -> Result<EncryptedUserKey> {
+    let caller = authenticated()?;
+    keys::validate_transport_public_key(&transport_public_key)?;
+    let limits = state::config().limits;
+    consume(
+        Action::VetKey,
+        caller,
+        Some(limits.key_requests_per_user_per_hour),
+        limits.global_key_requests_per_hour,
+    )?;
+    let result = async {
+        let public_keys = keys::ensure_public_keys().await?;
+        let encrypted_key = keys::derive_encrypted_key(
+            caller.as_slice().to_vec(),
+            USER_KEY_CONTEXT,
+            transport_public_key.into_vec(),
+        )
+        .await?;
+        Ok(EncryptedUserKey {
+            encrypted_key: ByteBuf::from(encrypted_key),
+            verification_key: public_keys.user_key,
+        })
+    }
+    .await;
+    if result.is_err() {
+        refund(Action::VetKey, caller, true);
+    }
+    result
+}
+
+// ---------------------------------------------------------------------------
+// Notes
+// ---------------------------------------------------------------------------
+
+#[query]
+fn list_notes(args: ListNotesArgs) -> Result<NotePage> {
+    notes::list(authenticated()?, args, now())
+}
+
+#[query]
+fn get_note(id: String) -> Result<Note> {
+    notes::get(authenticated()?, &id, now())
+}
+
+#[update]
+fn create_note(args: CreateNoteArgs) -> Result<Note> {
+    notes::create(authenticated()?, args, now(), &state::config().limits)
+}
+
+#[update]
+fn update_note(args: UpdateNoteArgs) -> Result<Note> {
+    notes::update(authenticated()?, args, now(), &state::config().limits)
+}
+
+/// Deletes a note and revokes the share links made from it.
+#[update]
+fn delete_note(id: String) -> Result<()> {
+    notes::delete(authenticated()?, &id, now())
+}
+
+// ---------------------------------------------------------------------------
+// Burn-after-reading shares
+// ---------------------------------------------------------------------------
+
+#[update]
+fn create_share(args: CreateShareArgs) -> Result<ShareInfo> {
+    shares::create(authenticated()?, args, now(), &state::config().limits)
+}
+
+#[query]
+fn list_shares() -> Result<Vec<ShareInfo>> {
+    Ok(shares::list(authenticated()?, now()))
+}
+
+#[update]
+fn revoke_share(id: String) -> Result<()> {
+    shares::revoke(authenticated()?, &id)
+}
+
+/// What a link holder sees before deciding to open (and burn) a share.
+#[query]
+fn get_share(id: String) -> Result<PublicShareInfo> {
+    shares::public_info(&id, now())
+}
+
+/// Spends one view of a share and returns its ciphertext with the share's
+/// vetKey encrypted to the reader's transport key. Anyone holding the link
+/// may call this; signing in is not required.
+#[update]
+async fn open_share(args: OpenShareArgs) -> Result<OpenedShare> {
+    let caller = ic_cdk::api::msg_caller();
+    keys::validate_transport_public_key(&args.transport_public_key)?;
+    let public_keys = keys::ensure_public_keys().await?;
+    let pending = shares::begin_open(&args.id, &args.transport_public_key, &args.signature, now())?;
+    let limits = state::config().limits;
+    let per_user =
+        (caller != Principal::anonymous()).then_some(limits.key_requests_per_user_per_hour);
+    if let Err(e) = consume(
+        Action::VetKey,
+        caller,
+        per_user,
+        limits.global_key_requests_per_hour,
+    ) {
+        shares::finish_open(&pending.id, &args.transport_public_key, false);
+        return Err(e);
+    }
+    let derived = keys::derive_encrypted_key(
+        pending.id.to_vec(),
+        SHARE_KEY_CONTEXT,
+        args.transport_public_key.to_vec(),
+    )
+    .await;
+    match derived {
+        Ok(encrypted_key) => {
+            shares::finish_open(&pending.id, &args.transport_public_key, true);
+            Ok(OpenedShare {
+                ciphertext: pending.ciphertext,
+                encrypted_key: ByteBuf::from(encrypted_key),
+                verification_key: public_keys.share_key,
+                views_left: pending.views_left,
+                expires_at: pending.expires_at,
+            })
+        }
+        Err(e) => {
+            shares::finish_open(&pending.id, &args.transport_public_key, false);
+            refund(Action::VetKey, caller, per_user.is_some());
+            Err(e)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AI assistant
+// ---------------------------------------------------------------------------
+
+/// Runs one writing-assistant task on text the user chose to send.
+#[update]
+async fn ai_assist(request: AiRequest) -> Result<AiResponse> {
+    let caller = authenticated()?;
+    let config = state::config();
+    if !config.ai_enabled {
+        return Err(Error::AiDisabled);
+    }
+    let messages = ai::build_messages(&request, config.limits.max_ai_input_bytes)?;
+    consume(
+        Action::Ai,
+        caller,
+        Some(config.limits.ai_requests_per_user_per_hour),
+        config.limits.global_ai_requests_per_hour,
+    )?;
+    let reply = ai::chat(&config, messages).await.and_then(|reply| {
+        let text = ai::clean_reply(&request.task, &reply);
+        if text.is_empty() {
+            Err(Error::Ai("the model returned an empty reply".into()))
+        } else {
+            Ok(text)
+        }
     });
-
-    reschedule();
-}
-
-#[export_name = "canister_global_timer"]
-fn global_timer() {
-    while let Some(task_timer) = TASK_TIMER.with(|tt| {
-        let tt = tt.borrow();
-
-        tt.peek_timer()
-    }) {
-        if task_timer.time.in_future() {
-            reschedule();
-            return;
-        }
-        with_task_timer(|tt| tt.pop_timer());
-
-        ic_cdk::spawn(execute_task(task_timer));
-        reschedule();
-    }
-}
-
-async fn fetch_encryption_keys() {
-    log_cycle!("Fetching keys...");
-    let symmetric_key = VetKDManagement(ic_cdk::id())
-        .request_public_key(vec![b"symmetric_key".to_vec()])
-        .await;
-
-    let ibe_encryption_key = VetKDManagement(ic_cdk::id())
-        .request_public_key(vec![b"ibe_encryption".to_vec()])
-        .await;
-
-    log_cycle!("Caching keys...");
-    if let Ok(symmetric_key) = symmetric_key {
-        set_symmetric_encryption_key(symmetric_key);
-    } else {
-        log_cycle!("Failed to fetch symmetric key");
-    }
-
-    if let Ok(ibe_encryption_key) = ibe_encryption_key {
-        set_ibe_encryption_key(ibe_encryption_key);
-    } else {
-        log_cycle!("Failed to fetch ibe encryption key");
-    }
-}
-
-async fn execute_task(timer: TaskTimerEntry<Task>) {
-    log_cycle!("Execute_task: {:?}", timer);
-
-    match timer.task {
-        Task::Initialize => {
-            log_cycle!("Initializing...");
-
-            let now = NanoTimeStamp::now();
-
-            fetch_encryption_keys().await;
-
-            log_cycle!("Initializing done! Took: {}ms", now.elapsed().to_millis());
-
-            schedule_task(3600, Task::CleanUpKeys);
-            schedule_task(3600, Task::CleanUpAnonymousUsers);
-
-            reschedule();
-        }
-        Task::CleanUpKeys => {
-            log_cycle!("Cleaning up keys...");
-
-            let now = NanoTimeStamp::now();
-
-            with_one_time_keys(|keys| {
-                let expired_keys: Vec<Nonce> = keys
-                    .iter()
-                    .filter(|(_, key)| key.is_expired())
-                    .map(|(id, _)| id.clone())
-                    .collect();
-
-                expired_keys.iter().for_each(|id| {
-                    log_cycle!("Removing expired key: {:?}", keys.get(id));
-                    keys.remove(id);
-                });
-            });
-
-            log_cycle!(
-                "Cleaning up keys done! Took: {}ms",
-                now.elapsed().to_millis()
-            );
-
-            // schedule next clean up
-            schedule_task(3600, Task::CleanUpKeys);
-
-            reschedule();
-        }
-        Task::CleanUpAnonymousUsers => {
-            log_cycle!("Cleaning up users...");
-
-            let now = NanoTimeStamp::now();
-
-            with_anonymous_users(|users| {
-                let expired_users: Vec<PublicKey> = users
-                    .iter()
-                    .filter(|(_, user)| user.is_expired())
-                    .map(|(id, _)| id.clone())
-                    .collect();
-
-                expired_users.iter().for_each(|id| {
-                    log_cycle!("Removing expired user: {:?}", users.get(id));
-                    users.remove(id);
-                });
-            });
-
-            log_cycle!(
-                "Cleaning up users done! Took: {}ms",
-                now.elapsed().to_millis()
-            );
-
-            // schedule next clean up
-            schedule_task(3600, Task::CleanUpAnonymousUsers);
-
-            reschedule();
-        }
-        Task::SendEmail {
-            email,
-            body,
-            subject,
-        } => {
-            log_cycle!(
-                "sending email to: {} with subject: {}, and body: {}",
-                email,
-                subject,
-                body
-            );
-        }
-        Task::SendText { phone_number, body } => {
-            log_cycle!("Send text to: {} with body: {}", phone_number, body);
-        }
-    }
-}
-
-fn reschedule() {
-    if let Some(task_time) = TASK_TIMER.with(|tt| {
-        let tt = tt.borrow();
-
-        tt.peek_timer()
-    }) {
-        unsafe {
-            ic0::global_timer_set(task_time.time.into());
+    match reply {
+        Ok(text) => Ok(AiResponse {
+            text,
+            model: config.llm_model,
+        }),
+        Err(e) => {
+            refund(Action::Ai, caller, true);
+            Err(e)
         }
     }
 }
 
 ic_cdk::export_candid!();
 
-#[macro_export]
-macro_rules! log_caller {
-    ($method:expr) => {{
-        let caller = ic_cdk::caller();
-        log_cycle!("Method: {}, Caller: {}", $method, caller.to_text());
-        caller
-    }};
+#[cfg(test)]
+mod candid_tests {
+    #[test]
+    fn candid_interface_is_up_to_date() {
+        let generated = super::__export_service();
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/backend.did");
+        if std::env::var_os("UPDATE_CANDID").is_some() {
+            std::fs::write(path, &generated).expect("failed to write backend.did");
+        }
+        let current = std::fs::read_to_string(path).unwrap_or_default();
+        assert!(
+            current == generated,
+            "backend/backend.did is out of date; run `UPDATE_CANDID=1 cargo test -p backend`"
+        );
+    }
 }

@@ -1,69 +1,250 @@
-type AnonymousUserData = record {
-  texts : vec nat64;
+type Account = record {
+  "principal" : principal;
+  share_count : nat32;
+  ai_enabled : bool;
   created_at : nat64;
-  decryption_key : opt vec nat8;
+  note_count : nat32;
+  storage_bytes : nat64;
+  ai_model : text;
+  limits : Limits;
 };
-type AuthenticatedSignature = record {
-  signature : vec nat8;
+type AiRequest = record { task : AiTask; "text" : text };
+type AiResponse = record { model : text; "text" : text };
+// What the AI assistant should do with the text.
+type AiTask = variant {
+  // Answer a question using the text (the user's notes) as context.
+  Ask : text;
+  // More text in the same style.
+  Continue;
+  // Spelling and grammar only.
+  FixGrammar;
+  // Clearer, better structured wording.
+  Improve;
+  // A shorter version.
+  Shorten;
+  // A markdown checklist of the action items.
+  ActionItems;
+  // A title of a few words.
+  SuggestTitle;
+  // A translation into the named language.
+  Translate : text;
+  // Comma-separated topic tags.
+  SuggestTags;
+  // A short summary.
+  Summarize;
+};
+// The canister configuration.
+type Config = record {
+  ai_enabled : bool;
+  // Cycles attached to each LLM call (0 for the free models).
+  llm_cycles_per_call : nat64;
+  llm_model : text;
+  // The LLM canister. `None` resolves `PUBLIC_CANISTER_ID:llm` (set by
+  // `icp deploy`) and falls back to the mainnet LLM canister.
+  llm_canister : opt principal;
+  limits : Limits;
+  // Name of the vetKD master key: `key_1` on mainnet, `test_key_1` or
+  // `dfx_test_key` on a local network.
+  vetkd_key_name : text;
+};
+type CreateNoteArgs = record {
+  id : text;
+  ciphertext : blob;
+  expires_at : opt nat64;
+};
+type CreateShareArgs = record {
+  // 32 lowercase hex characters (16 random bytes chosen by the client).
+  id : text;
+  // Ed25519 public key (32 bytes) whose secret key travels in the link.
+  verifying_key : blob;
+  // IBE ciphertext for the identity `id`, under `PublicKeys.share_key`.
+  ciphertext : blob;
+  max_views : nat32;
+  // The note this share was created from, so deleting it revokes the share.
+  note_id : opt text;
+  expires_in_secs : nat64;
+};
+type DeletedAccount = record { shares : nat32; notes : nat32 };
+// The owner's encrypted vetKey and the public key to verify it with.
+type EncryptedUserKey = record {
+  encrypted_key : blob;
+  verification_key : blob;
+};
+// Errors returned by every fallible endpoint.
+type Error = variant {
+  // The call to the LLM canister failed.
+  Ai : text;
+  // The share link has no views left.
+  Exhausted;
+  // The public keys have not been fetched from the management canister yet.
+  NotReady;
+  NotFound;
+  AlreadyExists;
+  // Too many requests; retry after the given number of seconds.
+  RateLimited : record { retry_after_secs : nat64 };
+  // AI features are disabled on this deployment.
+  AiDisabled;
+  InvalidArgument : text;
+  // A call to the vetKD system API failed.
+  VetKd : text;
+  // The caller is not allowed to perform this action.
+  Forbidden : text;
+  // The share link or note has expired.
+  Expired;
+  // A per-user or global quota would be exceeded.
+  QuotaExceeded : text;
+  // The caller must sign in (anonymous callers are not allowed here).
+  Unauthenticated;
+  // The note changed since the caller last read it.
+  Conflict : record { current_version : nat64 };
+};
+// Install and upgrade arguments. Every field is optional; `None` keeps the
+// current (or default) value.
+type InitArgs = record {
+  ai_enabled : opt bool;
+  llm_cycles_per_call : opt nat64;
+  llm_model : opt text;
+  llm_canister : opt principal;
+  limits : opt Limits;
+  vetkd_key_name : opt text;
+};
+// Hard limits enforced by the canister. Controllers can change them.
+type Limits = record {
+  // Maximum size of one encrypted note, in bytes.
+  max_note_bytes : nat32;
+  // vetKD derivations (user key + share opens) one principal may request per hour.
+  key_requests_per_user_per_hour : nat32;
+  ai_requests_per_user_per_hour : nat32;
+  // vetKD derivations the whole canister may request per hour (protects its cycles).
+  global_key_requests_per_hour : nat32;
+  max_share_ttl_secs : nat64;
+  max_share_views : nat32;
+  max_notes_per_user : nat32;
+  // Maximum number of UTF-8 bytes sent to the LLM in one request.
+  max_ai_input_bytes : nat32;
+  max_shares_per_user : nat32;
+  global_ai_requests_per_hour : nat32;
+};
+type ListNotesArgs = record {
+  // Return notes whose id sorts after this one.
+  cursor : opt text;
+  limit : opt nat32;
+};
+// An encrypted note as stored by the canister.
+type Note = record {
+  // 32 lowercase hex characters (16 random bytes chosen by the client).
+  id : text;
+  updated_at : nat64;
+  // AES-GCM ciphertext produced with the owner's vetKey-derived key.
+  ciphertext : blob;
   created_at : nat64;
+  // Incremented on every update, for optimistic concurrency control.
+  version : nat64;
+  // The note deletes itself at this time (nanoseconds since the epoch).
+  expires_at : opt nat64;
 };
-type LogEntry = record {
-  counter : nat64;
-  file : text;
-  line : nat32;
-  cycle : opt nat;
+type NotePage = record { notes : vec Note; next_cursor : opt text };
+type OpenShareArgs = record {
+  id : text;
+  // Ed25519 signature over `SHARE_OPEN_DOMAIN || id bytes || transport_public_key`.
+  signature : blob;
+  // A fresh BLS12-381 G1 transport public key (48 bytes).
+  transport_public_key : blob;
+};
+type OpenedShare = record {
+  views_left : nat32;
+  // The vetKey for the share id, encrypted to the transport public key.
+  encrypted_key : blob;
+  ciphertext : blob;
+  verification_key : blob;
+  expires_at : nat64;
+};
+// Derived public keys of this canister.
+type PublicKeys = record {
+  // Verifies users' vetKeys (input: the user's principal).
+  user_key : blob;
+  // IBE-encrypts share payloads (identity: the share id).
+  share_key : blob;
+};
+// What anyone holding a share id may learn before opening it.
+type PublicShareInfo = record {
+  views_left : nat32;
+  size : nat32;
+  created_at : nat64;
+  expires_at : nat64;
+};
+type Result = variant { Ok : AiResponse; Err : Error };
+type Result_1 = variant { Ok : Note; Err : Error };
+type Result_10 = variant { Ok : vec ShareInfo; Err : Error };
+type Result_11 = variant { Ok : OpenedShare; Err : Error };
+type Result_12 = variant { Ok : Config; Err : Error };
+type Result_2 = variant { Ok : ShareInfo; Err : Error };
+type Result_3 = variant { Ok : DeletedAccount; Err : Error };
+type Result_4 = variant { Ok; Err : Error };
+type Result_5 = variant { Ok : Account; Err : Error };
+type Result_6 = variant { Ok : EncryptedUserKey; Err : Error };
+type Result_7 = variant { Ok : PublicKeys; Err : Error };
+type Result_8 = variant { Ok : PublicShareInfo; Err : Error };
+type Result_9 = variant { Ok : NotePage; Err : Error };
+// A share as its owner sees it.
+type ShareInfo = record {
+  id : text;
+  views_left : nat32;
+  max_views : nat32;
+  size : nat32;
+  note_id : opt text;
+  created_at : nat64;
+  expires_at : nat64;
+};
+type Stats = record {
+  ai_enabled : bool;
+  active_shares : nat64;
   version : text;
-  message : text;
-  timestamp : nat64;
-  "variant" : LogVariant;
+  cycles : nat;
+  notes : nat64;
+  users : nat64;
+  ai_model : text;
+  vetkd_key_name : text;
 };
-type LogVariant = variant { info; warn; error };
-type OneTimeKey = record {
-  tries : nat8;
-  time_lock : nat64;
-  public_key : vec nat8;
+type UpdateNoteArgs = record {
+  id : text;
+  ciphertext : blob;
+  // Replaces the note's expiry (`None` removes it).
+  expires_at : opt nat64;
+  // Reject the update with `Conflict` unless the note is at this version.
+  expected_version : opt nat64;
 };
-type PartitionDetail = record { id : nat8; name : text; size : nat64 };
-type Result = variant { Ok : record { vec nat8; vec nat8 }; Err : text };
-type Task = variant {
-  CleanUpKeys;
-  SendText : record { body : text; phone_number : text };
-  CleanUpAnonymousUsers;
-  SendEmail : record { subject : text; body : text; email : text };
-  Initialize;
-};
-type TaskTimerEntry = record { task : Task; time : nat64 };
-type UserData = record {
-  texts : vec nat64;
-  signature : opt AuthenticatedSignature;
-  public_key : vec nat8;
-};
-type UserText = record { id : text; "text" : vec nat8 };
-service : () -> {
-  add_simple_note : (vec nat8, text) -> (nat64);
-  anonymous_user : (vec nat8) -> (AnonymousUserData) query;
-  anonymous_user_notes : (vec nat8) -> (vec UserText) query;
-  anonymous_users : () -> (vec record { vec nat8; AnonymousUserData }) query;
-  edit_encrypted_text : (nat64, vec nat8, opt vec nat8) -> ();
-  encrypted_ibe_decryption_key_for_caller : (vec nat8) -> (vec nat8);
-  encrypted_symmetric_key_for_caller : (vec nat8) -> (vec nat8);
-  encrypted_texts : () -> (vec UserText) query;
-  get_one_time_key : (nat64) -> (vec nat8) query;
-  get_one_time_key_details : (nat64) -> (OneTimeKey) query;
-  ibe_encryption_key : () -> (vec nat8) query;
-  partition_details : () -> (vec PartitionDetail) query;
-  print_log_entries : () -> (vec LogEntry) query;
-  print_log_entries_page : (nat64, opt nat64) -> (vec text) query;
-  read_with_one_time_key : (nat64, vec nat8, vec nat8) -> (Result);
-  request_two_factor_authentication : (vec nat8) -> (text);
-  save_encrypted_text : (vec nat8, opt vec nat8) -> (nat64);
-  set_one_time_key : (nat64, vec nat8) -> ();
-  symmetric_key_verification_key : () -> (vec nat8) query;
-  timers : () -> (vec TaskTimerEntry) query;
-  transfer_cycle : (principal, nat64) -> ();
-  two_factor_verification_key : () -> (text);
-  user_data : () -> (UserData) query;
-  user_notes : (opt vec nat8) -> (nat64, vec UserText) query;
-  user_simple_notes : (vec nat8) -> (vec text) query;
-  version : () -> (text) query;
+service : (opt InitArgs) -> {
+  // Runs one writing-assistant task on text the user chose to send.
+  ai_assist : (AiRequest) -> (Result);
+  create_note : (CreateNoteArgs) -> (Result_1);
+  create_share : (CreateShareArgs) -> (Result_2);
+  // Deletes every note and share of the caller.
+  delete_account : () -> (Result_3);
+  // Deletes a note and revokes the share links made from it.
+  delete_note : (text) -> (Result_4);
+  get_account : () -> (Result_5) query;
+  get_config : () -> (Config) query;
+  // The caller's vetKey, encrypted to `transport_public_key`, and the public
+  // key that verifies it. The vetKey's input is the caller's principal.
+  get_encrypted_user_key : (blob) -> (Result_6);
+  get_note : (text) -> (Result_1) query;
+  // The derived public keys, once the canister has fetched them.
+  get_public_keys : () -> (Result_7) query;
+  // What a link holder sees before deciding to open (and burn) a share.
+  get_share : (text) -> (Result_8) query;
+  get_stats : () -> (Stats) query;
+  list_notes : (ListNotesArgs) -> (Result_9) query;
+  list_shares : () -> (Result_10) query;
+  // Like `get_public_keys`, but fetches the keys if they are not cached yet.
+  load_public_keys : () -> (Result_7);
+  // Spends one view of a share and returns its ciphertext with the share's
+  // vetKey encrypted to the reader's transport key. Anyone holding the link
+  // may call this; signing in is not required.
+  open_share : (OpenShareArgs) -> (Result_11);
+  revoke_share : (text) -> (Result_4);
+  // Changes the configuration. Controllers only.
+  update_config : (InitArgs) -> (Result_12);
+  update_note : (UpdateNoteArgs) -> (Result_1);
+  whoami : () -> (principal) query;
 }
