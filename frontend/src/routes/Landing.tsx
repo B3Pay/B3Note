@@ -1,5 +1,5 @@
 import { Navigate } from "@tanstack/react-router"
-import { Flame, KeyRound, Lock, ShieldCheck, Sparkles, UserRound } from "lucide-react"
+import { Flame, KeyRound, Lock, ShieldCheck, Timer, UserRound } from "lucide-react"
 import { useState } from "react"
 import { continueAsGuest, signInWithInternetIdentity, useSession } from "../app/session"
 import { Dialog } from "../components/Dialog"
@@ -12,17 +12,17 @@ const FEATURES = [
   {
     icon: Lock,
     title: "Encrypted in your browser",
-    text: "Each note is encrypted with a key derived from your identity by the Internet Computer's vetKeys. The canister only ever stores ciphertext.",
+    text: "Each note is encrypted before it leaves your browser: with a key the Internet Computer's vetKeys derive for your Internet Identity, or one derived from your guest key. The canister only ever stores ciphertext.",
   },
   {
     icon: Flame,
     title: "Burn-after-reading links",
-    text: "Share a snapshot through a link that works once (or a few times) and then can never be decrypted again, enforced by threshold cryptography.",
+    text: "Share a snapshot through a link that works once (or a few times) and then can never be decrypted again, enforced by threshold cryptography. Available with Internet Identity.",
   },
   {
-    icon: Sparkles,
-    title: "On-chain AI assistant",
-    text: "Summaries, titles, tags, rewrites, translations, to-do extraction and answers from your notes, by an LLM running on the Internet Computer. Only what you choose is sent.",
+    icon: Timer,
+    title: "Self-destructing notes",
+    text: "Give a note a timer and the canister deletes it when the time is up.",
   },
   {
     icon: ShieldCheck,
@@ -63,8 +63,7 @@ export function LandingPage() {
           </h1>
           <p className="mt-5 max-w-xl text-lg text-zinc-600 dark:text-zinc-400">
             B3Note keeps your notes on the Internet Computer, encrypted with keys that never leave your
-            browser in readable form. Share a note through a link that burns after reading, and let an
-            on-chain AI help you write.
+            browser in readable form. Share a note through a link that burns after reading.
           </p>
         </div>
 
@@ -97,7 +96,7 @@ export function LandingPage() {
             {error ? <Notice tone="danger">{error}</Notice> : null}
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
               A guest key is a private key stored in this browser. Save its recovery key in Settings, or you
-              lose your notes when the browser data is cleared.
+              lose your notes when the browser data is cleared. Share links need Internet Identity.
             </p>
           </div>
         </Card>

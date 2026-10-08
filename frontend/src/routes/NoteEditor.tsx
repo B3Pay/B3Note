@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { useAiEnabled } from "../app/features"
 import type { DecryptedNote } from "../app/notes"
 import { useWorkspace } from "../app/workspace"
 import { AiPanel, type AiSelection } from "../components/AiPanel"
@@ -99,6 +100,7 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
   const [mode, setMode] = useState<"edit" | "preview">(initial?.content?.body.trim() ? "preview" : "edit")
   const [shareOpen, setShareOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
+  const aiEnabled = useAiEnabled()
   const [aiSelection, setAiSelection] = useState<AiSelection | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -284,9 +286,11 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
           >
             {content.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
           </Button>
-          <Button variant="brand-soft" size="sm" onClick={openAi} disabled={isEmpty(content)}>
-            <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">AI</span>
-          </Button>
+          {aiEnabled ? (
+            <Button variant="brand-soft" size="sm" onClick={openAi} disabled={isEmpty(content)}>
+              <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">AI</span>
+            </Button>
+          ) : null}
           <Button
             variant="secondary"
             size="sm"
@@ -419,7 +423,7 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
         content={content}
       />
       <AiPanel
-        open={aiOpen}
+        open={aiEnabled && aiOpen}
         onClose={() => setAiOpen(false)}
         content={content}
         selection={aiSelection}

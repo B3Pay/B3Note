@@ -165,6 +165,10 @@ pub struct CreateShareArgs {
     pub verifying_key: ByteBuf,
     pub max_views: u32,
     pub expires_in_secs: u64,
+    /// The owner's DER-encoded Internet Identity public key: share links
+    /// cost the canister a vetKD derivation per view, so guests cannot make
+    /// them.
+    pub internet_identity_key: Option<ByteBuf>,
 }
 
 /// A share as its owner sees it.

@@ -1,14 +1,16 @@
 /**
- * Unlocks the signed-in user's vault (their vetKey-derived note key) once per
- * principal and shares it with every component.
+ * Unlocks the signed-in user's vault once per principal and shares it with
+ * every component: a vetKey-derived note key for Internet Identity accounts,
+ * a key derived from the guest key for guests.
  */
 import { Principal } from "@icp-sdk/core/principal"
 import { del, get, set } from "idb-keyval"
 import { useEffect, useSyncExternalStore } from "react"
 import { errorMessage } from "../lib/errors"
 import { expectedPublicKey, USER_KEY_CONTEXT } from "../lib/keys"
-import { unlockVault, vaultCacheKey, type KeyCache, type Vault } from "../lib/vault"
-import { backendOf, client } from "../reactor"
+import { guestIdentity } from "../lib/sessionAuth"
+import { guestVault, unlockVault, vaultCacheKey, type KeyCache, type Vault } from "../lib/vault"
+import { backendOf, client, sessionAuth } from "../reactor"
 import { canisterIdOf, isMainnet } from "./canister"
 import { useSession } from "./session"
 
@@ -37,6 +39,27 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener)
 }
 
+async function openVault(principal: Principal, canisterId: Principal): Promise<Vault> {
+  const session = sessionAuth()
+  const seed = session.kind === "guest" ? session.guestSeed() : null
+  if (seed && guestIdentity(seed).getPrincipal().toText() === principal.toText()) {
+    return guestVault(principal, canisterId, seed)
+  }
+  const internetIdentityKey = await session.internetIdentityKey()
+  if (!internetIdentityKey) throw new Error("Sign in again to unlock your notes.")
+  const backend = backendOf(client)
+  const config = await backend.get_config()
+  return unlockVault({
+    principal,
+    canisterId,
+    // A direct call: sent as the caller current when it runs.
+    fetchEncryptedKey: (transportPublicKey) =>
+      backend.get_encrypted_user_key(transportPublicKey, internetIdentityKey),
+    expectedKey: expectedPublicKey(config.vetkd_key_name, canisterId, USER_KEY_CONTEXT, !isMainnet(client)),
+    cache: keyCache,
+  })
+}
+
 /** Unlocks the vault of `principal`, who must be the current caller. */
 export async function unlock(principal: string): Promise<void> {
   if ((state.status === "ready" || state.status === "unlocking") && state.principal === principal) return
@@ -44,15 +67,7 @@ export async function unlock(principal: string): Promise<void> {
   try {
     const backend = backendOf(client)
     const canisterId = Principal.fromText(canisterIdOf(client, backend))
-    const config = await backend.get_config()
-    const vault = await unlockVault({
-      principal: Principal.fromText(principal),
-      canisterId,
-      // A direct call: sent as the caller current when it runs.
-      fetchEncryptedKey: (transportPublicKey) => backend.get_encrypted_user_key(transportPublicKey),
-      expectedKey: expectedPublicKey(config.vetkd_key_name, canisterId, USER_KEY_CONTEXT, !isMainnet(client)),
-      cache: keyCache,
-    })
+    const vault = await openVault(Principal.fromText(principal), canisterId)
     if (state.status === "unlocking" && state.principal === principal) {
       publish({ status: "ready", principal, vault })
     }

@@ -51,9 +51,51 @@ pub fn mock_llm_wasm() -> Vec<u8> {
     wasm("mock_llm", "MOCK_LLM_WASM")
 }
 
-/// A distinct, non-anonymous principal per `n`.
+/// Internet Identity's canister id.
+pub const INTERNET_IDENTITY: &str = "rdmx6-jaaaa-aaaaa-aaadq-cai";
+
+/// A DER-encoded canister-signature public key (OID 1.3.6.1.4.1.56387.1.2)
+/// of `signer` with `seed`, as in the IC interface specification.
+pub fn canister_sig_key(signer: Principal, seed: &[u8]) -> Vec<u8> {
+    let signer = signer.as_slice();
+    let mut bits = vec![0, signer.len() as u8];
+    bits.extend_from_slice(signer);
+    bits.extend_from_slice(seed);
+    let mut body = vec![
+        0x30, 0x0c, 0x06, 0x0a, 0x2b, 0x06, 0x01, 0x04, 0x01, 0x83, 0xb8, 0x43, 0x01, 0x02, 0x03,
+    ];
+    body.push(bits.len() as u8);
+    body.extend(bits);
+    let mut der = vec![0x30, body.len() as u8];
+    der.extend(body);
+    der
+}
+
+/// The Internet Identity public key of `user(n)`.
+pub fn ii_key_der(n: u8) -> Vec<u8> {
+    canister_sig_key(Principal::from_text(INTERNET_IDENTITY).unwrap(), &[n; 32])
+}
+
+/// An Internet Identity user per `n`: the principal of `ii_key_der(n)`.
 pub fn user(n: u8) -> Principal {
-    Principal::self_authenticating([n; 32])
+    Principal::self_authenticating(ii_key_der(n))
+}
+
+/// A guest per `n`: an Ed25519 key principal, like the app's guest keys.
+pub fn guest(n: u8) -> Principal {
+    let mut der = vec![
+        0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+    ];
+    der.extend([n; 32]);
+    Principal::self_authenticating(der)
+}
+
+/// The Internet Identity key a client of `principal` sends, if it is a `user(n)`.
+pub fn ii_key(principal: Principal) -> Option<ByteBuf> {
+    (0..=u8::MAX)
+        .map(ii_key_der)
+        .find(|der| Principal::self_authenticating(der) == principal)
+        .map(ByteBuf::from)
 }
 
 pub fn random_id() -> (String, [u8; 16]) {
@@ -79,6 +121,14 @@ pub struct TestEnv {
 impl TestEnv {
     pub fn new() -> Self {
         Self::with_args(InitArgs::default())
+    }
+
+    /// With the assistant switched on (it is off by default).
+    pub fn with_ai(args: InitArgs) -> Self {
+        Self::with_args(InitArgs {
+            ai_enabled: Some(true),
+            ..args
+        })
     }
 
     /// Installs the mock LLM canister and the backend (configured to use it
@@ -208,7 +258,7 @@ impl TestEnv {
         let reply: Result<EncryptedUserKey> = self.update(
             caller,
             "get_encrypted_user_key",
-            (ByteBuf::from(tsk.public_key()),),
+            (ByteBuf::from(tsk.public_key()), ii_key(caller)),
         );
         let reply = reply?;
         let dpk = DerivedPublicKey::deserialize(&reply.verification_key).unwrap();
@@ -297,6 +347,7 @@ impl TestEnv {
                 verifying_key: ByteBuf::from(signing_key.verifying_key().to_bytes().to_vec()),
                 max_views,
                 expires_in_secs,
+                internet_identity_key: ii_key(owner),
             },),
         );
         let info = info?;

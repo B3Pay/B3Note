@@ -1,21 +1,27 @@
 /**
- * The vault holds the AES-GCM key material derived from the user's vetKey and
- * encrypts and decrypts notes with it.
+ * The vault holds the user's note key material and encrypts and decrypts notes
+ * with it.
  *
- * Unlocking asks the canister for the user's vetKey, encrypted to a one-time
- * transport key generated here, then decrypts it and verifies it against the
- * canister's public key and the user's principal. The resulting key material
- * is a non-extractable CryptoKey, which is cached in IndexedDB so a reload
- * does not need another vetKD derivation.
+ * - Internet Identity accounts: unlocking asks the canister for the user's
+ *   vetKey, encrypted to a one-time transport key generated here, then
+ *   decrypts it and verifies it against the canister's public key and the
+ *   user's principal. The resulting key material is a non-extractable
+ *   CryptoKey, which is cached in IndexedDB so a reload does not need another
+ *   vetKD derivation.
+ * - Guests: the guest key already is a secret only this user holds, so the key
+ *   material is derived from it here (HKDF, bound to the canister). It costs
+ *   the canister nothing, and the recovery key restores it on another device.
  */
 import type { Principal } from "@icp-sdk/core/principal"
 import { DerivedKeyMaterial, DerivedPublicKey, EncryptedVetKey, TransportSecretKey } from "@icp-sdk/vetkeys"
-import { decoder, idBytes, toBytes, type Bytes } from "./bytes"
+import { decoder, encoder, idBytes, toBytes, type Bytes } from "./bytes"
 import { checkedPublicKey } from "./keys"
 import { parseNote, serializeNote, type NoteContent } from "./note"
 
 /** AES-GCM domain separator for notes. The associated data is the note id. */
 export const NOTE_DOMAIN = "b3note/note/v1"
+/** HKDF salt of a guest's key material; the info is the canister id. */
+export const GUEST_KEY_DOMAIN = "b3note/guest-key/v1"
 
 export interface KeyCache {
   get(key: string): Promise<CryptoKey | undefined>
@@ -94,4 +100,30 @@ export async function unlockVault({
   const keyMaterial = await vetKey.asDerivedKeyMaterial()
   await cache?.set(cacheKey, keyMaterial.getCryptoKey()).catch(() => undefined)
   return new Vault(principal.toText(), keyMaterial)
+}
+
+/**
+ * The vault of a guest, derived from their 32-byte guest key: HKDF-SHA-256
+ * with `GUEST_KEY_DOMAIN` as salt and the canister id as info, so each
+ * deployment gets its own key. Nothing is fetched or cached.
+ */
+export async function guestVault(
+  principal: Principal,
+  canisterId: Principal,
+  seed: Uint8Array,
+): Promise<Vault> {
+  const subtle = globalThis.crypto.subtle
+  const secret = await subtle.importKey("raw", toBytes(seed), "HKDF", false, ["deriveBits"])
+  const bits = await subtle.deriveBits(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: encoder.encode(GUEST_KEY_DOMAIN),
+      info: toBytes(canisterId.toUint8Array()),
+    },
+    secret,
+    256,
+  )
+  const base = await subtle.importKey("raw", bits, "HKDF", false, ["deriveKey", "deriveBits"])
+  return new Vault(principal.toText(), await DerivedKeyMaterial.fromCryptoKey(base))
 }

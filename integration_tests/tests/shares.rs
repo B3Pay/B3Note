@@ -194,6 +194,7 @@ fn share_arguments_and_quotas_are_checked() {
             verifying_key: serde_bytes::ByteBuf::from(vec![0; 32]),
             max_views: 1,
             expires_in_secs: 600,
+            internet_identity_key: None,
         })
         .unwrap(),
     );

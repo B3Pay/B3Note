@@ -2,17 +2,18 @@ import type { Client } from "@ic-reactor/core"
 import { useClient } from "@ic-reactor/react"
 import { Principal } from "@icp-sdk/core/principal"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { Check, Copy, Flame, Link2, Trash2 } from "lucide-react"
+import { Check, Copy, Flame, KeyRound, Link2, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { canisterIdOf, isMainnet } from "../app/canister"
+import { signInWithInternetIdentity, useSession } from "../app/session"
 import { toBytes } from "../lib/bytes"
 import { backendErrorTag, errorMessage } from "../lib/errors"
 import { DURATION_CHOICES, nanosToDate, relativeTime } from "../lib/format"
 import { checkedPublicKey, expectedPublicKey, SHARE_KEY_CONTEXT } from "../lib/keys"
 import type { NoteContent } from "../lib/note"
 import { prepareShare, shareLink } from "../lib/share"
-import { backendOf, type Backend } from "../reactor"
+import { backendOf, sessionAuth, type Backend } from "../reactor"
 import { Dialog } from "./Dialog"
 import { Button, Notice, Select } from "./ui"
 
@@ -57,6 +58,7 @@ export function ShareDialog({
   const [ttl, setTtl] = useState(String(DURATION_CHOICES[1].seconds))
   const [link, setLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const { kind } = useSession()
   const client = useClient()
   const backend = backendOf(client)
   const createShare = useMutation(client.mutationOptions(backend, "create_share"))
@@ -74,6 +76,7 @@ export function ShareDialog({
         verifying_key: prepared.verifyingKey,
         max_views: Number(views),
         expires_in_secs: BigInt(ttl),
+        internet_identity_key: await sessionAuth().internetIdentityKey(),
       })
       setLink(shareLink(window.location.origin, prepared.id, prepared.secret))
       setCopied(false)
@@ -99,7 +102,21 @@ export function ShareDialog({
       title="Share a burn-after-reading link"
       description="The link opens a snapshot of this note. Once its views are used up or it expires, it can never be decrypted again."
     >
-      {link ? (
+      {kind === "guest" ? (
+        <div className="space-y-3">
+          <Notice>
+            Share links need an Internet Identity account: each view has the Internet Computer derive a key,
+            which this app pays for. Guest notes stay private to your guest key.
+          </Notice>
+          <Button variant="primary" className="w-full" onClick={() => void signInWithInternetIdentity()}>
+            <KeyRound className="h-4 w-4" /> Sign in with Internet Identity
+          </Button>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Internet Identity is a separate account: your guest notes do not move to it. Export them in
+            Settings and import them after signing in.
+          </p>
+        </div>
+      ) : link ? (
         <div className="space-y-3">
           <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-950">
             <Link2 className="h-4 w-4 shrink-0 text-zinc-400" />

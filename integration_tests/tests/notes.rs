@@ -314,7 +314,7 @@ fn invalid_transport_keys_are_rejected_without_spending_budget() {
     let short: Result<EncryptedUserKey> = env.update(
         alice,
         "get_encrypted_user_key",
-        (ByteBuf::from(vec![1u8; 47]),),
+        (ByteBuf::from(vec![1u8; 47]), ii_key(alice)),
     );
     assert!(matches!(short, Err(Error::InvalidArgument(_))));
     // 48 bytes that are not a curve point: the management canister rejects it
@@ -322,8 +322,57 @@ fn invalid_transport_keys_are_rejected_without_spending_budget() {
     let bogus: Result<EncryptedUserKey> = env.update(
         alice,
         "get_encrypted_user_key",
-        (ByteBuf::from(vec![0xffu8; 48]),),
+        (ByteBuf::from(vec![0xffu8; 48]), ii_key(alice)),
     );
     assert!(matches!(bogus, Err(Error::VetKd(_))), "{bogus:?}");
     env.user_vetkey(alice);
+}
+
+#[test]
+fn guests_keep_notes_but_get_no_vetkey_or_share_links() {
+    let env = TestEnv::new();
+    let guest = guest(1);
+    let forbidden = |reply: Result<EncryptedUserKey>| matches!(reply, Err(Error::Forbidden(_)));
+
+    // A guest has no Internet Identity key to show...
+    assert!(matches!(
+        env.try_user_vetkey(guest),
+        Err(Error::Forbidden(_))
+    ));
+    // ...cannot pass off someone else's...
+    let tpk = ByteBuf::from(transport_key().public_key());
+    assert!(forbidden(env.update(
+        guest,
+        "get_encrypted_user_key",
+        (tpk.clone(), ii_key(user(1))),
+    )));
+    // ...and a key signed by another canister is not Internet Identity's,
+    // even when it is the caller's own.
+    let impostor_key = canister_sig_key(
+        Principal::from_slice(&[0, 0, 0, 0, 0, 0, 0, 9, 1, 1]),
+        &[1; 32],
+    );
+    let impostor = Principal::self_authenticating(&impostor_key);
+    assert!(forbidden(env.update(
+        impostor,
+        "get_encrypted_user_key",
+        (tpk, Some(ByteBuf::from(impostor_key))),
+    )));
+    assert!(matches!(
+        env.create_share(guest, None, "x", 1, 600),
+        Err(Error::Forbidden(_))
+    ));
+
+    // Guests encrypt with a key their browser derives, so they can still keep notes.
+    let note: Result<Note> = env.update(
+        guest,
+        "create_note",
+        (CreateNoteArgs {
+            id: random_id().0,
+            ciphertext: ByteBuf::from(vec![7u8; 64]),
+            expires_at: None,
+        },),
+    );
+    note.unwrap();
+    assert_eq!(env.account(guest).note_count, 1);
 }

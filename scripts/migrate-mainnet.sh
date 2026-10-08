@@ -22,8 +22,9 @@ NETWORK="${NETWORK:-ic}"
 BACKEND_ID="${BACKEND_ID:-xeka7-ryaaa-aaaal-qb57a-cai}"
 FRONTEND_ID="${FRONTEND_ID:-4lidq-zqaaa-aaaap-abkbq-cai}"
 SYSTEM_API_ID="${SYSTEM_API_ID:-wfdtj-lyaaa-aaaap-abakq-cai}"
-# vetKD key_1 derivations cost about 0.026 T each, and production sets a 90-day freezing threshold.
-MIN_BACKEND_CYCLES="${MIN_BACKEND_CYCLES:-3000000000000}"
+# Enough for the 90-day freezing threshold plus a few dozen vetKD key_1 derivations (about
+# 0.026 T each; production allows at most 20 an hour). Top up as real use grows.
+MIN_BACKEND_CYCLES="${MIN_BACKEND_CYCLES:-1000000000000}"
 APP_URL="${APP_URL:-https://${FRONTEND_ID}.icp0.io}"
 STATE_DIR=".icp/migration-${ENVIRONMENT}"
 
@@ -68,7 +69,7 @@ preflight() {
       die "the backend has $cycles cycles; top it up to at least $MIN_BACKEND_CYCLES first:
   icp cycles balance -n $NETWORK
   icp cycles mint --icp <amount> -n $NETWORK      # if your cycles balance is too low
-  icp canister top-up --amount 3t $BACKEND_ID -n $NETWORK"
+  icp canister top-up --amount 1t $BACKEND_ID -n $NETWORK"
     fi
   done
   say "Preflight passed"

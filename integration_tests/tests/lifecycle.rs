@@ -92,7 +92,11 @@ fn works_with_the_local_development_key() {
             backend,
             user(1),
             "get_encrypted_user_key",
-            encode_one(serde_bytes::ByteBuf::from(tsk.public_key())).unwrap(),
+            candid::encode_args((
+                serde_bytes::ByteBuf::from(tsk.public_key()),
+                ii_key(user(1)),
+            ))
+            .unwrap(),
         )
         .unwrap();
     let reply: Result<EncryptedUserKey> = candid::decode_one(&bytes).unwrap();

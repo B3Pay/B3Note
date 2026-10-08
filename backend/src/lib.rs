@@ -1,12 +1,15 @@
 //! B3Note backend canister.
 //!
-//! - Notes are encrypted in the browser with an AES-GCM key derived from the
-//!   user's vetKey (`get_encrypted_user_key`). The canister stores ciphertext
-//!   and enforces ownership, quotas and self-destruct timers.
+//! - Notes are encrypted in the browser with an AES-GCM key: for Internet
+//!   Identity accounts, one derived from the user's vetKey
+//!   (`get_encrypted_user_key`); for guests, one derived from the guest key
+//!   in the browser. The canister stores ciphertext and enforces ownership,
+//!   quotas and self-destruct timers.
 //! - Burn-after-reading links (`create_share` / `open_share`) use identity
 //!   based encryption: only the canister can have the share's decryption key
 //!   derived, and it does so once per view for whoever proves they hold the
-//!   link.
+//!   link. Only Internet Identity accounts can create them, because every
+//!   vetKD derivation costs this canister cycles.
 //! - `ai_assist` sends text the user chose to the on-chain LLM canister.
 
 use std::time::Duration;
@@ -17,6 +20,7 @@ use serde_bytes::ByteBuf;
 
 mod ai;
 mod config;
+mod identity;
 mod ids;
 mod keys;
 mod notes;
@@ -216,9 +220,18 @@ async fn load_public_keys() -> Result<PublicKeys> {
 
 /// The caller's vetKey, encrypted to `transport_public_key`, and the public
 /// key that verifies it. The vetKey's input is the caller's principal.
+/// Internet Identity accounts only: `internet_identity_key` is the caller's
+/// DER-encoded public key (the root of their delegation chain).
 #[update]
-async fn get_encrypted_user_key(transport_public_key: ByteBuf) -> Result<EncryptedUserKey> {
+async fn get_encrypted_user_key(
+    transport_public_key: ByteBuf,
+    internet_identity_key: Option<ByteBuf>,
+) -> Result<EncryptedUserKey> {
     let caller = authenticated()?;
+    identity::require_internet_identity(
+        caller,
+        internet_identity_key.as_deref().map(Vec::as_slice),
+    )?;
     keys::validate_transport_public_key(&transport_public_key)?;
     let limits = state::config().limits;
     consume(
@@ -281,9 +294,15 @@ fn delete_note(id: String) -> Result<()> {
 // Burn-after-reading shares
 // ---------------------------------------------------------------------------
 
+/// Internet Identity accounts only (see `CreateShareArgs.internet_identity_key`).
 #[update]
 fn create_share(args: CreateShareArgs) -> Result<ShareInfo> {
-    shares::create(authenticated()?, args, now(), &state::config().limits)
+    let caller = authenticated()?;
+    identity::require_internet_identity(
+        caller,
+        args.internet_identity_key.as_deref().map(Vec::as_slice),
+    )?;
+    shares::create(caller, args, now(), &state::config().limits)
 }
 
 #[query]

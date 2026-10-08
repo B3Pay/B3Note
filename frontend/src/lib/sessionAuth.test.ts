@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { createClient } from "@ic-reactor/core"
 import type { Identity } from "@icp-sdk/core/agent"
-import { Ed25519KeyIdentity } from "@icp-sdk/core/identity"
+import { DelegationChain, DelegationIdentity, Ed25519KeyIdentity } from "@icp-sdk/core/identity"
+import { Principal } from "@icp-sdk/core/principal"
 import { describe, expect, it, vi } from "vitest"
 import { toHex } from "./bytes"
 import {
@@ -17,7 +18,7 @@ type IiState = "signed-in" | "signed-out" | "expired" | "signed-in-elsewhere"
 
 /** Stands in for `@icp-sdk/auth`'s AuthClient. */
 class FakeInternetIdentity implements InternetIdentityLike {
-  identity = Ed25519KeyIdentity.generate()
+  identity: Identity = Ed25519KeyIdentity.generate()
   state: IiState = "signed-out"
   /** What the next `signIn` does: complete, or the user closes the window. */
   outcome: "complete" | "cancel" = "complete"
@@ -81,7 +82,33 @@ describe("recovery keys", () => {
   })
 })
 
+/** What Internet Identity hands out: a session key delegated to by a root key. */
+async function delegatedIdentity(): Promise<DelegationIdentity> {
+  const root = Ed25519KeyIdentity.generate()
+  const sessionKey = Ed25519KeyIdentity.generate()
+  const chain = await DelegationChain.create(
+    root,
+    sessionKey.getPublicKey(),
+    new Date(Date.now() + 3_600_000),
+  )
+  return DelegationIdentity.fromDelegation(sessionKey, chain)
+}
+
 describe("SessionAuth", () => {
+  it("gives the backend the Internet Identity key the principal comes from, and none for guests", async () => {
+    const { ii, session } = setup()
+    ii.identity = await delegatedIdentity()
+    expect(await session.internetIdentityKey()).toBeNull()
+
+    await session.signIn({ method: "ii" })
+    const key = await session.internetIdentityKey()
+    expect(key).not.toBeNull()
+    expect(Principal.selfAuthenticating(key!).toText()).toBe(session.getPrincipal()?.toText())
+
+    await session.signIn({ method: "guest" })
+    expect(await session.internetIdentityKey()).toBeNull()
+  })
+
   it("starts signed out", async () => {
     const { session } = setup()
     expect(session.getStatus().state).toBe("signed-out")

@@ -334,6 +334,7 @@ mod tests {
             verifying_key: ByteBuf::from(key.verifying_key().to_bytes().to_vec()),
             max_views: views,
             expires_in_secs: 3_600,
+            internet_identity_key: None,
         }
     }
 

@@ -38,5 +38,26 @@ environments:
     settings:
       backend:
         freezing_threshold: 90d
+    # Strict limits for mainnet, where every vetKD derivation (an Internet
+    # Identity user's key, or one share view) costs about 0.026 T cycles. The
+    # AI assistant stays off. Controllers can change both with `update_config`.
+    # Keep the type annotations: an untyped number is a `nat`, and Candid
+    # decodes a mistyped `opt` field as null, which would silently drop the limits.
     init_args:
-      backend: '(opt record { vetkd_key_name = opt "key_1" })'
+      backend: >-
+        (opt record {
+          vetkd_key_name = opt "key_1";
+          ai_enabled = opt false;
+          limits = opt record {
+            max_notes_per_user = 1_000 : nat32;
+            max_note_bytes = 131_072 : nat32;
+            max_shares_per_user = 20 : nat32;
+            max_share_views = 10 : nat32;
+            max_share_ttl_secs = 2_592_000 : nat64;
+            key_requests_per_user_per_hour = 5 : nat32;
+            global_key_requests_per_hour = 20 : nat32;
+            ai_requests_per_user_per_hour = 10 : nat32;
+            global_ai_requests_per_hour = 100 : nat32;
+            max_ai_input_bytes = 8_000 : nat32;
+          };
+        })

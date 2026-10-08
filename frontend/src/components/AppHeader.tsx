@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { LogOut, Monitor, Moon, NotebookPen, Settings, Sparkles, Sun } from "lucide-react"
 import { useState } from "react"
+import { useAiEnabled } from "../app/features"
 import { signOut, useSession } from "../app/session"
 import { setTheme, useTheme, type Theme } from "../app/theme"
 import { shortPrincipal } from "../lib/format"
@@ -41,6 +42,7 @@ const activeNavLink = "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc
 
 export function AppHeader() {
   const { signedIn, principal, kind } = useSession()
+  const aiEnabled = useAiEnabled()
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
 
@@ -54,10 +56,12 @@ export function AppHeader() {
               <NotebookPen className="h-4 w-4" />
               <span className="hidden sm:inline">Notes</span>
             </Link>
-            <Link to="/ask" className={navLink} activeProps={{ className: activeNavLink }}>
-              <Sparkles className="h-4 w-4" />
-              <span className="hidden sm:inline">Ask AI</span>
-            </Link>
+            {aiEnabled ? (
+              <Link to="/ask" className={navLink} activeProps={{ className: activeNavLink }}>
+                <Sparkles className="h-4 w-4" />
+                <span className="hidden sm:inline">Ask AI</span>
+              </Link>
+            ) : null}
             <Link to="/settings" className={navLink} activeProps={{ className: activeNavLink }}>
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Settings</span>

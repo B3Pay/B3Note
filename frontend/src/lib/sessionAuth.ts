@@ -15,7 +15,7 @@
 import type { AuthLike } from "@ic-reactor/core"
 import type { Identity } from "@icp-sdk/core/agent"
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity"
-import { fromBase64Url, fromHex, randomBytes, toBase64Url, type Bytes } from "./bytes"
+import { fromBase64Url, fromHex, randomBytes, toBase64Url, toBytes, type Bytes } from "./bytes"
 
 export type SessionKind = "ii" | "guest"
 
@@ -149,6 +149,18 @@ export class SessionAuth implements AuthLike {
     this.#stopIi()
     this.#listeners.clear()
     this.#ii.dispose?.()
+  }
+
+  /**
+   * The DER public key that Internet Identity signs this session's delegation
+   * chain with: the key the principal is derived from. The backend checks it
+   * before it spends cycles on a vetKey or a share link. `null` for guests.
+   */
+  async internetIdentityKey(): Promise<Bytes | null> {
+    if (this.kind !== "ii") return null
+    const identity: Identity & { getDelegation?: () => { publicKey: Uint8Array } } =
+      await this.#ii.getIdentity()
+    return identity.getDelegation ? toBytes(identity.getDelegation().publicKey) : null
   }
 
   /** The guest seed stored in this browser, if any. */

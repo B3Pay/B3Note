@@ -7,8 +7,20 @@ use candid::Principal;
 use common::*;
 
 #[test]
-fn sends_the_task_and_text_to_the_llm() {
+fn the_assistant_is_off_by_default() {
     let env = TestEnv::new();
+    let config: Config = env.query(Principal::anonymous(), "get_config", ());
+    assert!(!config.ai_enabled);
+    assert_eq!(
+        env.ai(user(1), AiTask::Summarize, "hi"),
+        Err(Error::AiDisabled)
+    );
+    assert_eq!(env.llm_calls(), 0);
+}
+
+#[test]
+fn sends_the_task_and_text_to_the_llm() {
+    let env = TestEnv::with_ai(InitArgs::default());
     let reply = env
         .ai(
             user(1),
@@ -29,7 +41,7 @@ fn sends_the_task_and_text_to_the_llm() {
 
 #[test]
 fn every_task_has_its_own_instruction() {
-    let env = TestEnv::new();
+    let env = TestEnv::with_ai(InitArgs::default());
     let cases = [
         (AiTask::Improve, "clearer and better structured"),
         (AiTask::FixGrammar, "Correct spelling"),
@@ -50,7 +62,7 @@ fn every_task_has_its_own_instruction() {
 
 #[test]
 fn titles_and_tags_are_cleaned_up() {
-    let env = TestEnv::new();
+    let env = TestEnv::with_ai(InitArgs::default());
     assert_eq!(
         env.ai(user(1), AiTask::SuggestTitle, "trip").unwrap().text,
         "Trip Plan"
@@ -63,7 +75,7 @@ fn titles_and_tags_are_cleaned_up() {
 
 #[test]
 fn llm_failures_are_errors_and_do_not_use_up_the_quota() {
-    let env = TestEnv::with_args(InitArgs {
+    let env = TestEnv::with_ai(InitArgs {
         limits: Some(Limits {
             ai_requests_per_user_per_hour: 1,
             ..Limits::default()
@@ -87,7 +99,7 @@ fn llm_failures_are_errors_and_do_not_use_up_the_quota() {
 
 #[test]
 fn rejects_bad_requests_before_calling_the_llm() {
-    let env = TestEnv::with_args(InitArgs {
+    let env = TestEnv::with_ai(InitArgs {
         limits: Some(Limits {
             max_ai_input_bytes: 100,
             ..Limits::default()
@@ -129,7 +141,7 @@ fn rejects_bad_requests_before_calling_the_llm() {
 
 #[test]
 fn controllers_can_switch_the_assistant_off_and_change_the_model() {
-    let env = TestEnv::new();
+    let env = TestEnv::with_ai(InitArgs::default());
     let forbidden: Result<Config> = env.update(
         user(1),
         "update_config",

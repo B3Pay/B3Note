@@ -53,7 +53,14 @@ mock<Actor>(actor, BACKEND, {
     notes.push({ owner: caller, note })
     return { tag: "Ok", value: note }
   },
-  create_share: (args) => {
+  // Like the backend: Internet Identity accounts only, proven by the key the
+  // caller's principal is derived from (here any key, as the test users are
+  // plain Ed25519 identities).
+  create_share: (args, { caller }) => {
+    const key = args.internet_identity_key
+    if (!key || Principal.selfAuthenticating(key).toText() !== caller) {
+      return { tag: "Err", value: { tag: "Forbidden", value: "not the caller's key" } }
+    }
     shares.set(args.id, {
       ciphertext: args.ciphertext,
       verifyingKey: args.verifying_key,
@@ -224,6 +231,7 @@ describe("share links", () => {
       verifying_key: prepared.verifyingKey,
       max_views: 1,
       expires_in_secs: 3_600n,
+      internet_identity_key: alice.getPublicKey().toDer(),
     })
 
     auth.switchTo(bob)

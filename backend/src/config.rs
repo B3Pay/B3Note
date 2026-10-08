@@ -12,18 +12,21 @@ const VALID_KEY_NAMES: [&str; 3] = ["key_1", "test_key_1", "dfx_test_key"];
 /// with room to spare, and a page of `list_notes` must fit in a reply.
 const MAX_NOTE_BYTES_CEILING: u32 = 1024 * 1024;
 
+/// Deliberately tight: every vetKD derivation (an Internet Identity user's
+/// key, or one share view) costs this canister about 0.026 T cycles on
+/// mainnet. Controllers can raise them with `update_config`.
 impl Default for Limits {
     fn default() -> Self {
         Self {
             max_notes_per_user: 1_000,
             max_note_bytes: 128 * 1024,
-            max_shares_per_user: 100,
-            max_share_views: 25,
+            max_shares_per_user: 20,
+            max_share_views: 10,
             max_share_ttl_secs: 30 * 24 * 60 * 60,
-            key_requests_per_user_per_hour: 60,
-            global_key_requests_per_hour: 6_000,
-            ai_requests_per_user_per_hour: 40,
-            global_ai_requests_per_hour: 2_000,
+            key_requests_per_user_per_hour: 10,
+            global_key_requests_per_hour: 100,
+            ai_requests_per_user_per_hour: 20,
+            global_ai_requests_per_hour: 500,
             max_ai_input_bytes: 8_000,
         }
     }
@@ -33,7 +36,9 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             vetkd_key_name: DEFAULT_VETKD_KEY_NAME.to_string(),
-            ai_enabled: true,
+            // Off until a controller turns it on: notes sent to the LLM leave
+            // the end-to-end encryption.
+            ai_enabled: false,
             llm_canister: None,
             llm_model: DEFAULT_LLM_MODEL.to_string(),
             llm_cycles_per_call: 0,

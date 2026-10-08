@@ -97,9 +97,15 @@ type $CreateShareArgs = {
   max_views: number;
   /** The note this share was created from, so deleting it revokes the share. */
   note_id: string | null;
+  /**
+   * The owner's DER-encoded Internet Identity public key: share links
+   * cost the canister a vetKD derivation per view, so guests cannot make
+   * them.
+   */
+  internet_identity_key: Uint8Array | null;
   expires_in_secs: bigint;
 };
-const $CreateShareArgs: $.Schema<$CreateShareArgs> = $.c.rec(() => $.c.record({ id: $.c.text, verifying_key: $.c.blob(), ciphertext: $.c.blob(), max_views: $.c.nat32, note_id: $.c.opt($.c.text), expires_in_secs: $.c.nat64 }));
+const $CreateShareArgs: $.Schema<$CreateShareArgs> = $.c.rec(() => $.c.record({ id: $.c.text, verifying_key: $.c.blob(), ciphertext: $.c.blob(), max_views: $.c.nat32, note_id: $.c.opt($.c.text), internet_identity_key: $.c.opt($.c.blob()), expires_in_secs: $.c.nat64 }));
 export { $CreateShareArgs as CreateShareArgs };
 
 type $DeletedAccount = { shares: number; notes: number };
@@ -344,7 +350,7 @@ type $UpdateNoteArgs = {
 const $UpdateNoteArgs: $.Schema<$UpdateNoteArgs> = $.c.rec(() => $.c.record({ id: $.c.text, ciphertext: $.c.blob(), expires_at: $.c.opt($.c.nat64), expected_version: $.c.opt($.c.nat64) }));
 export { $UpdateNoteArgs as UpdateNoteArgs };
 
-const $actor: $.Schema<$.Principal> = $.c.rec(() => $.c.service({ revoke_share: $.c.func([$.c.text], [$Result_4], "update"), ai_assist: $.c.func([$AiRequest], [$Result], "update"), get_account: $.c.func([], [$Result_5], "query"), update_config: $.c.func([$InitArgs], [$Result_12], "update"), update_note: $.c.func([$UpdateNoteArgs], [$Result_1], "update"), delete_account: $.c.func([], [$Result_3], "update"), create_share: $.c.func([$CreateShareArgs], [$Result_2], "update"), list_shares: $.c.func([], [$Result_10], "query"), get_public_keys: $.c.func([], [$Result_7], "query"), open_share: $.c.func([$OpenShareArgs], [$Result_11], "update"), create_note: $.c.func([$CreateNoteArgs], [$Result_1], "update"), get_config: $.c.func([], [$Config], "query"), get_share: $.c.func([$.c.text], [$Result_8], "query"), whoami: $.c.func([], [$.c.principal], "query"), get_stats: $.c.func([], [$Stats], "query"), get_note: $.c.func([$.c.text], [$Result_1], "query"), list_notes: $.c.func([$ListNotesArgs], [$Result_9], "query"), load_public_keys: $.c.func([], [$Result_7], "update"), get_encrypted_user_key: $.c.func([$.c.blob()], [$Result_6], "update"), delete_note: $.c.func([$.c.text], [$Result_4], "update") }));
+const $actor: $.Schema<$.Principal> = $.c.rec(() => $.c.service({ revoke_share: $.c.func([$.c.text], [$Result_4], "update"), ai_assist: $.c.func([$AiRequest], [$Result], "update"), get_account: $.c.func([], [$Result_5], "query"), update_config: $.c.func([$InitArgs], [$Result_12], "update"), update_note: $.c.func([$UpdateNoteArgs], [$Result_1], "update"), delete_account: $.c.func([], [$Result_3], "update"), create_share: $.c.func([$CreateShareArgs], [$Result_2], "update"), list_shares: $.c.func([], [$Result_10], "query"), get_public_keys: $.c.func([], [$Result_7], "query"), open_share: $.c.func([$OpenShareArgs], [$Result_11], "update"), create_note: $.c.func([$CreateNoteArgs], [$Result_1], "update"), get_config: $.c.func([], [$Config], "query"), get_share: $.c.func([$.c.text], [$Result_8], "query"), whoami: $.c.func([], [$.c.principal], "query"), get_stats: $.c.func([], [$Stats], "query"), get_note: $.c.func([$.c.text], [$Result_1], "query"), list_notes: $.c.func([$ListNotesArgs], [$Result_9], "query"), load_public_keys: $.c.func([], [$Result_7], "update"), get_encrypted_user_key: $.c.func([$.c.blob(), $.c.opt($.c.blob())], [$Result_6], "update"), delete_note: $.c.func([$.c.text], [$Result_4], "update") }));
 type $Actor = {
   revoke_share: (arg0: string) => Promise<$Result_4>;
   /** Runs one writing-assistant task on text the user chose to send. */
@@ -355,6 +361,7 @@ type $Actor = {
   update_note: (arg0: $UpdateNoteArgs) => Promise<$Result_1>;
   /** Deletes every note and share of the caller. */
   delete_account: () => Promise<$Result_3>;
+  /** Internet Identity accounts only (see `CreateShareArgs.internet_identity_key`). */
   create_share: (arg0: $CreateShareArgs) => Promise<$Result_2>;
   list_shares: () => Promise<$Result_10>;
   /** The derived public keys, once the canister has fetched them. */
@@ -378,8 +385,10 @@ type $Actor = {
   /**
    * The caller's vetKey, encrypted to `transport_public_key`, and the public
    * key that verifies it. The vetKey's input is the caller's principal.
+   * Internet Identity accounts only: `internet_identity_key` is the caller's
+   * DER-encoded public key (the root of their delegation chain).
    */
-  get_encrypted_user_key: (arg0: Uint8Array) => Promise<$Result_6>;
+  get_encrypted_user_key: (arg0: Uint8Array, arg1: Uint8Array | null) => Promise<$Result_6>;
   /** Deletes a note and revokes the share links made from it. */
   delete_note: (arg0: string) => Promise<$Result_4>;
 };

@@ -28,7 +28,7 @@
       },
       {
         "name": "CreateNoteArgs",
-        "type": 56
+        "type": 57
       },
       {
         "name": "CreateShareArgs",
@@ -40,7 +40,7 @@
       },
       {
         "name": "EncryptedUserKey",
-        "type": 75
+        "type": 76
       },
       {
         "name": "Error",
@@ -56,7 +56,7 @@
       },
       {
         "name": "ListNotesArgs",
-        "type": 67
+        "type": 68
       },
       {
         "name": "Note",
@@ -64,23 +64,23 @@
       },
       {
         "name": "NotePage",
-        "type": 70
+        "type": 71
       },
       {
         "name": "OpenShareArgs",
-        "type": 52
+        "type": 53
       },
       {
         "name": "OpenedShare",
-        "type": 54
+        "type": 55
       },
       {
         "name": "PublicKeys",
-        "type": 50
+        "type": 51
       },
       {
         "name": "PublicShareInfo",
-        "type": 60
+        "type": 61
       },
       {
         "name": "Result",
@@ -92,11 +92,11 @@
       },
       {
         "name": "Result_10",
-        "type": 46
+        "type": 47
       },
       {
         "name": "Result_11",
-        "type": 53
+        "type": 54
       },
       {
         "name": "Result_12",
@@ -104,7 +104,7 @@
       },
       {
         "name": "Result_2",
-        "type": 43
+        "type": 44
       },
       {
         "name": "Result_3",
@@ -120,27 +120,27 @@
       },
       {
         "name": "Result_6",
-        "type": 74
+        "type": 75
       },
       {
         "name": "Result_7",
-        "type": 49
+        "type": 50
       },
       {
         "name": "Result_8",
-        "type": 59
+        "type": 60
       },
       {
         "name": "Result_9",
-        "type": 69
+        "type": 70
       },
       {
         "name": "ShareInfo",
-        "type": 44
+        "type": 45
       },
       {
         "name": "Stats",
-        "type": 63
+        "type": 64
       },
       {
         "name": "UpdateNoteArgs",
@@ -150,8 +150,8 @@
     "format": "candid-core",
     "format_version": 1,
     "identities": {
-      "contract": "candid-core:contract:v1:sha256:88dae8f6aa7a5835a9900e0eaeb01ce3d758e2ee3c1aaa86e2ed6e8cd76c18b4",
-      "interface": "candid-core:interface:v1:sha256:780555b4a921495f8b66bd4a047faec764fd2c21bcac9d51acc96a1ad95162e9"
+      "contract": "candid-core:contract:v1:sha256:706695cba539c7396b050ba477d5233932f3935653c3be25c1717ca9fe7a982d",
+      "interface": "candid-core:interface:v1:sha256:a5ce380277b90d0276047f4f5ed581170b83d4f0f6ebcb9d5b572ffb78b3a756"
     },
     "producer": {
       "candid_parser_version": "0.4.0",
@@ -325,62 +325,62 @@
             "name": "create_share"
           },
           {
-            "function": 45,
+            "function": 46,
             "id": 1968225205,
             "name": "list_shares"
           },
           {
-            "function": 48,
+            "function": 49,
             "id": 2208706593,
             "name": "get_public_keys"
           },
           {
-            "function": 51,
+            "function": 52,
             "id": 2433491818,
             "name": "open_share"
           },
           {
-            "function": 55,
+            "function": 56,
             "id": 2456353621,
             "name": "create_note"
           },
           {
-            "function": 57,
+            "function": 58,
             "id": 3092891275,
             "name": "get_config"
           },
           {
-            "function": 58,
+            "function": 59,
             "id": 3217441078,
             "name": "get_share"
           },
           {
-            "function": 61,
+            "function": 62,
             "id": 3217878399,
             "name": "whoami"
           },
           {
-            "function": 62,
+            "function": 63,
             "id": 3350516342,
             "name": "get_stats"
           },
           {
-            "function": 65,
+            "function": 66,
             "id": 3368342395,
             "name": "get_note"
           },
           {
-            "function": 66,
+            "function": 67,
             "id": 3380861536,
             "name": "list_notes"
           },
           {
-            "function": 72,
+            "function": 73,
             "id": 3440861617,
             "name": "load_public_keys"
           },
           {
-            "function": 73,
+            "function": 74,
             "id": 3855218831,
             "name": "get_encrypted_user_key"
           },
@@ -823,7 +823,7 @@
         "kind": "func",
         "mode": "update",
         "results": [
-          43
+          44
         ]
       },
       {
@@ -849,6 +849,10 @@
             "type": 7
           },
           {
+            "id": 3323219548,
+            "type": 43
+          },
+          {
             "id": 3385365201,
             "type": 6
           }
@@ -856,10 +860,14 @@
         "kind": "record"
       },
       {
+        "inner": 34,
+        "kind": "opt"
+      },
+      {
         "fields": [
           {
             "id": 17724,
-            "type": 44
+            "type": 45
           },
           {
             "id": 3456837,
@@ -906,14 +914,14 @@
         "kind": "func",
         "mode": "query",
         "results": [
-          46
+          47
         ]
       },
       {
         "fields": [
           {
             "id": 17724,
-            "type": 47
+            "type": 48
           },
           {
             "id": 3456837,
@@ -923,7 +931,7 @@
         "kind": "variant"
       },
       {
-        "inner": 44,
+        "inner": 45,
         "kind": "vec"
       },
       {
@@ -931,14 +939,14 @@
         "kind": "func",
         "mode": "query",
         "results": [
-          49
+          50
         ]
       },
       {
         "fields": [
           {
             "id": 17724,
-            "type": 50
+            "type": 51
           },
           {
             "id": 3456837,
@@ -962,12 +970,12 @@
       },
       {
         "args": [
-          52
+          53
         ],
         "kind": "func",
         "mode": "update",
         "results": [
-          53
+          54
         ]
       },
       {
@@ -991,7 +999,7 @@
         "fields": [
           {
             "id": 17724,
-            "type": 54
+            "type": 55
           },
           {
             "id": 3456837,
@@ -1027,7 +1035,7 @@
       },
       {
         "args": [
-          56
+          57
         ],
         "kind": "func",
         "mode": "update",
@@ -1067,14 +1075,14 @@
         "kind": "func",
         "mode": "query",
         "results": [
-          59
+          60
         ]
       },
       {
         "fields": [
           {
             "id": 17724,
-            "type": 60
+            "type": 61
           },
           {
             "id": 3456837,
@@ -1117,7 +1125,7 @@
         "kind": "func",
         "mode": "query",
         "results": [
-          63
+          64
         ]
       },
       {
@@ -1136,7 +1144,7 @@
           },
           {
             "id": 2190693645,
-            "type": 64
+            "type": 65
           },
           {
             "id": 2680872001,
@@ -1173,12 +1181,12 @@
       },
       {
         "args": [
-          67
+          68
         ],
         "kind": "func",
         "mode": "query",
         "results": [
-          69
+          70
         ]
       },
       {
@@ -1189,7 +1197,7 @@
           },
           {
             "id": 1963007803,
-            "type": 68
+            "type": 69
           }
         ],
         "kind": "record"
@@ -1202,7 +1210,7 @@
         "fields": [
           {
             "id": 17724,
-            "type": 70
+            "type": 71
           },
           {
             "id": 3456837,
@@ -1215,7 +1223,7 @@
         "fields": [
           {
             "id": 2680872001,
-            "type": 71
+            "type": 72
           },
           {
             "id": 3059216354,
@@ -1233,24 +1241,25 @@
         "kind": "func",
         "mode": "update",
         "results": [
-          49
+          50
         ]
       },
       {
         "args": [
-          34
+          34,
+          43
         ],
         "kind": "func",
         "mode": "update",
         "results": [
-          74
+          75
         ]
       },
       {
         "fields": [
           {
             "id": 17724,
-            "type": 75
+            "type": 76
           },
           {
             "id": 3456837,
@@ -1723,266 +1732,271 @@
       ],
       [
         42,
+        3323219548,
+        "internet_identity_key"
+      ],
+      [
+        42,
         3385365201,
         "expires_in_secs"
       ],
       [
-        43,
+        44,
         17724,
         "Ok"
       ],
       [
-        43,
+        44,
         3456837,
         "Err"
       ],
       [
-        44,
+        45,
         23515,
         "id"
       ],
       [
-        44,
+        45,
         42217144,
         "views_left"
       ],
       [
-        44,
+        45,
         769313619,
         "max_views"
       ],
       [
-        44,
+        45,
         1280549057,
         "size"
       ],
       [
-        44,
+        45,
         1297898824,
         "note_id"
       ],
       [
-        44,
+        45,
         1779848746,
         "created_at"
       ],
       [
-        44,
+        45,
         3680359390,
         "expires_at"
       ],
       [
-        46,
+        47,
         17724,
         "Ok"
       ],
       [
-        46,
-        3456837,
-        "Err"
-      ],
-      [
-        49,
-        17724,
-        "Ok"
-      ],
-      [
-        49,
+        47,
         3456837,
         "Err"
       ],
       [
         50,
+        17724,
+        "Ok"
+      ],
+      [
+        50,
+        3456837,
+        "Err"
+      ],
+      [
+        51,
         386458219,
         "user_key"
       ],
       [
-        50,
+        51,
         3151433471,
         "share_key"
       ],
       [
-        52,
+        53,
         23515,
         "id"
       ],
       [
-        52,
+        53,
         359375608,
         "signature"
       ],
       [
-        52,
+        53,
         3581318111,
         "transport_public_key"
       ],
       [
-        53,
+        54,
         17724,
         "Ok"
       ],
       [
-        53,
+        54,
         3456837,
         "Err"
       ],
       [
-        54,
+        55,
         42217144,
         "views_left"
       ],
       [
-        54,
+        55,
         58727076,
         "encrypted_key"
       ],
       [
-        54,
+        55,
         525203512,
         "ciphertext"
       ],
       [
-        54,
+        55,
         743930811,
         "verification_key"
       ],
       [
-        54,
+        55,
         3680359390,
         "expires_at"
       ],
       [
-        56,
+        57,
         23515,
         "id"
       ],
       [
-        56,
+        57,
         525203512,
         "ciphertext"
       ],
       [
-        56,
+        57,
         3680359390,
         "expires_at"
       ],
       [
-        59,
+        60,
         17724,
         "Ok"
       ],
       [
-        59,
+        60,
         3456837,
         "Err"
       ],
       [
-        60,
+        61,
         42217144,
         "views_left"
       ],
       [
-        60,
+        61,
         1280549057,
         "size"
       ],
       [
-        60,
+        61,
         1779848746,
         "created_at"
       ],
       [
-        60,
+        61,
         3680359390,
         "expires_at"
       ],
       [
-        63,
+        64,
         421845738,
         "ai_enabled"
       ],
       [
-        63,
+        64,
         1981453133,
         "active_shares"
       ],
       [
-        63,
+        64,
         2096228120,
         "version"
       ],
       [
-        63,
+        64,
         2190693645,
         "cycles"
       ],
       [
-        63,
+        64,
         2680872001,
         "notes"
       ],
       [
-        63,
+        64,
         2855432136,
         "users"
       ],
       [
-        63,
+        64,
         3265945042,
         "ai_model"
       ],
       [
-        63,
+        64,
         4202954892,
         "vetkd_key_name"
       ],
       [
-        67,
+        68,
         1055428310,
         "cursor"
       ],
       [
-        67,
+        68,
         1963007803,
         "limit"
       ],
       [
-        69,
+        70,
         17724,
         "Ok"
       ],
       [
-        69,
+        70,
         3456837,
         "Err"
       ],
       [
-        70,
+        71,
         2680872001,
         "notes"
       ],
       [
-        70,
+        71,
         3059216354,
         "next_cursor"
       ],
       [
-        74,
+        75,
         17724,
         "Ok"
       ],
       [
-        74,
+        75,
         3456837,
         "Err"
       ],
       [
-        75,
+        76,
         58727076,
         "encrypted_key"
       ],
       [
-        75,
+        76,
         743930811,
         "verification_key"
       ]

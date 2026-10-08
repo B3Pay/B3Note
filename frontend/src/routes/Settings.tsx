@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
+import { useAiEnabled } from "../app/features"
 import { signOut, useSession } from "../app/session"
 import { forgetVaultKey } from "../app/vault"
 import { useWorkspace } from "../app/workspace"
@@ -76,6 +77,7 @@ export function SettingsPage() {
   const deleteAccount = useMutation(client.mutationOptions(backend, "delete_account"))
   const [showKey, setShowKey] = useState(false)
   const [aiConsent, setConsentState] = useState(hasAiConsent())
+  const aiEnabled = useAiEnabled()
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmText, setConfirmText] = useState("")
@@ -230,41 +232,51 @@ export function SettingsPage() {
       ) : null}
 
       <Section icon={<Lock className="h-5 w-5" />} title="Encryption">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Your note key is derived from your identity by the Internet Computer's vetKD protocol and is cached,
-          non-extractable, in this browser so pages load without another derivation. On mainnet the app checks
-          the canister's public key against the IC's master key before trusting it.
-        </p>
-        <Button
-          className="mt-4"
-          onClick={async () => {
-            await forgetVaultKey(principal)
-            toast.success("Cached key removed. It will be derived again.")
-          }}
-        >
-          <Lock className="h-4 w-4" /> Forget the cached key on this device
-        </Button>
+        {kind === "guest" ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Your note key is derived in this browser from your guest key, so your recovery key is all you need
+            to read your notes anywhere. Share links and vetKeys need an Internet Identity account.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Your note key is derived from your identity by the Internet Computer's vetKD protocol and is
+              cached, non-extractable, in this browser so pages load without another derivation. On mainnet
+              the app checks the canister's public key against the IC's master key before trusting it.
+            </p>
+            <Button
+              className="mt-4"
+              onClick={async () => {
+                await forgetVaultKey(principal)
+                toast.success("Cached key removed. It will be derived again.")
+              }}
+            >
+              <Lock className="h-4 w-4" /> Forget the cached key on this device
+            </Button>
+          </>
+        )}
       </Section>
 
-      <Section icon={<Sparkles className="h-5 w-5" />} title="AI assistant">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {account.data?.ai_enabled === false
-            ? "The assistant is turned off on this deployment."
-            : `Runs on the Internet Computer's LLM canister${account.data ? ` (${account.data.ai_model})` : ""}. Only the text you pick for an AI action is sent, never your other notes.`}
-        </p>
-        <label className="mt-4 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={aiConsent}
-            onChange={(e) => {
-              setAiConsent(e.target.checked)
-              setConsentState(e.target.checked)
-            }}
-            className="h-4 w-4 accent-brand-600"
-          />
-          Don't ask before AI actions on this device
-        </label>
-      </Section>
+      {aiEnabled ? (
+        <Section icon={<Sparkles className="h-5 w-5" />} title="AI assistant">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Runs on the Internet Computer's LLM canister{account.data ? ` (${account.data.ai_model})` : ""}.
+            Only the text you pick for an AI action is sent, never your other notes.
+          </p>
+          <label className="mt-4 flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={aiConsent}
+              onChange={(e) => {
+                setAiConsent(e.target.checked)
+                setConsentState(e.target.checked)
+              }}
+              className="h-4 w-4 accent-brand-600"
+            />
+            Don't ask before AI actions on this device
+          </label>
+        </Section>
+      ) : null}
 
       <Section icon={<Download className="h-5 w-5" />} title="Export and import">
         <p className="text-sm text-zinc-600 dark:text-zinc-400">

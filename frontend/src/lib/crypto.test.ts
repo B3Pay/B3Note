@@ -17,7 +17,7 @@ import {
   shareLink,
   SHARE_OPEN_DOMAIN,
 } from "./share"
-import { unlockVault, vaultCacheKey, type KeyCache } from "./vault"
+import { guestVault, unlockVault, vaultCacheKey, type KeyCache } from "./vault"
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity"
 import { concatBytes, encoder, idBytes } from "./bytes"
 
@@ -34,6 +34,28 @@ function memoryCache(): KeyCache & { store: Map<string, CryptoKey> } {
     del: async (key) => void store.delete(key),
   }
 }
+
+describe("guest vault", () => {
+  const seed = new Uint8Array(32).map((_, i) => i + 1)
+
+  it("derives the same key from the guest key in every session", async () => {
+    const { id } = newId()
+    const ciphertext = await (await guestVault(alice, canister, seed)).encrypt(id, note)
+    expect(new TextDecoder().decode(ciphertext)).not.toContain("passport")
+    const later = await guestVault(alice, canister, Uint8Array.from(seed))
+    await expect(later.decrypt(id, 1n, ciphertext)).resolves.toEqual(note)
+    await expect(later.decrypt(newId().id, 1n, ciphertext)).rejects.toThrow()
+  })
+
+  it("gives another guest key or another canister a different key", async () => {
+    const { id } = newId()
+    const ciphertext = await (await guestVault(alice, canister, seed)).encrypt(id, note)
+    const otherSeed = await guestVault(alice, canister, new Uint8Array(32).fill(9))
+    const otherCanister = await guestVault(alice, Principal.fromText("rdmx6-jaaaa-aaaaa-aaadq-cai"), seed)
+    await expect(otherSeed.decrypt(id, 1n, ciphertext)).rejects.toThrow()
+    await expect(otherCanister.decrypt(id, 1n, ciphertext)).rejects.toThrow()
+  })
+})
 
 describe("vault", () => {
   it("unlocks with a verified vetKey and round-trips notes", async () => {

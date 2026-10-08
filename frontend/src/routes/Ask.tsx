@@ -3,6 +3,7 @@ import { FileText, Send, Sparkles } from "lucide-react"
 import { useClient } from "@ic-reactor/react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { useMemo, useState } from "react"
+import { useAiEnabled } from "../app/features"
 import { useWorkspace } from "../app/workspace"
 import { AiConsentDialog } from "../components/AiConsentDialog"
 import { Markdown } from "../components/Markdown"
@@ -35,6 +36,7 @@ export function AskPage() {
   const [question, setQuestion] = useState("")
   const [history, setHistory] = useState<Exchange[]>([])
   const [consentOpen, setConsentOpen] = useState(false)
+  const aiEnabled = useAiEnabled()
   const readable = useMemo(
     () => notes.flatMap((n) => (n.content ? [{ id: n.id, content: n.content, updatedAt: n.updatedAt }] : [])),
     [notes],
@@ -64,6 +66,14 @@ export function AskPage() {
     } catch (error) {
       setHistory((h) => h.map((e) => (e === exchange ? { ...e, error: errorMessage(error) } : e)))
     }
+  }
+
+  if (!aiEnabled) {
+    return (
+      <EmptyState icon={<Sparkles className="h-10 w-10" />} title="The assistant is off">
+        AI features are turned off on this deployment.
+      </EmptyState>
+    )
   }
 
   if (readable.length === 0) {

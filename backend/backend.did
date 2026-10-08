@@ -62,6 +62,10 @@ type CreateShareArgs = record {
   max_views : nat32;
   // The note this share was created from, so deleting it revokes the share.
   note_id : opt text;
+  // The owner's DER-encoded Internet Identity public key: share links
+  // cost the canister a vetKD derivation per view, so guests cannot make
+  // them.
+  internet_identity_key : opt blob;
   expires_in_secs : nat64;
 };
 type DeletedAccount = record { shares : nat32; notes : nat32 };
@@ -218,6 +222,7 @@ service : (opt InitArgs) -> {
   // Runs one writing-assistant task on text the user chose to send.
   ai_assist : (AiRequest) -> (Result);
   create_note : (CreateNoteArgs) -> (Result_1);
+  // Internet Identity accounts only (see `CreateShareArgs.internet_identity_key`).
   create_share : (CreateShareArgs) -> (Result_2);
   // Deletes every note and share of the caller.
   delete_account : () -> (Result_3);
@@ -227,7 +232,9 @@ service : (opt InitArgs) -> {
   get_config : () -> (Config) query;
   // The caller's vetKey, encrypted to `transport_public_key`, and the public
   // key that verifies it. The vetKey's input is the caller's principal.
-  get_encrypted_user_key : (blob) -> (Result_6);
+  // Internet Identity accounts only: `internet_identity_key` is the caller's
+  // DER-encoded public key (the root of their delegation chain).
+  get_encrypted_user_key : (blob, opt blob) -> (Result_6);
   get_note : (text) -> (Result_1) query;
   // The derived public keys, once the canister has fetched them.
   get_public_keys : () -> (Result_7) query;
