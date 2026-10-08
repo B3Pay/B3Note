@@ -52,17 +52,32 @@ export function AppHeader() {
         <Logo className="mr-2" />
         {signedIn ? (
           <nav className="flex items-center gap-1">
-            <Link to="/notes" className={navLink} activeProps={{ className: activeNavLink }}>
+            <Link
+              to="/notes"
+              className={navLink}
+              activeProps={{ className: activeNavLink }}
+              aria-label="Notes"
+            >
               <NotebookPen className="h-4 w-4" />
               <span className="hidden sm:inline">Notes</span>
             </Link>
             {aiEnabled ? (
-              <Link to="/ask" className={navLink} activeProps={{ className: activeNavLink }}>
+              <Link
+                to="/ask"
+                className={navLink}
+                activeProps={{ className: activeNavLink }}
+                aria-label="Ask AI"
+              >
                 <Sparkles className="h-4 w-4" />
                 <span className="hidden sm:inline">Ask AI</span>
               </Link>
             ) : null}
-            <Link to="/settings" className={navLink} activeProps={{ className: activeNavLink }}>
+            <Link
+              to="/settings"
+              className={navLink}
+              activeProps={{ className: activeNavLink }}
+              aria-label="Settings"
+            >
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Settings</span>
             </Link>

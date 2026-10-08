@@ -287,7 +287,13 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
             {content.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
           </Button>
           {aiEnabled ? (
-            <Button variant="brand-soft" size="sm" onClick={openAi} disabled={isEmpty(content)}>
+            <Button
+              variant="brand-soft"
+              size="sm"
+              aria-label="AI"
+              onClick={openAi}
+              disabled={isEmpty(content)}
+            >
               <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">AI</span>
             </Button>
           ) : null}
@@ -299,6 +305,7 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
               setShareOpen(true)
             }}
             disabled={isEmpty(content)}
+            aria-label="Share"
           >
             <Share2 className="h-4 w-4" /> <span className="hidden sm:inline">Share</span>
           </Button>
