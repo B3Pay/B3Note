@@ -9,6 +9,7 @@ import { createClient, type Client } from "@ic-reactor/core"
 import { AuthClient } from "@icp-sdk/auth/client"
 import { AnonymousIdentity } from "@icp-sdk/core/agent"
 import { actor, type Actor } from "./canisters/backend"
+import { customDomainAt } from "./lib/origins"
 import { SessionAuth, type KeyValueStorage } from "./lib/sessionAuth"
 
 export type { Actor }
@@ -16,6 +17,9 @@ export type { Actor }
 /** The page is served by an asset canister on the IC's own domains. */
 const servedByTheIc =
   typeof window !== "undefined" && /\.(icp0\.io|ic0\.app|icp\.net)$/.test(window.location.hostname)
+
+/** Set on one of B3Note's custom domains (lib/origins.ts), where the `ic_env` cookie is not trusted. */
+const customDomain = customDomainAt(typeof window !== "undefined" ? window.location.origin : undefined)
 
 /**
  * A page of an icp-cli local network (`<name>.local.localhost:<port>`): its
@@ -62,6 +66,8 @@ export function createAppClient(): Client {
         new AuthClient({
           ...network,
           identityProvider: network.identityProvider ?? localInternetIdentity(),
+          // The canister's own address, so a user has one principal on both.
+          ...(customDomain ? { derivationOrigin: customDomain.derivationOrigin } : {}),
         }),
         browserStorage(),
       )
@@ -89,9 +95,10 @@ export function sessionAuth(): SessionAuth {
   return session
 }
 
-const BACKEND_ID: string | undefined = import.meta.env.CANISTER_ID_BACKEND || undefined
+const BACKEND_ID: string | undefined =
+  import.meta.env.CANISTER_ID_BACKEND || customDomain?.backendId || undefined
 
-/** Where the backend is: a build-time id, or the `ic_env` cookie's `backend`. */
+/** Where the backend is: a build-time id, production's on a custom domain, or the `ic_env` cookie's `backend`. */
 export const backendTarget = BACKEND_ID ? { id: BACKEND_ID } : { name: "backend" }
 
 /** The backend canister on `of` (the component's `useClient()`, or this tab's client). */
