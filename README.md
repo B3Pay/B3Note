@@ -1,6 +1,9 @@
 # B3Note
 
-![B3Note](./frontend/public/logo-long.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./frontend/public/logo-long-dark.svg" />
+  <img alt="B3Note" src="./frontend/public/logo-long.svg" />
+</picture>
 
 **Private notes on the Internet Computer.** Notes are encrypted in your browser, so the canister only ever
 stores ciphertext. With Internet Identity the key is derived from your identity by the IC's
@@ -19,10 +22,15 @@ that **burns after reading**.
   can request the share's key, and it does so once per view. Readers do not need to sign in.
 - **Sign in your way.** Use Internet Identity, or a *guest key*: a private key kept in your browser, with a
   recovery key you can save and import on another device.
-- **Optional AI assistant** on the IC's [LLM canister](https://github.com/dfinity/llm), **off by
-  default**: summarize, suggest a title or tags, improve the writing, translate, and ask questions
-  across your notes. Text sent to it leaves the end-to-end encryption, so a controller has to switch it on
-  (`ai_enabled`); until then the app shows no AI features. When on, nothing is sent until you choose an
+- **On-device AI assistant**: summarize, suggest a title or tags, improve the writing, fix grammar,
+  shorten, pull out action items, translate, continue writing, and ask questions across your notes, with
+  a model that runs in your browser, so nothing leaves the end-to-end encryption. It uses Chrome's
+  built-in Gemini Nano when the browser has it, and otherwise downloads an open model
+  (Qwen2.5-1.5B-Instruct, about 1 GB, once, after you ask) and runs it on the GPU with
+  [WebLLM](https://github.com/mlc-ai/web-llm). Browsers with neither show no on-device AI.
+- **Optional AI on the Internet Computer** through the IC's [LLM canister](https://github.com/dfinity/llm),
+  **off by default**. Text sent to it leaves the end-to-end encryption, so a controller has to switch it
+  on (`ai_enabled`); when on, it is a second choice in the assistant, nothing is sent until you choose an
   action, and the app asks for consent first.
 - **Your data stays yours.** Export to JSON or Markdown, import Markdown files, and delete your account.
 
@@ -60,7 +68,10 @@ that **burns after reading**.
   signs `(domain, share id, transport key)`. The canister checks the signature, spends a view, and has the
   share key derived and encrypted to the reader. A transport key can be used once per share, so a
   replayed request cannot burn another view.
-- **AI (when switched on).** The assistant needs plaintext. Only the text you pick for an action (or,
+- **On-device AI.** The model reads the note in the browser that decrypted it. The only network traffic
+  is the model's files on first use (Hugging Face and the MLC model library on GitHub), which is why the
+  page's CSP allows those hosts and `'wasm-unsafe-eval'` for the model's WebAssembly.
+- **AI on the canister (when switched on).** The assistant needs plaintext. Only the text you pick for an action (or,
   for *Ask your notes*, the few notes your browser ranks as relevant) goes to the LLM canister.
   Everything else stays encrypted.
 

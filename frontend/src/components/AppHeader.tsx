@@ -1,11 +1,12 @@
 import { Link, useNavigate } from "@tanstack/react-router"
-import { LogOut, Monitor, Moon, NotebookPen, Settings, Sparkles, Sun } from "lucide-react"
+import { LogOut, Monitor, Moon, NotebookPen, Settings, Sun } from "lucide-react"
 import { useState } from "react"
-import { useAiEnabled } from "../app/features"
+import { useAnyAi } from "../app/features"
 import { signOut, useSession } from "../app/session"
 import { setTheme, useTheme, type Theme } from "../app/theme"
 import { shortPrincipal } from "../lib/format"
-import { Button, cn } from "./ui"
+import { Logo, SheetMark } from "./brand"
+import { Button } from "./ui"
 
 const NEXT_THEME: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" }
 
@@ -25,31 +26,22 @@ export function ThemeToggle() {
   )
 }
 
-export function Logo({ className }: { className?: string }) {
-  return (
-    <Link to="/" className={cn("flex items-center gap-2 font-semibold tracking-tight", className)}>
-      <img src="/logo.svg" alt="" className="h-7 w-7" />
-      <span>
-        B3<span className="text-brand-600 dark:text-brand-400">Note</span>
-      </span>
-    </Link>
-  )
-}
-
+// B3Pay's nav: muted until current, then ink with a brand underline.
 const navLink =
-  "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-const activeNavLink = "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+  "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-zinc-600 hover:bg-brand-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-brand-900 dark:hover:text-zinc-100"
+const activeNavLink = "rounded-b-none text-zinc-900 shadow-[inset_0_-2px_0_var(--brand)] dark:text-zinc-100"
 
 export function AppHeader() {
   const { signedIn, principal, kind } = useSession()
-  const aiEnabled = useAiEnabled()
+  const { any: aiEnabled } = useAnyAi()
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
 
   return (
-    <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
+    <header className="sticky top-0 z-20 border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-3 sm:px-4">
-        <Logo className="mr-2" />
+        <Logo className="mr-2 hidden sm:inline-flex" />
+        <Logo className="mr-1 inline-flex sm:hidden" compact />
         {signedIn ? (
           <nav className="flex items-center gap-1">
             <Link
@@ -66,10 +58,10 @@ export function AppHeader() {
                 to="/ask"
                 className={navLink}
                 activeProps={{ className: activeNavLink }}
-                aria-label="Ask AI"
+                aria-label="Ask your notes"
               >
-                <Sparkles className="h-4 w-4" />
-                <span className="hidden sm:inline">Ask AI</span>
+                <SheetMark size={14} />
+                <span className="hidden sm:inline">Ask</span>
               </Link>
             ) : null}
             <Link
@@ -88,7 +80,7 @@ export function AppHeader() {
           {signedIn ? (
             <>
               <span
-                className="hidden rounded-full bg-zinc-100 px-3 py-1 font-mono text-xs text-zinc-600 md:inline dark:bg-zinc-800 dark:text-zinc-300"
+                className="hidden rounded border border-zinc-200 bg-white px-2 py-0.5 font-mono text-xs text-zinc-700 md:inline dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
                 title={principal}
               >
                 {kind === "guest" ? "Guest · " : ""}

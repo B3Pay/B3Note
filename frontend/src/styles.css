@@ -1,24 +1,111 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+@import "@fontsource-variable/schibsted-grotesk";
+@import "@fontsource/martian-mono/400.css";
+@import "@fontsource/martian-mono/500.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * The B3Note design system: B3Pay's tokens with B3Note's paper.
+ * The app's Tailwind palettes are remapped onto them, so `zinc` is B3Pay's warm
+ * graphite and `brand` is B3Pay amber (bronze where it is text on a light ground).
+ */
 @theme {
-  --font-sans:
-    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    "Noto Sans", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --color-brand-50: oklch(0.97 0.02 285);
-  --color-brand-100: oklch(0.94 0.04 285);
-  --color-brand-200: oklch(0.88 0.08 285);
-  --color-brand-300: oklch(0.8 0.12 285);
-  --color-brand-400: oklch(0.7 0.17 285);
-  --color-brand-500: oklch(0.6 0.21 285);
-  --color-brand-600: oklch(0.53 0.22 285);
-  --color-brand-700: oklch(0.46 0.2 285);
-  --color-brand-800: oklch(0.38 0.16 285);
-  --color-brand-900: oklch(0.3 0.12 285);
-  --color-brand-950: oklch(0.22 0.09 285);
+  --font-sans: "Schibsted Grotesk Variable", "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --color-brand-50: #fcf6ec;
+  --color-brand-100: #f6e3c4;
+  --color-brand-200: #f9dcae;
+  --color-brand-300: #f7d095;
+  --color-brand-400: #f5c57b;
+  --color-brand-500: #f0b35a;
+  --color-brand-600: #a35f00;
+  --color-brand-700: #8a5000;
+  --color-brand-800: #6b3e04;
+  --color-brand-900: #3a2c17;
+  --color-brand-950: #2a2011;
+
+  --color-zinc-50: #f6f4f0;
+  --color-zinc-100: #efebe4;
+  --color-zinc-200: #ddd8cf;
+  --color-zinc-300: #c9c2b7;
+  --color-zinc-400: #a39c91;
+  --color-zinc-500: #6b6458;
+  --color-zinc-600: #5f584e;
+  --color-zinc-700: #463f37;
+  --color-zinc-800: #2e2b27;
+  --color-zinc-900: #1c1a18;
+  --color-zinc-950: #121110;
+
+  --color-red-500: #b3261e;
+  --color-red-600: #b3261e;
+  --color-orange-500: #a35f00;
+  --color-orange-600: #a35f00;
+  --color-emerald-600: #a35f00;
+
+  --radius-lg: 10px;
+  --radius-xl: 10px;
+  --radius-2xl: 10px;
+  --shadow-sm: 0 0 #0000;
+}
+
+/* B3Note tokens. Light first; .dark redefines them. */
+:root {
+  --surface: #f6f4f0;
+  --surface-raised: #ffffff;
+  --line: #ddd8cf;
+  --ink: #1a1714;
+  --ink-muted: #5f584e;
+  --brand: #a35f00;
+  --brand-hover: #8a5000;
+  --brand-soft: #f6e3c4;
+  --on-brand: #ffffff;
+  --accent: #e8a33d;
+  --danger: #b3261e;
+  --paper-butter: #fdf0c8;
+  --paper-peach: #fbdcd0;
+  --paper-mint: #d9efdf;
+  --paper-sky: #d7e8f5;
+  --paper-lilac: #e6ddf3;
+  --paper-rule: rgba(26, 23, 20, 0.09);
+  --fold-shade: rgba(26, 23, 20, 0.12);
+  --shadow-paper: 0 1px 0 rgba(26, 23, 20, 0.06), 0 10px 20px -12px rgba(26, 23, 20, 0.28);
+  --shadow-paper-lift: 0 1px 0 rgba(26, 23, 20, 0.06), 0 16px 28px -14px rgba(26, 23, 20, 0.34);
+  --fold-size: 22px;
+  --radius-paper: 16px;
+}
+
+.dark {
+  --surface: #121110;
+  --surface-raised: #1c1a18;
+  --line: #2e2b27;
+  --ink: #f1ede6;
+  --ink-muted: #a39c91;
+  --brand: #f0b35a;
+  --brand-hover: #f5c57b;
+  --brand-soft: #3a2c17;
+  --on-brand: #1d1405;
+  --accent: #f0b35a;
+  --danger: #f07a6e;
+  --paper-butter: #3b3419;
+  --paper-peach: #40281f;
+  --paper-mint: #1e3527;
+  --paper-sky: #1b2d3d;
+  --paper-lilac: #30263d;
+  --paper-rule: rgba(241, 237, 230, 0.09);
+  --fold-shade: rgba(0, 0, 0, 0.32);
+  --shadow-paper: 0 1px 0 rgba(0, 0, 0, 0.4), 0 10px 20px -12px rgba(0, 0, 0, 0.8);
+  --shadow-paper-lift: 0 1px 0 rgba(0, 0, 0, 0.4), 0 16px 28px -14px rgba(0, 0, 0, 0.9);
+
+  /* Muted text, danger and the timer read on the dark grounds too. */
+  --color-zinc-500: #958d81;
+  --color-red-500: #f07a6e;
+  --color-red-600: #f07a6e;
+  --color-orange-500: #f0b35a;
+  --color-orange-600: #f0b35a;
+  --color-emerald-600: #f0b35a;
 }
 
 @layer base {
@@ -30,18 +117,23 @@
 
   body {
     @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+    font-size: 15px;
+    line-height: 22px;
   }
 
   ::selection {
-    @apply bg-brand-200 dark:bg-brand-800;
+    background: var(--brand-soft);
+    color: var(--ink);
   }
 
+  /* B3Pay's focus ring: solid 2px brand with a 2px gap. */
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-brand-500;
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
   }
 
   dialog::backdrop {
-    background: rgb(9 9 11 / 0.55);
+    background: rgb(18 17 16 / 0.55);
     backdrop-filter: blur(2px);
   }
 }
@@ -57,5 +149,248 @@
 
   .prose-note ul:has(> li > input[type="checkbox"]) {
     @apply pl-1;
+  }
+
+  /* B3Pay's uppercase label. */
+  .b3-label {
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  /* The note's log-line, in mono. */
+  .b3-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Paper: the one surface a note lives on. Pick it with data-paper. ── */
+  [data-paper] {
+    --paper: var(--paper-butter);
+    color: var(--ink);
+  }
+  [data-paper="peach"] {
+    --paper: var(--paper-peach);
+  }
+  [data-paper="mint"] {
+    --paper: var(--paper-mint);
+  }
+  [data-paper="sky"] {
+    --paper: var(--paper-sky);
+  }
+  [data-paper="lilac"] {
+    --paper: var(--paper-lilac);
+  }
+
+  /* The folded corner: the corner is cut away and the flap lies on the paper. */
+  .bn-folded {
+    position: relative;
+    background: linear-gradient(225deg, transparent calc(var(--fold-size) * 0.7071), var(--paper) 0);
+    border-radius: var(--radius-paper) 0 var(--radius-paper) var(--radius-paper);
+  }
+  .bn-folded::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: var(--fold-size);
+    height: var(--fold-size);
+    background:
+      linear-gradient(to bottom left, transparent 50%, var(--fold-shade) 0),
+      linear-gradient(to bottom left, transparent 50%, var(--paper) 0);
+    border-bottom-left-radius: 4px;
+    pointer-events: none;
+  }
+
+  /* A note in the list: a small sheet that lifts and straightens under the pointer. */
+  .bn-note {
+    --tilt: 0deg;
+    display: block;
+    box-shadow: var(--shadow-paper);
+    transform: rotate(var(--tilt));
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+  .bn-note:hover,
+  .bn-note:focus-visible {
+    transform: translateY(-2px) rotate(0deg);
+    box-shadow: var(--shadow-paper-lift);
+  }
+  .bn-note[aria-current="page"] {
+    transform: rotate(0deg);
+    box-shadow:
+      0 0 0 2px var(--brand),
+      var(--shadow-paper-lift);
+  }
+
+  /* The editor's sheet, ruled every 28px for the body's 28px lines. */
+  .bn-sheet {
+    box-shadow: var(--shadow-paper);
+  }
+  .bn-ruled {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 27px,
+      var(--paper-rule) 27px,
+      var(--paper-rule) 28px
+    );
+    background-attachment: local;
+  }
+
+  /* Links in a note: brand falls under 4.5:1 on the light papers, so on paper they are underlined ink. */
+  [data-paper] .prose-note a {
+    color: var(--ink);
+  }
+
+  /* On paper, quiet controls use ink and fold-shade: brand is too light on the papers. */
+  .bn-on-paper {
+    color: var(--ink);
+  }
+  .bn-on-paper:hover:not(:disabled) {
+    background: var(--fold-shade);
+  }
+
+  /* The node: in B3Note it is a sheet with its corner folded down. */
+  .bn-sheet-mark path {
+    fill: var(--accent);
+  }
+
+  /* AI chips carry the node's dot: a machine at work. */
+  .bn-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--brand-soft);
+  }
+
+  /* An AI result is dashed while it drafts and solid once it's ready. */
+  .bn-drafting {
+    border-style: dashed !important;
+    border-color: var(--ink-muted) !important;
+    background: transparent !important;
+  }
+  .bn-caret {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    margin-left: 1px;
+    vertical-align: -2px;
+    background: var(--accent);
+    animation: bn-caret 1.1s steps(1, end) infinite;
+  }
+
+  /* An empty board: a little stack of blank paper. */
+  .bn-stack {
+    position: relative;
+    width: 112px;
+    height: 92px;
+  }
+  .bn-stack > span {
+    --fold-size: 14px;
+    position: absolute;
+    width: 72px;
+    height: 80px;
+    border-radius: 10px 0 10px 10px;
+    box-shadow: var(--shadow-paper);
+  }
+  .bn-stack > span:nth-child(1) {
+    left: 2px;
+    top: 10px;
+    transform: rotate(-9deg);
+  }
+  .bn-stack > span:nth-child(2) {
+    left: 36px;
+    top: 8px;
+    transform: rotate(8deg);
+  }
+  .bn-stack > span:nth-child(3) {
+    left: 20px;
+    top: 2px;
+    transform: rotate(-1deg);
+  }
+  .bn-stack i {
+    position: absolute;
+    left: 12px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--fold-shade);
+  }
+
+  /* Loader: the B3Note mark, the sheet breathes and tips while something works. */
+  .bn-loader-ink {
+    fill: currentColor;
+  }
+  .bnl-sheet {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: bnl-breathe 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes bnl-breathe {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.16) rotate(-8deg);
+  }
+}
+@keyframes bnl-fade {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes bn-caret {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  56%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes bn-pop {
+  from {
+    transform: scale(0.94) rotate(-2deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(var(--tilt, 0deg));
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bn-note,
+  .bn-note:hover,
+  .bn-note:focus-visible {
+    transition: none;
+    transform: none;
+  }
+  .bnl-sheet {
+    animation: bnl-fade 3.2s ease-in-out infinite;
+  }
+  .bn-caret {
+    animation: none;
   }
 }

@@ -15,16 +15,19 @@ import {
 } from "lucide-react"
 import { useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
-import { useAiEnabled } from "../app/features"
+import { useAiEnabled, useLocalAi } from "../app/features"
 import { signOut, useSession } from "../app/session"
 import { forgetVaultKey } from "../app/vault"
 import { useWorkspace } from "../app/workspace"
+import { SheetMark } from "../components/brand"
 import { Dialog } from "../components/Dialog"
+import { LocalAiSetup } from "../components/LocalAi"
 import { Button, Card, Input, Notice, Spinner, cn } from "../components/ui"
 import { hasAiConsent, setAiConsent } from "../lib/ai"
 import { newId } from "../lib/bytes"
 import { errorMessage } from "../lib/errors"
 import { formatBytes, nanosToDate, relativeTime } from "../lib/format"
+import { forgetLocalModel } from "../lib/localAi"
 import { formatRecoveryKey } from "../lib/sessionAuth"
 import { backendOf, sessionAuth } from "../reactor"
 import { canisterIdOf } from "../app/canister"
@@ -78,6 +81,7 @@ export function SettingsPage() {
   const [showKey, setShowKey] = useState(false)
   const [aiConsent, setConsentState] = useState(hasAiConsent())
   const aiEnabled = useAiEnabled()
+  const localAi = useLocalAi()
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmText, setConfirmText] = useState("")
@@ -151,7 +155,7 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-8">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <h1 className="text-[28px] leading-[34px] font-semibold tracking-tight">Settings</h1>
 
       <Section icon={<User className="h-5 w-5" />} title="Account">
         <dl className="grid gap-3 text-sm sm:grid-cols-[10rem_1fr]">
@@ -202,8 +206,10 @@ export function SettingsPage() {
             ideal): it is the only way to open your notes on another device or after clearing browser data.
             Anyone who has it can read your notes.
           </Notice>
-          <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-950">
-            <code className="min-w-0 flex-1 truncate text-xs">{showKey ? recoveryKey : "•".repeat(48)}</code>
+          <div className="flex items-center gap-2 rounded border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-950">
+            <code className="min-w-0 flex-1 truncate font-mono text-xs">
+              {showKey ? recoveryKey : "•".repeat(48)}
+            </code>
             <Button
               size="sm"
               variant="ghost"
@@ -257,8 +263,40 @@ export function SettingsPage() {
         )}
       </Section>
 
+      <Section icon={<SheetMark size={20} />} title="On-device AI">
+        {localAi.status === "unavailable" ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{localAi.reason}</p>
+        ) : localAi.status === "ready" ? (
+          <>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              The assistant runs in this browser with{" "}
+              <span className="font-mono text-xs">{localAi.model}</span>
+              {localAi.engine === "chrome" ? ", built into Chrome" : " on your GPU"}. Your notes are decrypted
+              here and never sent anywhere.
+            </p>
+            {localAi.engine === "webllm" ? (
+              <Button
+                className="mt-4"
+                onClick={async () => {
+                  try {
+                    await forgetLocalModel()
+                    toast.success("The model was removed from this browser")
+                  } catch (error) {
+                    toast.error(errorMessage(error))
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4" /> Remove the downloaded model
+              </Button>
+            ) : null}
+          </>
+        ) : (
+          <LocalAiSetup status={localAi} />
+        )}
+      </Section>
+
       {aiEnabled ? (
-        <Section icon={<Sparkles className="h-5 w-5" />} title="AI assistant">
+        <Section icon={<Sparkles className="h-5 w-5" />} title="AI on the Internet Computer">
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             Runs on the Internet Computer's LLM canister{account.data ? ` (${account.data.ai_model})` : ""}.
             Only the text you pick for an AI action is sent, never your other notes.

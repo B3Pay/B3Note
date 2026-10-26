@@ -5,7 +5,6 @@ import {
   createRouter,
   lazyRouteComponent,
 } from "@tanstack/react-router"
-import { FileQuestion } from "lucide-react"
 import { Toaster } from "sonner"
 import { useTheme } from "./app/theme"
 import { AppHeader } from "./components/AppHeader"
@@ -18,15 +17,15 @@ function Root() {
     <div className="min-h-full">
       <AppHeader />
       <Outlet />
-      <Toaster richColors position="bottom-right" theme={theme} />
+      <Toaster position="bottom-right" theme={theme} />
     </div>
   )
 }
 
 function NotFound() {
   return (
-    <EmptyState icon={<FileQuestion className="h-10 w-10" />} title="Page not found">
-      The page you are looking for does not exist.
+    <EmptyState paper title="There's no page here">
+      The link may be old or mistyped. Your notes are where you left them.
     </EmptyState>
   )
 }

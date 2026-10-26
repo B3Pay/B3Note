@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { canisterIdOf, isMainnet } from "../app/canister"
 import { useSession } from "../app/session"
 import { readyVault } from "../app/vault"
+import { paperFor } from "../components/brand"
 import { Markdown } from "../components/Markdown"
 import { Button, Card, EmptyState, Notice, Spinner, TagChip } from "../components/ui"
 import { newId } from "../lib/bytes"
@@ -66,8 +67,10 @@ export function SharedNotePage() {
         <OpenedNote payload={open.data.payload} viewsLeft={open.data.viewsLeft} />
       ) : (
         <Card className="p-8 text-center">
-          <Flame className="mx-auto h-10 w-10 text-orange-500" />
-          <h1 className="mt-4 text-2xl font-bold">Someone shared an encrypted note with you</h1>
+          <Flame className="mx-auto h-10 w-10 text-zinc-900 dark:text-zinc-100" />
+          <h1 className="mt-4 text-[28px] leading-[34px] font-semibold tracking-tight text-balance">
+            Someone shared an encrypted note with you
+          </h1>
           {info.isPending ? (
             <div className="mt-6">
               <Spinner label="Checking the link…" />
@@ -141,8 +144,14 @@ function OpenedNote({ payload, viewsLeft }: { payload: SharePayload; viewsLeft: 
           ? "This was the last view: the note has been destroyed on the canister. Copy or save it now if you need it."
           : `This link can be opened ${viewsLeft} more time${viewsLeft === 1 ? "" : "s"}.`}
       </Notice>
-      <Card className="p-6 sm:p-8">
-        <h1 className="text-2xl font-bold">{payload.title || "Shared note"}</h1>
+      <div
+        className="bn-folded bn-sheet p-6 sm:p-10"
+        data-paper={paperFor(payload.title || payload.body).paper}
+      >
+        <p className="b3-meta">Shared with you · opened in this browser</p>
+        <h1 className="mt-2 pr-6 text-[28px] leading-[34px] font-semibold tracking-tight text-balance">
+          {payload.title || "Shared note"}
+        </h1>
         {payload.tags.length ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {payload.tags.map((tag) => (
@@ -151,12 +160,14 @@ function OpenedNote({ payload, viewsLeft }: { payload: SharePayload; viewsLeft: 
           </div>
         ) : null}
         {payload.sharedAt ? (
-          <p className="mt-1 text-xs text-zinc-500">Shared {formatDateTime(new Date(payload.sharedAt))}</p>
+          <p className="mt-1 text-xs text-[var(--ink-muted)]">
+            Shared {formatDateTime(new Date(payload.sharedAt))}
+          </p>
         ) : null}
         <div className="mt-6">
           <Markdown source={payload.body} />
         </div>
-      </Card>
+      </div>
       <div className="flex flex-wrap gap-2">
         <Button
           onClick={async () => {
@@ -181,7 +192,7 @@ function OpenedNote({ payload, viewsLeft }: { payload: SharePayload; viewsLeft: 
         ) : (
           <Link
             to="/"
-            className="inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-brand-700 hover:underline dark:text-brand-300"
+            className="inline-flex h-10 items-center rounded-lg px-4 text-sm font-semibold text-brand-600 hover:underline dark:text-brand-500"
           >
             Get your own encrypted notebook →
           </Link>

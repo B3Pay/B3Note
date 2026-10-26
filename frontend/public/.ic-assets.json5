@@ -1,9 +1,13 @@
 // Headers for the asset canister (icp-cli asset-canister recipe).
+//
+// On-device AI: WebLLM compiles the model's WebAssembly ('wasm-unsafe-eval', not 'unsafe-eval') and
+// downloads the model's files once from Hugging Face and the MLC model library on GitHub. Only those
+// files come in; no note text goes out. Chrome's built-in model needs none of this.
 [
   {
     match: "**/*",
     headers: {
-      "Content-Security-Policy": "default-src 'self'; script-src 'self'; connect-src 'self' http://localhost:* http://127.0.0.1:* https://icp0.io https://*.icp0.io https://icp-api.io https://ic0.app https://*.ic0.app; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+      "Content-Security-Policy": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' http://localhost:* http://127.0.0.1:* https://icp0.io https://*.icp0.io https://icp-api.io https://ic0.app https://*.ic0.app https://huggingface.co https://*.huggingface.co https://*.hf.co https://raw.githubusercontent.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
       "Referrer-Policy": "no-referrer",
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "DENY",

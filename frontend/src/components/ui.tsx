@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react"
+import { Loader, PaperStack } from "./brand"
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react"
 import { forwardRef } from "react"
 
@@ -9,16 +10,18 @@ export function cn(...classes: (string | false | null | undefined)[]): string {
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "brand-soft"
 type Size = "sm" | "md" | "lg" | "icon"
 
+// B3Pay's buttons: one primary per screen; danger is an outline that fills on hover.
 const variants: Record<Variant, string> = {
   primary:
-    "bg-brand-600 text-white shadow-sm hover:bg-brand-700 disabled:bg-brand-600/60 dark:bg-brand-500 dark:hover:bg-brand-400 dark:text-zinc-950",
+    "bg-brand-600 text-white hover:bg-brand-700 dark:bg-brand-500 dark:text-zinc-950 dark:hover:bg-brand-400",
   secondary:
-    "border border-zinc-200 bg-white text-zinc-800 shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800",
+    "border border-zinc-500 bg-white text-zinc-900 hover:border-zinc-900 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-zinc-100",
   ghost:
-    "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100",
-  danger: "bg-red-600 text-white shadow-sm hover:bg-red-700 disabled:bg-red-600/60",
+    "text-zinc-600 hover:bg-brand-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-brand-900 dark:hover:text-zinc-100",
+  danger:
+    "border border-red-600 bg-transparent text-red-600 hover:bg-red-600 hover:text-white dark:hover:text-zinc-950",
   "brand-soft":
-    "bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-900/40 dark:text-brand-200 dark:hover:bg-brand-900/70",
+    "bg-brand-100 text-zinc-900 hover:bg-brand-200 dark:bg-brand-900 dark:text-zinc-100 dark:hover:bg-brand-800",
 }
 
 const sizes: Record<Size, string> = {
@@ -44,7 +47,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex shrink-0 items-center justify-center font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+        "inline-flex shrink-0 items-center justify-center font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45",
         variants[variant],
         sizes[size],
         className,
@@ -65,7 +68,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
     <input
       ref={ref}
       className={cn(
-        "h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100",
+        "h-10 w-full rounded-lg border border-zinc-500 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 focus:outline-none dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-brand-500 dark:focus:ring-brand-500",
         className,
       )}
       {...rest}
@@ -79,7 +82,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
       <textarea
         ref={ref}
         className={cn(
-          "w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100",
+          "w-full rounded-lg border border-zinc-500 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 focus:outline-none dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-brand-500 dark:focus:ring-brand-500",
           className,
         )}
         {...rest}
@@ -107,7 +110,7 @@ export function Select({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={cn(
-        "h-10 rounded-lg border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-900",
+        "h-10 rounded-lg border border-zinc-500 bg-white px-3 text-sm dark:bg-zinc-900",
         className,
       )}
       {...rest}
@@ -121,13 +124,17 @@ export function Select({
   )
 }
 
-export function Spinner({ className, label }: { className?: string; label?: string }) {
-  return (
-    <span role="status" className={cn("inline-flex items-center gap-2 text-sm text-zinc-500", className)}>
-      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-      {label ? <span>{label}</span> : <span className="sr-only">Loading</span>}
-    </span>
-  )
+/** Waiting: the B3Note mark with its sheet breathing, and what is happening. */
+export function Spinner({
+  className,
+  label,
+  size = 20,
+}: {
+  className?: string
+  label?: string
+  size?: number
+}) {
+  return <Loader size={size} label={label ?? "Loading"} showLabel={Boolean(label)} className={className} />
 }
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
@@ -156,11 +163,12 @@ export function TagChip({
   onRemove?: () => void
   count?: number
 }) {
+  // Chips use B3Pay's small radius; a chosen one is the selection, in brand.
   const classes = cn(
-    "inline-flex h-6 items-center gap-1 rounded-full px-2 text-xs font-medium transition-colors",
+    "inline-flex h-6 items-center gap-1 rounded px-2 text-xs font-semibold transition-colors",
     active
       ? "bg-brand-600 text-white dark:bg-brand-500 dark:text-zinc-950"
-      : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
+      : "bg-zinc-100 text-zinc-700 hover:bg-brand-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-brand-900",
   )
   return (
     <span className={classes}>
@@ -188,19 +196,26 @@ export function TagChip({
 
 export function EmptyState({
   icon,
+  paper,
   title,
   children,
   action,
 }: {
   icon?: ReactNode
+  /** Show a stack of blank paper instead of an icon. */
+  paper?: boolean
   title: string
   children?: ReactNode
   action?: ReactNode
 }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-      {icon ? <div className="text-brand-500">{icon}</div> : null}
-      <h2 className="text-lg font-semibold">{title}</h2>
+      {paper ? (
+        <PaperStack />
+      ) : icon ? (
+        <div className="text-brand-600 dark:text-brand-500">{icon}</div>
+      ) : null}
+      <h2 className="text-lg font-semibold text-balance">{title}</h2>
       {children ? <div className="max-w-md text-sm text-zinc-500 dark:text-zinc-400">{children}</div> : null}
       {action}
     </div>
@@ -216,14 +231,23 @@ export function Notice({
   children: ReactNode
   className?: string
 }) {
+  // Never color alone: danger carries the diamond, a warning the brand outline.
   const tones = {
-    info: "border-brand-200 bg-brand-50 text-brand-900 dark:border-brand-900 dark:bg-brand-950/40 dark:text-brand-100",
+    info: "border-transparent bg-brand-100 text-zinc-900 dark:bg-brand-900 dark:text-zinc-100",
     warning:
-      "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100",
-    danger:
-      "border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100",
-    success:
-      "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100",
+      "border-brand-600 bg-white text-zinc-900 dark:border-brand-500 dark:bg-zinc-900 dark:text-zinc-100",
+    danger: "border-red-600 bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100",
+    success: "border-transparent bg-brand-100 text-zinc-900 dark:bg-brand-900 dark:text-zinc-100",
   }
-  return <div className={cn("rounded-xl border px-4 py-3 text-sm", tones[tone], className)}>{children}</div>
+  return (
+    <div className={cn("rounded-xl border px-4 py-3 text-sm", tones[tone], className)}>
+      {tone === "danger" ? (
+        <span
+          aria-hidden
+          className="mr-2 inline-block h-2 w-2 -translate-y-px rotate-45 rounded-[1px] bg-red-600"
+        />
+      ) : null}
+      {children}
+    </div>
+  )
 }
