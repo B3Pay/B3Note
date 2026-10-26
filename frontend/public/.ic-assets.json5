@@ -20,4 +20,16 @@
     match: "index.html",
     headers: { "Cache-Control": "no-cache" },
   },
+  // The custom domain's files (README, "Custom domain"). The asset canister
+  // skips hidden folders unless a rule says otherwise. The HTTP gateways read
+  // ic-domains; Internet Identity's page fetches ii-alternative-origins from
+  // another origin, so that file needs CORS.
+  {
+    match: ".well-known",
+    ignore: false,
+  },
+  {
+    match: ".well-known/ii-alternative-origins",
+    headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+  },
 ]
