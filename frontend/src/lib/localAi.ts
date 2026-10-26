@@ -4,7 +4,7 @@
  * open model downloaded once and run on the GPU with WebLLM. No note text is sent
  * anywhere; only the model's files are downloaded, the first time.
  */
-import type { MLCEngine } from "@mlc-ai/web-llm"
+import type { AppConfig, MLCEngine } from "@mlc-ai/web-llm"
 
 export type LocalEngine = "chrome" | "webllm"
 
@@ -23,6 +23,38 @@ export interface LocalPrompt {
 }
 
 export const WEBLLM_MODEL = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"
+
+/**
+ * The open model, pinned. web-llm's own list downloads the model's files and
+ * its WebAssembly library from the `main` branches of Hugging Face and GitHub,
+ * so whoever can push there could change the code that reads decrypted notes.
+ * This record fixes both at a commit, and web-llm checks the config, the
+ * tokenizer and the library against these hashes before it runs anything
+ * (`onFailure: "error"`). The rest is web-llm 0.2.85's own record for the
+ * model (localAi.test.ts compares them); a web-llm upgrade that moves to new
+ * model libraries needs a new pin.
+ */
+export const WEBLLM_CONFIG: AppConfig = {
+  model_list: [
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC/resolve/9bd564b064631febf14deadcac492efb761d60c3/",
+      model_id: WEBLLM_MODEL,
+      model_lib:
+        "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/025bcaf3780fa8254f5e5efd3bfea0a5397248f4/web-llm-models/v0_2_84/base/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
+      low_resource_required: true,
+      vram_required_MB: 1629.75,
+      overrides: { context_window_size: 4096 },
+      integrity: {
+        config: "sha256-faSVQhLT8hqRzD5pPRefYyE/1XNWeWhH9l1/lUeKH54=",
+        tokenizer: { "tokenizer.json": "sha256-wDghF+oynN8JcEETL21zWSS2l5JNb2/DlFcT6WzodTk=" },
+        model_lib: "sha256-D861C7r0fv3DH86WtywRXct/UiHIWr5qn8At2p0db8M=",
+        onFailure: "error",
+      },
+    },
+  ],
+}
+
 const MODEL_NAME: Record<LocalEngine, string> = { chrome: "gemini-nano", webllm: "Qwen2.5-1.5B-Instruct" }
 const DOWNLOAD_SIZE: Record<LocalEngine, string> = {
   chrome: "Chrome downloads it once",
@@ -202,6 +234,7 @@ export function prepareLocalAi(): Promise<Runner> {
         set({ status: "downloading", engine: current, model, progress: 0, text: "Starting" })
         const { CreateMLCEngine } = await import("@mlc-ai/web-llm")
         const mlc = await CreateMLCEngine(WEBLLM_MODEL, {
+          appConfig: WEBLLM_CONFIG,
           initProgressCallback: (report) =>
             set({
               status: "downloading",
@@ -239,7 +272,7 @@ export async function runLocalAi(
 export async function forgetLocalModel(): Promise<void> {
   if (engine !== "webllm") return
   const { deleteModelAllInfoInCache } = await import("@mlc-ai/web-llm")
-  await deleteModelAllInfoInCache(WEBLLM_MODEL)
+  await deleteModelAllInfoInCache(WEBLLM_MODEL, WEBLLM_CONFIG)
   remember(false)
   runner = null
   preparing = null

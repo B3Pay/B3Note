@@ -14,6 +14,18 @@ const REMARK_PLUGINS = [remarkGfm, remarkBreaks]
 
 const components: Components = {
   a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+  // Images are not loaded (README, "How the encryption works"): fetching one
+  // tells its host that the note was opened, and its URL can carry text out,
+  // for example when an AI answer is steered into writing one. The CSP's
+  // img-src refuses them too. The image stays as a link to it.
+  img: ({ node: _node, src, alt }) =>
+    typeof src === "string" && src !== "" ? (
+      <a href={src} target="_blank" rel="noopener noreferrer">
+        {alt || "Image"}
+      </a>
+    ) : (
+      <>{alt}</>
+    ),
   li: ({ node, ...props }) => (
     <TaskLine.Provider value={node?.position?.start.line ?? null}>
       <li {...props} />
