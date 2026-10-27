@@ -2,7 +2,7 @@
 #
 # B3Note: `icp network start -d && icp deploy` for a local deployment,
 # `icp deploy -e production --no-create` for mainnet, never `-e ic`
-# (README, "Deploying to mainnet").
+# (docs/operations.md, "Deploying").
 
 canisters:
   - name: backend

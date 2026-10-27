@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * B3Note at a custom domain (README, "Custom domain"): which origins count as
+ * B3Note at a custom domain (docs/operations.md, "Custom domain"): which origins count as
  * one, the files the HTTP gateways and Internet Identity read, and the app's
  * client on each address that serves it.
  */

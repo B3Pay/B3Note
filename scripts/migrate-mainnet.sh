@@ -42,7 +42,7 @@ field() { node -e "const s = JSON.parse(require('fs').readFileSync(0, 'utf8')); 
 preflight() {
   say "Tools"
   for tool in icp ic-wasm cargo pnpm node curl; do
-    command -v "$tool" >/dev/null || die "$tool is not installed (see README: Getting started)"
+    command -v "$tool" >/dev/null || die "$tool is not installed (see docs/development.md: Getting started)"
   done
   icp --version
 
