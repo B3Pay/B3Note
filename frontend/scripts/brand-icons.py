@@ -1,106 +1,69 @@
-"""Generates the B3Note icons: the B3 family's mark (B3Forge's geometry, a grey B with a 3 and a
-multicolour dot) with the product's letter, a gradient N, plugged into it.
+"""Generates the B3Note icons: B3Pay's mark (a stem of blocks and a 3) with its node folded into a
+note, as B3Wallet and B3Forge change only what the node does. The mark is a DRAFT until it is signed
+off and added to B3Pay's tools/logo/build.js; the geometry below is copied from the B3Note design system.
 
     python3 frontend/scripts/brand-icons.py <dir>
 
-writes the SVGs below. The PNGs in frontend/public are these rasterized at the sizes their names
-give: icon.svg for apple-touch-icon (180) and android-chrome (192, 512), maskable.svg for
-maskable-512x512, and mark.svg, transparent, for the favicons (16, 32, and 16+32+48 in favicon.ico).
-mark.svg is also logo.svg, mono.svg is safari-pinned-tab.svg.
+writes the SVGs below. The PNGs in frontend/public are these rasterized at the sizes their names give:
+icon.svg for apple-touch-icon (180) and android-chrome (192, 512), maskable.svg for maskable-512x512,
+and favicon.svg for the favicons (16, 32, and 16+32+48 in favicon.ico). favicon.svg is also logo.svg,
+mono.svg is safari-pinned-tab.svg, logo-long.svg and logo-long-dark.svg are the README's lockup.
 """
-import math, sys, os
+import os, sys
 
 OUT = sys.argv[1]
-GREY = "#808080"
-# Top to bottom, sampled from B3Forge's F bar.
-GRADIENT = ["#29abe2", "#348ccc", "#4a4198", "#8e2480", "#ea1f79", "#f04543", "#f3712b", "#f9a037", "#fbb03b"]
-# Clockwise from 3 o'clock, sampled from B3Forge's dot.
-CONIC = ["#802482", "#4a4298", "#3b71b9", "#2ba6de", "#91ae90", "#c3af68", "#f89634", "#f4722b", "#f0552c", "#ef3855", "#ed2471", "#b5217d"]
+INK_DARK, INK_LIGHT = "#f1ede6", "#1a1714"  # B3Pay ink on dark and on light grounds
+NODE_DARK, NODE_LIGHT = "#f0b35a", "#e8a33d"  # B3Pay accent: the node is always amber
+SURFACE = "#121110"  # B3Pay's graphite surface
 
-# B3ForgeIcon.tsx, in its 366 x 500 space.
-B_OUTLINE = "M11 452.549V485.99C11 485.996 11.0045 486 11.01 486H216.751C349.884 482.439 404.347 306.604 289.369 241.31C287.553 240.123 287.553 238.936 289.369 237.749C382.562 165.331 328.541 21.6845 209.932 11H11.01C11.0045 11 11 11.0045 11 11.01V44.4507"
-THREE = "M177.152 75.5514C198.455 75.5515 215.402 83.3523 226.95 95.8664C238.322 108.191 243.794 124.358 243.794 140.195C243.794 156.033 238.322 172.2 226.95 184.524C218.939 193.206 208.328 199.618 195.468 202.732C202.831 212.498 207.09 224.888 207.09 238.756C207.09 252.15 203.117 264.163 196.213 273.768C212.269 276.356 225.371 283.353 235.027 293.323C247.25 305.943 253.249 322.604 253.34 339.028C253.432 355.447 247.622 372.128 235.6 384.783C223.429 397.596 205.606 405.528 183.219 405.529H94.8667C88.1403 405.529 82.6875 400.075 82.6872 393.349C82.6873 386.623 88.1402 381.17 94.8667 381.17H183.219C199.561 381.169 210.785 375.538 217.94 368.007C225.245 360.316 229.042 349.871 228.983 339.163C228.923 328.461 225.012 317.995 217.53 310.271C210.191 302.694 198.708 297.022 182.008 297.022H153.696C152.031 297.149 150.341 297.218 148.629 297.218C119.284 297.218 96.5496 278.162 91.3104 250.936H52.4109C45.6844 250.936 40.2314 245.483 40.2314 238.756C40.2314 232.03 45.6844 226.577 52.4109 226.577H91.3104C96.5496 199.351 119.284 180.295 148.629 180.295C150.296 180.295 151.942 180.359 153.565 180.481H177.152C192.157 180.48 202.441 175.165 209.048 168.005C215.83 160.655 219.435 150.59 219.435 140.195C219.435 129.801 215.83 119.736 209.048 112.386C202.441 105.226 192.157 99.9104 177.152 99.9104H92.4308C85.7042 99.9104 80.2513 94.4574 80.2513 87.7309C80.2513 81.0043 85.7042 75.5514 92.4308 75.5514H177.152ZM148.629 199.782C125.84 199.782 109.655 215.967 109.655 238.756C109.655 261.545 125.84 277.731 148.629 277.731C171.418 277.731 187.603 261.545 187.603 238.756C187.603 215.967 171.418 199.782 148.629 199.782Z"
-DOT = (148.628, 238.756, 33.0)
-# B3Forge's exported icons draw the mark bolder than the component (about 29 units).
-STROKE = 28
-THREE_OUTLINE = 5
-# The N, left of the connector, as tall as B3Forge's F.
-N_TOP, N_BOTTOM = 177.0, 300.5
-N_LEFT, N_RIGHT = -76.0, 4.0
-CONTENT = (N_LEFT - STROKE / 2, -3.0, 369.0, 500.0)  # x0, y0, x1, y1 in mark space
+# B3Pay's mark on its 96-unit grid, with the node's box (14.7 units) holding a folded sheet.
+SHEET = "M21.4 38.65H24.35A1 1 0 0 1 25.35 39.65V46.4H32.1A1 1 0 0 1 33.1 47.4V50.35A3 3 0 0 1 30.1 53.35H21.4A3 3 0 0 1 18.4 50.35V41.65A3 3 0 0 1 21.4 38.65Z"
+FOLD = "M27.1 38.65L33.1 44.65H28.1A1 1 0 0 1 27.1 43.65Z"
+THREE = "M65.25 62.5C65.25 59.7152 64.1437 57.0445 62.1745 55.0755C60.2055 53.1063 57.5348 52 54.75 52H39.75C38.0932 52 36.75 50.6568 36.75 49V43C36.75 41.3432 38.0932 40 39.75 40H52.75C55.0042 40 57.1662 39.1045 58.7605 37.5105C60.3545 35.9162 61.25 33.7542 61.25 31.5C61.25 29.2458 60.3545 27.0837 58.7605 25.4895C57.1662 23.8955 55.0042 23 52.75 23H39.75C38.0932 23 36.75 21.6568 36.75 20V14C36.75 12.3431 38.0932 11 39.75 11H52.75C58.187 11 63.4012 13.1598 67.2458 17.0043C71.0902 20.8488 73.25 26.063 73.25 31.5C73.25 36.3135 71.5563 40.9735 68.4652 44.6635C71.1983 46.765 73.4115 49.4663 74.9347 52.5588C76.4578 55.6515 77.25 59.0528 77.25 62.5C77.25 68.4673 74.8795 74.1903 70.66 78.41C66.4403 82.6295 60.7172 85 54.75 85H39.75C38.0932 85 36.75 83.6568 36.75 82V76C36.75 74.3432 38.0932 73 39.75 73H54.75C57.5348 73 60.2055 71.8937 62.1745 69.9245C64.1437 67.9555 65.25 65.2848 65.25 62.5Z"
+# The outlined wordmark "B3Note": Rubik 600, kerned, -0.03em, in B3Pay's lockup frame.
+LOCKUP_VIEWBOX = "218.75 -758.333 4423.717 978.333"
+WORD_X = 1110.278
+WORD = "M99 0Q88 0 81 -7Q74 -14 74 -25V-675Q74 -686 81 -693Q88 -700 99 -700H396Q479 -700 532 -676Q585 -652 611 -608Q636 -564 636 -505Q636 -468 622 -440Q609 -412 589 -394Q570 -376 552 -367Q591 -349 621 -307Q650 -266 650 -209Q650 -146 622 -99Q594 -52 539 -26Q484 0 405 0ZM233 -117H386Q435 -117 460 -145Q485 -172 485 -210Q485 -249 460 -275Q434 -302 386 -302H233ZM233 -417H377Q424 -417 448 -441Q471 -464 471 -501Q471 -538 448 -560Q424 -583 377 -583H233Z M983 10Q909 10 856 -8Q803 -26 769 -54Q735 -82 718 -115Q701 -149 700 -180Q700 -189 706 -195Q712 -201 721 -201H831Q842 -201 849 -196Q856 -192 862 -181Q870 -158 888 -144Q906 -130 931 -124Q955 -119 983 -119Q1039 -119 1071 -145Q1103 -171 1103 -218Q1103 -266 1073 -287Q1043 -308 988 -308H881Q871 -308 864 -315Q857 -322 857 -332V-381Q857 -393 861 -401Q866 -409 871 -413L1043 -571H761Q750 -571 743 -578Q736 -585 736 -595V-675Q736 -686 743 -693Q750 -700 761 -700H1205Q1216 -700 1223 -693Q1230 -686 1230 -675V-603Q1230 -592 1226 -585Q1222 -577 1216 -573L1053 -412L1063 -411Q1122 -405 1168 -382Q1214 -359 1241 -316Q1267 -274 1267 -209Q1267 -141 1230 -92Q1193 -43 1129 -17Q1065 10 983 10Z M1378 0Q1367 0 1360 -7Q1353 -14 1353 -25V-675Q1353 -686 1360 -693Q1367 -700 1378 -700H1469Q1484 -700 1491 -693Q1498 -686 1500 -682L1767 -265V-675Q1767 -686 1774 -693Q1781 -700 1791 -700H1893Q1904 -700 1911 -693Q1918 -686 1918 -675V-25Q1918 -15 1911 -7Q1904 0 1893 0H1801Q1786 0 1779 -7Q1773 -15 1770 -18L1504 -422V-25Q1504 -14 1497 -7Q1490 0 1479 0Z M2263 10Q2180 10 2124 -17Q2068 -45 2039 -96Q2009 -147 2006 -215Q2005 -235 2005 -260Q2005 -286 2006 -305Q2009 -374 2040 -425Q2071 -475 2127 -503Q2183 -530 2263 -530Q2342 -530 2398 -503Q2454 -475 2485 -425Q2516 -374 2519 -305Q2521 -286 2521 -260Q2521 -235 2519 -215Q2516 -147 2486 -96Q2457 -45 2401 -17Q2345 10 2263 10ZM2263 -100Q2312 -100 2337 -131Q2362 -161 2364 -220Q2365 -235 2365 -260Q2365 -285 2364 -300Q2362 -358 2337 -389Q2312 -420 2263 -420Q2214 -420 2189 -389Q2163 -358 2161 -300Q2160 -285 2160 -260Q2160 -235 2161 -220Q2163 -161 2189 -131Q2214 -100 2263 -100Z M2843 0Q2781 0 2737 -21Q2693 -41 2671 -84Q2648 -127 2648 -192V-402H2570Q2559 -402 2552 -409Q2545 -416 2545 -427V-495Q2545 -506 2552 -513Q2559 -520 2570 -520H2648V-685Q2648 -696 2655 -703Q2663 -710 2673 -710H2771Q2782 -710 2789 -703Q2796 -696 2796 -685V-520H2921Q2931 -520 2938 -513Q2945 -506 2945 -495V-427Q2945 -416 2938 -409Q2931 -402 2921 -402H2796V-204Q2796 -166 2809 -145Q2823 -123 2857 -123H2930Q2940 -123 2947 -116Q2954 -109 2954 -99V-25Q2954 -14 2947 -7Q2940 0 2930 0Z M3243 10Q3128 10 3061 -54Q2993 -118 2989 -240Q2989 -248 2989 -262Q2989 -275 2989 -283Q2993 -360 3024 -415Q3055 -471 3111 -500Q3167 -530 3242 -530Q3326 -530 3383 -496Q3439 -461 3467 -402Q3496 -342 3496 -265V-242Q3496 -232 3489 -225Q3481 -218 3471 -218H3144Q3144 -217 3144 -215Q3144 -212 3144 -210Q3145 -178 3156 -151Q3168 -125 3189 -109Q3211 -93 3241 -93Q3266 -93 3282 -100Q3298 -107 3309 -117Q3319 -127 3324 -134Q3333 -144 3339 -147Q3344 -149 3356 -149H3460Q3470 -149 3476 -144Q3483 -138 3482 -128Q3481 -112 3465 -88Q3450 -65 3420 -42Q3390 -20 3345 -5Q3301 10 3243 10ZM3144 -309H3340V-311Q3340 -347 3329 -374Q3317 -400 3295 -415Q3273 -430 3242 -430Q3211 -430 3189 -415Q3167 -400 3156 -374Q3144 -347 3144 -311Z"
 
 
-def lerp(a, b, t):
-    pa = [int(a[i:i + 2], 16) for i in (1, 3, 5)]
-    pb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
-    return "#%02x%02x%02x" % tuple(round(x + (y - x) * t) for x, y in zip(pa, pb))
+def mark(ink, node):
+    return (
+        f'<rect x="18.75" y="11" width="14" height="24" rx="3" fill="{ink}"/>'
+        f'<path d="{SHEET}" fill="{node}"/><path d="{FOLD}" fill="{node}"/>'
+        f'<rect x="18.75" y="57" width="14" height="28" rx="3" fill="{ink}"/>'
+        f'<path d="{THREE}" fill="{ink}"/>'
+    )
 
 
-def conic_slices(cx, cy, r, mono=None):
-    parts, n = [], 120
-    for i in range(n):
-        a0, a1 = 2 * math.pi * i / n, 2 * math.pi * (i + 1.15) / n
-        pos = i / n * len(CONIC)
-        k = int(pos)
-        colour = mono or lerp(CONIC[k % len(CONIC)], CONIC[(k + 1) % len(CONIC)], pos - k)
-        x0, y0 = cx + r * math.cos(a0), cy + r * math.sin(a0)
-        x1, y1 = cx + r * math.cos(a1), cy + r * math.sin(a1)
-        parts.append(f'<path d="M{cx:.2f} {cy:.2f}L{x0:.2f} {y0:.2f}A{r} {r} 0 0 1 {x1:.2f} {y1:.2f}Z" fill="{colour}"/>')
-    return "".join(parts)
+def tile(scale, radius):
+    """The mark at `scale` on a graphite square; radius 0 is full-bleed (the platform rounds it)."""
+    offset = 48 * (1 - scale)
+    rect = f'<rect width="96" height="96" rx="{radius}" fill="{SURFACE}"/>'
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="512" height="512"><title>B3Note</title>'
+        f'{rect}<g transform="translate({offset:.2f} {offset:.2f}) scale({scale})">{mark(INK_DARK, NODE_DARK)}</g></svg>\n'
+    )
 
 
-def mark(mono=None):
-    grey = mono or GREY
-    n_stroke = mono or "url(#b3note-n)"
-    n_path = f"M{N_LEFT} {N_BOTTOM}V{N_TOP}L{N_RIGHT} {N_BOTTOM}V{N_TOP}"
-    defs = "" if mono else (
-        f'<defs><linearGradient id="b3note-n" x1="0" y1="{N_TOP - STROKE/2}" x2="0" y2="{N_BOTTOM + STROKE/2}" gradientUnits="userSpaceOnUse">'
-        + "".join(f'<stop offset="{i / (len(GRADIENT) - 1):.3f}" stop-color="{c}"/>' for i, c in enumerate(GRADIENT))
-        + "</linearGradient></defs>")
-    return (defs
-            + f'<path d="{B_OUTLINE}" stroke="{grey}" stroke-width="{STROKE}" stroke-linecap="round" fill="none"/>'
-            + f'<path d="{THREE}" fill="{grey}" stroke="{grey}" stroke-width="{THREE_OUTLINE}" stroke-linejoin="round"/>'
-            + f'<path d="{n_path}" stroke="{n_stroke}" stroke-width="{STROKE}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
-            + conic_slices(*DOT, mono=mono))
-
-
-def svg(size, fill, background=None, mono=None, square=True):
-    """`fill`: the share of the canvas the mark's height takes."""
-    x0, y0, x1, y1 = CONTENT
-    w, h = x1 - x0, y1 - y0
-    if square:
-        scale = size * fill / h
-        tx = (size - w * scale) / 2 - x0 * scale
-        ty = (size - h * scale) / 2 - y0 * scale
-        vb_w = vb_h = size
-    else:
-        scale, tx, ty = 1, -x0, -y0
-        vb_w, vb_h = w, h
-    bg = f'<rect width="{vb_w}" height="{vb_h}" fill="{background}"/>' if background else ""
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {vb_w:g} {vb_h:g}" width="{vb_w:g}" height="{vb_h:g}">'
-            + bg + f'<g transform="translate({tx:.2f} {ty:.2f}) scale({scale:.4f})">' + mark(mono) + "</g></svg>")
-
-
-def wordmark():
-    """The mark beside "B3Note", for the README."""
-    x0, y0, x1, y1 = CONTENT
-    scale = 200 / (y1 - y0)
-    tx, ty = 20 - x0 * scale, 20 - y0 * scale
-    text_x = 20 + (x1 - x0) * scale + 36
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 240" width="760" height="240">'
-            + f'<g transform="translate({tx:.2f} {ty:.2f}) scale({scale:.4f})">' + mark() + "</g>"
-            + f'<text x="{text_x:.0f}" y="163" font-family="Inter, \'Segoe UI\', system-ui, -apple-system, sans-serif" '
-            + 'font-size="124" font-weight="700" letter-spacing="-3">'
-            + f'<tspan fill="{GREY}">B3</tspan><tspan fill="#6d4aff">Note</tspan></text></svg>')
+def lockup(ink, node):
+    w = float(LOCKUP_VIEWBOX.split()[2]) / float(LOCKUP_VIEWBOX.split()[3]) * 48
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{LOCKUP_VIEWBOX}" width="{round(w)}" height="48"><title>B3Note</title>'
+        f'<g transform="translate(0 -886.667) scale(11.667)">{mark(ink, node)}</g>'
+        f'<path transform="translate({WORD_X} 0)" fill="{ink}" d="{WORD}"/></svg>\n'
+    )
 
 
 os.makedirs(OUT, exist_ok=True)
 variants = {
-    "mark.svg": svg(512, 0.86),                     # transparent, tight: favicons and the app header
-    "icon.svg": svg(512, 0.667, background="#000"),  # home-screen icon (iOS shows transparency as black)
-    "maskable.svg": svg(512, 0.54, background="#000"),  # Android maskable: inside the 80% safe zone
-    "mono.svg": svg(512, 0.86, mono="#000"),        # Safari pinned tab
-    "logo-long.svg": wordmark(),
+    "favicon.svg": tile(0.7, 22),  # B3Pay's favicon: the app icon tile, which holds at 16px
+    "icon.svg": tile(0.7, 0),  # home-screen icon, full-bleed: iOS and Android round it themselves
+    "maskable.svg": tile(0.56, 0),  # Android maskable: inside the 80% safe zone
+    "mono.svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="512" height="512">'
+    + mark("#000", "#000")
+    + "</svg>\n",  # Safari pinned tab: one ink, Safari colors it
+    "logo-long.svg": lockup(INK_LIGHT, NODE_LIGHT),  # the README on light grounds
+    "logo-long-dark.svg": lockup(INK_DARK, NODE_DARK),  # the README on dark grounds
 }
 for name, text in variants.items():
     with open(os.path.join(OUT, name), "w") as f:

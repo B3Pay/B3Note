@@ -37,13 +37,13 @@ export function TagEditor({ tags, onChange }: { tags: string[]; onChange: (tags:
           }}
           placeholder="tag"
           aria-label="New tag"
-          className="h-6 w-24 rounded-full border border-zinc-300 bg-transparent px-2 text-xs focus:border-brand-500 focus:outline-none dark:border-zinc-700"
+          className="h-6 w-24 rounded border border-zinc-500 bg-transparent px-2 text-xs focus:border-brand-600 focus:outline-none dark:focus:border-brand-500"
         />
       ) : (
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="inline-flex h-6 items-center gap-0.5 rounded-full px-2 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          className="inline-flex h-6 items-center gap-0.5 rounded px-2 text-xs font-semibold text-[var(--ink-muted)] hover:bg-[var(--fold-shade)] hover:text-[var(--ink)]"
         >
           <Plus className="h-3 w-3" /> tag
         </button>

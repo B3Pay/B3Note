@@ -11,6 +11,12 @@ importers:
       '@candid-core/schema':
         specifier: 0.3.0
         version: 0.3.0
+      '@fontsource-variable/schibsted-grotesk':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/martian-mono':
+        specifier: 5.3.0
+        version: 5.3.0
       '@ic-reactor/core':
         specifier: 4.0.0-beta.3
         version: 4.0.0-beta.3(@candid-core/schema@0.3.0)(@icp-sdk/core@6.1.0)(@noble/curves@1.9.7)(@tanstack/query-core@5.104.1)
@@ -26,6 +32,9 @@ importers:
       '@icp-sdk/vetkeys':
         specifier: ^0.7.0
         version: 0.7.0(@icp-sdk/core@6.1.0)
+      '@mlc-ai/web-llm':
+        specifier: 0.2.85
+        version: 0.2.85
       '@tanstack/react-query':
         specifier: ^5.104.1
         version: 5.104.1(react@19.3.0)
@@ -210,6 +219,12 @@ packages:
       '@noble/hashes':
         optional: true
 
+  '@fontsource-variable/schibsted-grotesk@5.3.0':
+    resolution: {integrity: sha512-ndS6H/KICWANchlHF3q4UdZD+xrZ3Ji0rUobIuXlgvDUzDfqZDsVuXPXZb636nJZMHE9zZ9Fmwgqazm8hMB50Q==}
+
+  '@fontsource/martian-mono@5.3.0':
+    resolution: {integrity: sha512-0iTnU6SZi6j5z4ymwlZGep6akvp/xWm+r+WyZO9hMfDJWX+dsFLipQp9zO02S0lkUQ+zAahcZNy3XLiNP+gVqQ==}
+
   '@ic-reactor/core@4.0.0-beta.3':
     resolution: {integrity: sha512-8UwwxiAHIlu80LC3FLyBdEHhe24uIuUiMofAzU9NvB1cVbM0F/RE9SpGKPyMqwwIobWIg/+cPSWe+WG+5hXv+Q==}
     engines: {node: '>=18'}
@@ -269,6 +284,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@mlc-ai/web-llm@0.2.85':
+    resolution: {integrity: sha512-CwUiSAvDCYnmAZlpPMkurPHDfBLq6fvdRB3vRgoA894hRG/V/BSeY9bmMm6iIIU5VpjJxfb/dLPpJX2at0L9rw==}
 
   '@noble/curves@1.9.7':
     resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
@@ -981,6 +999,10 @@ packages:
     resolution: {integrity: sha512-WkUDrojuJs0xkgGf2udWxa3yGBRxPtxUkB79i6aCZLRgc7PM8fZe9TosfPDcvEpQZbuFASnHYmRLBLUbmLOIIA==}
     engines: {node: '>= 12.0.0'}
 
+  loglevel@1.9.2:
+    resolution: {integrity: sha512-HgMmCqIJSAKqo68l0rS2AanEWfkxaZ5wNiEFb5ggm08lDs9Xl2KxBlX3PTcaD2chBM1gXAYf491/M2Rv8Jwayg==}
+    engines: {node: '>= 0.6.0'}
+
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
 
@@ -1581,6 +1603,10 @@ snapshots:
     optionalDependencies:
       '@noble/hashes': 2.4.0
 
+  '@fontsource-variable/schibsted-grotesk@5.3.0': {}
+
+  '@fontsource/martian-mono@5.3.0': {}
+
   '@ic-reactor/core@4.0.0-beta.3(@candid-core/schema@0.3.0)(@icp-sdk/core@6.1.0)(@noble/curves@1.9.7)(@tanstack/query-core@5.104.1)':
     dependencies:
       '@candid-core/schema': 0.3.0
@@ -1644,6 +1670,10 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@mlc-ai/web-llm@0.2.85':
+    dependencies:
+      loglevel: 1.9.2
 
   '@noble/curves@1.9.7':
     dependencies:
@@ -2218,6 +2248,8 @@ snapshots:
       lightningcss-linux-x64-musl: 1.33.0
       lightningcss-win32-arm64-msvc: 1.33.0
       lightningcss-win32-x64-msvc: 1.33.0
+
+  loglevel@1.9.2: {}
 
   longest-streak@3.1.0: {}
 

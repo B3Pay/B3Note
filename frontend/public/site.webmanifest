@@ -1,7 +1,7 @@
 {
   "name": "B3Note",
   "short_name": "B3Note",
-  "description": "End-to-end encrypted notes on the Internet Computer, with burn-after-reading links.",
+  "description": "End-to-end encrypted notes on the Internet Computer, with burn-after-reading links and on-device AI.",
   "start_url": "/notes",
   "icons": [
     { "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
@@ -9,7 +9,7 @@
     { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
-  "theme_color": "#6d4aff",
-  "background_color": "#000000",
+  "theme_color": "#121110",
+  "background_color": "#121110",
   "display": "standalone"
 }

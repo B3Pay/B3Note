@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useParams } from "@tanstack/react-router"
-import { FilePlus2, NotebookPen, RefreshCw, Search, X } from "lucide-react"
+import { FilePlus2, RefreshCw, Search, X } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useWorkspace } from "../app/workspace"
 import { NoteListItem } from "../components/NoteList"
@@ -85,7 +85,7 @@ export function NotesLayout() {
           ) : null}
         </div>
 
-        <div className="flex items-center justify-between px-4 pt-2 text-xs text-zinc-500">
+        <div className="b3-label flex items-center justify-between px-4 pt-3">
           <span>
             {visible.length} {visible.length === 1 ? "note" : "notes"}
             {query || tag ? ` of ${notes.length}` : ""}
@@ -100,7 +100,7 @@ export function NotesLayout() {
           </button>
         </div>
 
-        <div className="flex-1 space-y-1 overflow-y-auto p-2">
+        <div className="flex-1 space-y-3 overflow-y-auto px-3 pt-3 pb-6">
           {error ? <Notice tone="danger">{errorMessage(error)}</Notice> : null}
           {isLoading ? (
             <div className="p-6 text-center">
@@ -108,7 +108,7 @@ export function NotesLayout() {
             </div>
           ) : notes.length === 0 ? (
             <EmptyState
-              icon={<NotebookPen className="h-10 w-10" />}
+              paper
               title="No notes yet"
               action={
                 <Button variant="primary" onClick={newNote}>
@@ -116,7 +116,7 @@ export function NotesLayout() {
                 </Button>
               }
             >
-              Everything you write is encrypted in this browser before it is stored.
+              Everything you write is sealed in this browser before it is stored.
             </EmptyState>
           ) : visible.length === 0 ? (
             <p className="p-6 text-center text-sm text-zinc-500">No notes match.</p>
@@ -139,8 +139,8 @@ export function NotesIndex() {
   const navigate = useNavigate()
   return (
     <EmptyState
-      icon={<NotebookPen className="h-10 w-10" />}
-      title="Select a note or start a new one"
+      paper
+      title="Pick a note or start a new one"
       action={
         <Button
           variant="primary"
@@ -152,8 +152,8 @@ export function NotesIndex() {
         </Button>
       }
     >
-      Tip: write <code>- [ ] task</code> for checklists, and use the AI assistant to summarize, retitle, tag
-      or translate.
+      Tip: write <code>- [ ] task</code> for checklists. The AI assistant can summarize, retitle, tag or
+      translate a note, on this device.
     </EmptyState>
   )
 }

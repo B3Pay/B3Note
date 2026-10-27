@@ -14,15 +14,15 @@ import {
   Pin,
   PinOff,
   Share2,
-  Sparkles,
   Trash2,
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { useAiEnabled } from "../app/features"
+import { useAnyAi } from "../app/features"
 import type { DecryptedNote } from "../app/notes"
 import { useWorkspace } from "../app/workspace"
 import { AiPanel, type AiSelection } from "../components/AiPanel"
+import { paperFor } from "../components/brand"
 import { Dialog } from "../components/Dialog"
 import { Markdown } from "../components/Markdown"
 import { ShareDialog } from "../components/ShareDialog"
@@ -100,7 +100,7 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
   const [mode, setMode] = useState<"edit" | "preview">(initial?.content?.body.trim() ? "preview" : "edit")
   const [shareOpen, setShareOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
-  const aiEnabled = useAiEnabled()
+  const { any: aiEnabled } = useAnyAi()
   const [aiSelection, setAiSelection] = useState<AiSelection | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -246,6 +246,8 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
   }
 
   const created = initial ? nanosToDate(initial.createdAt) : null
+  // The sheet keeps its paper: the list shows the same one for this note.
+  const { paper } = paperFor(id)
 
   return (
     <div className="flex h-full flex-col">
@@ -290,11 +292,11 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
             <Button
               variant="brand-soft"
               size="sm"
-              aria-label="AI"
+              aria-label="AI assistant"
               onClick={openAi}
               disabled={isEmpty(content)}
             >
-              <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">AI</span>
+              <span className="bn-dot" aria-hidden /> <span className="hidden sm:inline">AI</span>
             </Button>
           ) : null}
           <Button
@@ -375,19 +377,19 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
         </Notice>
       ) : null}
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-8">
+      <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-6 sm:py-8">
+        <div className="bn-folded bn-sheet mx-auto max-w-3xl px-5 py-6 sm:px-10 sm:py-9" data-paper={paper}>
           <input
             value={content.title}
             onChange={(e) => update({ title: e.target.value })}
             placeholder={content.body.trim() ? displayTitle(content) : "Title"}
             aria-label="Title"
-            className="w-full bg-transparent text-2xl font-bold tracking-tight placeholder:text-zinc-300 focus:outline-none sm:text-3xl dark:placeholder:text-zinc-700"
+            className="w-full bg-transparent pr-6 text-2xl font-semibold tracking-tight text-balance placeholder:text-[var(--ink-muted)] placeholder:opacity-60 focus:outline-none sm:text-3xl"
           />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <TagEditor tags={content.tags} onChange={(tags) => update({ tags: normalizeTags(tags) })} />
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--ink-muted)]">
             <ExpiryControl
               expiresAt={expiresAt}
               onChange={(next) => {
@@ -415,7 +417,7 @@ function NoteEditor({ id, initial, vault }: { id: string; initial: DecryptedNote
                 />
               </div>
             ) : (
-              <button type="button" className="text-zinc-400" onClick={() => setMode("edit")}>
+              <button type="button" className="text-[var(--ink-muted)]" onClick={() => setMode("edit")}>
                 Nothing here yet. Click to write.
               </button>
             )}
@@ -526,12 +528,17 @@ function ExpiryControl({
     })),
   ]
   return (
-    <span className={cn("inline-flex items-center gap-1", expiresAt !== null && "text-orange-600")}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1",
+        expiresAt !== null && "font-semibold text-[var(--ink)]",
+      )}
+    >
       <Flame className="h-3.5 w-3.5" />
       <select
         aria-label="Self-destruct timer"
         value="keep"
-        className="h-7 cursor-pointer rounded-md bg-transparent pr-1 text-xs hover:bg-zinc-100 focus:outline-none dark:hover:bg-zinc-800"
+        className="h-7 cursor-pointer rounded-md bg-transparent pr-1 text-xs hover:bg-[var(--fold-shade)] focus:outline-none"
         onChange={(e) => {
           const value = e.target.value
           if (value === "keep") return
@@ -577,10 +584,10 @@ const AutoGrowTextarea = ({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       autoFocus={autoFocus}
-      placeholder={"Start writing… Markdown works: **bold**, # headings, - [ ] tasks"}
+      placeholder={"Write something worth keeping… Markdown works: **bold**, # headings, - [ ] tasks"}
       aria-label="Note text"
       spellCheck
-      className="min-h-80 w-full resize-none bg-transparent font-mono text-[15px] leading-7 placeholder:text-zinc-400 focus:outline-none"
+      className="bn-ruled min-h-80 w-full resize-none bg-transparent text-base leading-7 placeholder:text-[var(--ink-muted)] placeholder:opacity-70 focus:outline-none"
     />
   )
 }
