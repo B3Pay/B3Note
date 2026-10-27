@@ -70,7 +70,14 @@ that **burns after reading**.
   replayed request cannot burn another view.
 - **On-device AI.** The model reads the note in the browser that decrypted it. The only network traffic
   is the model's files on first use (Hugging Face and the MLC model library on GitHub), which is why the
-  page's CSP allows those hosts and `'wasm-unsafe-eval'` for the model's WebAssembly.
+  page's CSP allows those hosts and `'wasm-unsafe-eval'` for the model's WebAssembly. Both are pinned to a
+  commit, and WebLLM checks the model's config, its tokenizer and its WebAssembly library against hashes
+  before it runs them (`frontend/src/lib/localAi.ts`), so a push to either repository cannot change the
+  code that reads your notes.
+- **No remote images.** Fetching an image sends its URL to its host, so a note's Markdown or an AI answer
+  (which a prompt hidden in a note could steer) could carry text out that way, and an image in a shared
+  note would tell its sender when it was opened. Markdown shows images as links instead, and the CSP's
+  `img-src` allows only the app itself.
 - **AI on the canister (when switched on).** The assistant needs plaintext. Only the text you pick for an action (or,
   for *Ask your notes*, the few notes your browser ranks as relevant) goes to the LLM canister.
   Everything else stays encrypted.
