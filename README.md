@@ -27,7 +27,8 @@ that **burns after reading**.
   a model that runs in your browser, so nothing leaves the end-to-end encryption. It uses Chrome's
   built-in Gemini Nano when the browser has it, and otherwise downloads an open model
   (Qwen2.5-1.5B-Instruct, about 1 GB, once, after you ask) and runs it on the GPU with
-  [WebLLM](https://github.com/mlc-ai/web-llm). Browsers with neither show no on-device AI.
+  [WebLLM](https://github.com/mlc-ai/web-llm), when the GPU supports 16-bit floats (WebGPU's
+  `shader-f16`). Browsers with neither show no on-device AI.
 - **Optional AI on the Internet Computer** through the IC's [LLM canister](https://github.com/dfinity/llm),
   **off by default**. Text sent to it leaves the end-to-end encryption, so a controller has to switch it
   on (`ai_enabled`); when on, it is a second choice in the assistant, nothing is sent until you choose an

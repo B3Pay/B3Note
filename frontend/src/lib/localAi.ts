@@ -31,8 +31,8 @@ export const WEBLLM_MODEL = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"
  * This record fixes both at a commit, and web-llm checks the config, the
  * tokenizer and the library against these hashes before it runs anything
  * (`onFailure: "error"`). The rest is web-llm 0.2.85's own record for the
- * model (localAi.test.ts compares them); a web-llm upgrade that moves to new
- * model libraries needs a new pin.
+ * model (localAi.test.ts compares them), plus `required_features`; a web-llm
+ * upgrade that moves to new model libraries needs a new pin.
  */
 export const WEBLLM_CONFIG: AppConfig = {
   model_list: [
@@ -44,6 +44,10 @@ export const WEBLLM_CONFIG: AppConfig = {
         "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/025bcaf3780fa8254f5e5efd3bfea0a5397248f4/web-llm-models/v0_2_84/base/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1629.75,
+      // web-llm's record leaves this out, though the library's shaders use
+      // 16-bit floats. With it, web-llm stops on a GPU without them before
+      // downloading the weights, instead of failing once all are downloaded.
+      required_features: ["shader-f16"],
       overrides: { context_window_size: 4096 },
       integrity: {
         config: "sha256-faSVQhLT8hqRzD5pPRefYyE/1XNWeWhH9l1/lUeKH54=",
@@ -67,6 +71,8 @@ const LANGUAGE = {
 }
 export const UNAVAILABLE_REASON =
   "This browser can't run a model on this device. It needs Chrome's built-in AI or WebGPU: try a recent Chrome or Edge on a laptop or desktop."
+export const NO_F16_REASON =
+  "This device's GPU can't run the model: it lacks the 16-bit float support the model needs. Try a recent Chrome or Edge on another laptop or desktop."
 
 interface Runner {
   generate(prompt: LocalPrompt, signal: AbortSignal, onText: (text: string) => void): Promise<string>
@@ -135,7 +141,13 @@ export function detectLocalAi(): Promise<void> {
       }
     }
     const gpu = (navigator as any).gpu
-    const adapter = gpu ? await gpu.requestAdapter().catch(() => null) : null
+    // The GPU web-llm asks for, so this checks the one the model would run on.
+    const adapter = gpu
+      ? await gpu.requestAdapter({ powerPreference: "high-performance" }).catch(() => null)
+      : null
+    if (adapter && !adapter.features?.has("shader-f16")) {
+      return set({ status: "unavailable", reason: NO_F16_REASON })
+    }
     if (adapter) {
       engine = "webllm"
       return set(
@@ -209,7 +221,7 @@ export function prepareLocalAi(): Promise<Runner> {
   preparing = (async () => {
     await detectLocalAi()
     const current = engine
-    if (!current) throw new Error(UNAVAILABLE_REASON)
+    if (!current) throw new Error(state.status === "unavailable" ? state.reason : UNAVAILABLE_REASON)
     const model = MODEL_NAME[current]
     try {
       if (current === "chrome") {
@@ -282,6 +294,9 @@ export async function forgetLocalModel(): Promise<void> {
 /** Explains a failed run in the app's words. */
 export function localAiError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
+  // Both name a GPU, so they would read as running out of memory below.
+  if (message === UNAVAILABLE_REASON || message === NO_F16_REASON) return message
+  if (error instanceof Error && error.name === "ShaderF16SupportError") return NO_F16_REASON
   if (/memory|OOM|device lost|GPU/i.test(message))
     return "The model ran out of memory on this device. Close other tabs and try again."
   if (/user activation|gesture/i.test(message))
