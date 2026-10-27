@@ -7,8 +7,9 @@ dist/
 *.tsbuildinfo
 coverage/
 
-# icp-cli / dfx state
-.icp/
+# icp-cli / dfx state. `.icp/data/` holds the mainnet canister ids and is
+# committed, as icp-cli advises: without it, a deploy creates new canisters.
+.icp/cache/
 .dfx/
 
 # Environment

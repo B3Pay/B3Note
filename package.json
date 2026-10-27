@@ -13,7 +13,7 @@
     "dev": "pnpm --dir frontend dev",
     "dev:pocketic": "pnpm --dir frontend dev:pocketic",
     "deploy": "icp deploy",
-    "deploy:production": "icp deploy -e production"
+    "deploy:production": "icp deploy -e production --no-create"
   },
   "packageManager": "pnpm@10.28.0"
 }
