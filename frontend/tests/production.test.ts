@@ -1,5 +1,5 @@
 /**
- * B3Note's mainnet canisters (README, "Deploying to mainnet"). icp-cli deploys
+ * B3Note's mainnet canisters (docs/operations.md, "Deploying"). icp-cli deploys
  * the `production` environment to the ids in `.icp/data/mappings`, and creates
  * a new canister for any it cannot find there. A new frontend is a new origin,
  * which gives every user a new principal, so the ids recorded there must stay

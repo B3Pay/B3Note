@@ -1,6 +1,6 @@
 /**
  * B3Note's production canisters and the custom domains that serve its
- * frontend (README, "Custom domain").
+ * frontend (docs/operations.md, "Custom domain").
  *
  * Internet Identity derives a principal per origin, and counts a canister's
  * gateway addresses (`icp0.io`, `ic0.app`, `icp.net`) as one. A custom domain
