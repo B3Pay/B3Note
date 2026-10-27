@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=https://github.com/dfinity/icp-cli/raw/refs/tags/v1.6.0/docs/schemas/icp-yaml-schema.json
 #
 # B3Note: `icp network start -d && icp deploy` for a local deployment,
-# `icp deploy -e production` for mainnet.
+# `icp deploy -e production --no-create` for mainnet, never `-e ic`
+# (README, "Deploying to mainnet").
 
 canisters:
   - name: backend

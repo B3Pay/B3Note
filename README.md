@@ -156,8 +156,16 @@ backend uses it automatically.
 ## Deploying to mainnet
 
 ```bash
-icp deploy -e production
+icp deploy -e production --no-create            # both canisters
+icp deploy frontend -e production --no-create   # the frontend only
 ```
+
+The deploy upgrades the canisters recorded in `.icp/data/mappings/production.ids.json`: backend
+`xeka7-ryaaa-aaaal-qb57a-cai` and frontend `4lidq-zqaaa-aaaap-abkbq-cai`. `--no-create` makes it stop
+rather than create a canister that is not recorded there. Do not deploy with `-e ic`: that is icp-cli's
+built-in mainnet environment, which records none of these ids, so it creates new canisters. A new
+frontend is a new origin, which gives every user a new principal, and the custom domain would still
+point at the old one.
 
 The `production` environment uses the vetKD key `key_1`, keeps the AI assistant off and sets strict
 limits (`icp.yaml`). The frontend reads the backend's id from the asset canister's `ic_env` cookie on
