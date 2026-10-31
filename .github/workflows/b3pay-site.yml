@@ -1,0 +1,36 @@
+# Publishes docs/ to b3pay.net, where it is served at
+# https://b3pay.net/docs/b3note/, as b3pay-module.json describes.
+# b3pay.net's reusable workflow builds and checks the module, then builds the
+# whole site with it, so a page that would break the site fails here. On main
+# it also commits the built module to this repository's b3pay-site branch,
+# which b3pay.net serves, and asks b3pay.net to rebuild. It never writes to
+# b3pay.net.
+name: Docs on b3pay.net
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "b3pay-module.json"
+      - ".github/workflows/b3pay-site.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "b3pay-module.json"
+      - ".github/workflows/b3pay-site.yml"
+
+permissions: {}
+
+jobs:
+  module:
+    name: Docs module
+    # A commit of B3Pay/b3pay.net, not a branch: the publish job holds a token
+    # that can push to this repository.
+    uses: B3Pay/b3pay.net/.github/workflows/publish-module.yml@07de4cdc9dc27c1dcc56d7db44b08d4c9d617c3c
+    with:
+      publish: ${{ github.event_name == 'push' }}
+    permissions:
+      contents: write
+    secrets:
+      deploy-hook: ${{ secrets.B3PAY_SITE_DEPLOY_HOOK }}

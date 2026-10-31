@@ -70,6 +70,10 @@ Then open the `frontend` URL that `icp deploy` prints.
 - **[Operations](docs/operations.md):** deploying to mainnet, limits and costs, and the custom domain
 - **[B3Note v2](docs/v2.md):** what v2 fixed in v1, and how mainnet moved to v2
 
+The same pages are at [b3pay.net/docs/b3note](https://b3pay.net/docs/b3note/). The
+[Docs on b3pay.net](.github/workflows/b3pay-site.yml) workflow checks them on every pull request
+that changes `docs/`, and publishes them when they change on `main`.
+
 ## Built with
 
 [Internet Computer](https://internetcomputer.org) ·

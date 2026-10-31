@@ -1,0 +1,25 @@
+{
+  "$schema": "https://b3pay.net/schemas/b3pay-module.schema.json",
+  "schema": 1,
+  "id": "b3note",
+  "title": "B3Note",
+  "description": "Private notes on the Internet Computer, encrypted in the browser with vetKeys before they reach the canister.",
+  "group": "internet-computer",
+  "status": "maintained",
+  "links": {
+    "repository": "https://github.com/B3Pay/B3Note",
+    "app": "https://note.b3pay.net"
+  },
+  "editUrl": "https://github.com/B3Pay/B3Note/edit/main/docs/{path}",
+  "source": {
+    "docs": "docs",
+    "include": ["*.md"],
+    "rename": { "how-it-works.md": "index.md" }
+  },
+  "sidebar": [
+    { "label": "How it works", "page": "index" },
+    { "label": "Development", "page": "development" },
+    { "label": "Operations", "page": "operations" },
+    { "label": "What changed in v2", "page": "v2" }
+  ]
+}
