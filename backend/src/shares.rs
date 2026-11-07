@@ -233,23 +233,27 @@ pub fn begin_open(
 }
 
 /// Burns the share after its last view, or gives the view back if the key
-/// derivation failed.
-pub fn finish_open(id: &Id, transport_public_key: &[u8], succeeded: bool) {
+/// derivation failed. Returns the views the share has left now, 0 once it is
+/// gone: other opens of it may have finished while this one waited for its
+/// derivation, so the count `begin_open` saw can be out of date.
+pub fn finish_open(id: &Id, transport_public_key: &[u8], succeeded: bool) -> u32 {
     let Some(mut share) = SHARES_MAP.with_borrow(|shares| shares.get(id)) else {
-        // Revoked or expired meanwhile.
-        return;
+        // Burnt by another open, revoked or expired meanwhile.
+        return 0;
     };
     if succeeded {
         if share.views_left == 0 {
             remove(id);
         }
-        return;
+        return share.views_left;
     }
     share.views_left = (share.views_left + 1).min(share.max_views);
     share
         .used_transport_keys
         .retain(|used| used.as_slice() != transport_public_key);
+    let views_left = share.views_left;
     SHARES_MAP.with_borrow_mut(|shares| shares.insert(*id, share));
+    views_left
 }
 
 /// Removes a share and its index entries. Returns the removed share.
@@ -363,6 +367,22 @@ mod tests {
         finish_open(&pending.id, &tpk, true);
         assert_eq!(public_info(&id, SEC), Err(Error::NotFound));
         assert_eq!(state::user(&owner(1)).unwrap().share_count, 0);
+    }
+
+    #[test]
+    fn an_open_that_finishes_last_reports_the_count_as_it_is_then() {
+        let key = signing_key(9);
+        create(owner(9), args(9, &key, 2), 0, &Limits::default()).unwrap();
+        let id = format_id(&[9; 16]);
+        let (tpk1, tpk2) = ([10u8; 48], [11u8; 48]);
+        let first = begin_open(&id, &tpk1, &sign(&key, 9, &tpk1), SEC).unwrap();
+        let second = begin_open(&id, &tpk2, &sign(&key, 9, &tpk2), SEC).unwrap();
+        assert_eq!((first.views_left, second.views_left), (1, 0));
+        // The second derivation finishes first and burns the share; the first
+        // then reports none left, not the 1 it saw when it began.
+        assert_eq!(finish_open(&second.id, &tpk2, true), 0);
+        assert_eq!(finish_open(&first.id, &tpk1, true), 0);
+        assert_eq!(public_info(&id, SEC), Err(Error::NotFound));
     }
 
     #[test]

@@ -368,8 +368,8 @@ async fn open_share(args: OpenShareArgs) -> Result<OpenedShare> {
     .await;
     match derived {
         Ok(encrypted_key) => {
-            shares::finish_open(&pending.id, &args.transport_public_key, true);
-            notify::after_share_opened(pending.owner, &pending.id, pending.views_left, now());
+            let views_left_now = shares::finish_open(&pending.id, &args.transport_public_key, true);
+            notify::after_share_opened(pending.owner, &pending.id, views_left_now, now());
             Ok(OpenedShare {
                 ciphertext: pending.ciphertext,
                 encrypted_key: ByteBuf::from(encrypted_key),
