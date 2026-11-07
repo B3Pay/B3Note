@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["backend", "mock_llm", "integration_tests"]
+members = ["backend", "mock_llm", "mock_hub", "integration_tests"]
 
 [workspace.package]
 edition = "2021"

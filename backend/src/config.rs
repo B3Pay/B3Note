@@ -1,4 +1,4 @@
-use crate::types::{Config, InitArgs, Limits};
+use crate::types::{Config, InitArgs, Limits, NotificationConfig};
 
 pub const DEFAULT_VETKD_KEY_NAME: &str = "key_1";
 pub const DEFAULT_LLM_MODEL: &str = "llama3.1:8b";
@@ -11,6 +11,9 @@ const VALID_KEY_NAMES: [&str; 3] = ["key_1", "test_key_1", "dfx_test_key"];
 /// Ceiling for `max_note_bytes`: one note must fit in an ingress message (2 MiB)
 /// with room to spare, and a page of `list_notes` must fit in a reply.
 const MAX_NOTE_BYTES_CEILING: u32 = 1024 * 1024;
+
+/// The hub's own limit on a notification's address.
+const MAX_NOTIFICATION_URL_BYTES: usize = 2048;
 
 /// Deliberately tight: every vetKD derivation (an Internet Identity user's
 /// key, or one share view) costs this canister about 0.026 T cycles on
@@ -43,6 +46,8 @@ impl Default for Config {
             llm_model: DEFAULT_LLM_MODEL.to_string(),
             llm_cycles_per_call: 0,
             limits: Limits::default(),
+            // Off until a controller names the hub.
+            notifications: None,
         }
     }
 }
@@ -68,6 +73,9 @@ impl Config {
         }
         if let Some(limits) = args.limits {
             next.limits = limits;
+        }
+        if let Some(notifications) = args.notifications {
+            next.notifications = Some(notifications);
         }
         next.validate()?;
         Ok(next)
@@ -95,8 +103,36 @@ impl Config {
         if l.max_ai_input_bytes == 0 || l.max_ai_input_bytes > 64 * 1024 {
             return Err("max_ai_input_bytes must be between 1 and 65536".to_string());
         }
+        if let Some(notifications) = &self.notifications {
+            validate_notifications(notifications)?;
+        }
         Ok(())
     }
+
+    /// The hub to notify through, when notifications are on.
+    pub fn notification_hub(&self) -> Option<&NotificationConfig> {
+        self.notifications.as_ref().filter(|n| n.enabled)
+    }
+}
+
+/// The hub checks the address against the app's origins; this only refuses
+/// what can never be one.
+fn validate_notifications(notifications: &NotificationConfig) -> Result<(), String> {
+    if notifications.hub_canister == candid::Principal::anonymous()
+        || notifications.hub_canister == candid::Principal::management_canister()
+    {
+        return Err("hub_canister must be a canister".to_string());
+    }
+    if let Some(url) = &notifications.url {
+        let printable = url.bytes().all(|byte| byte.is_ascii_graphic());
+        if !url.starts_with("https://") || url.len() > MAX_NOTIFICATION_URL_BYTES || !printable {
+            return Err(format!(
+                "the notification url must be an https address of at most \
+                 {MAX_NOTIFICATION_URL_BYTES} printable ASCII bytes"
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -131,6 +167,75 @@ mod tests {
             })
             .unwrap_err();
         assert!(err.contains("unknown vetKD key name"));
+    }
+
+    fn notifications(url: Option<&str>) -> NotificationConfig {
+        NotificationConfig {
+            enabled: true,
+            hub_canister: candid::Principal::from_text("vi4fr-7aaaa-aaaay-aadwq-cai").unwrap(),
+            url: url.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn notifications_are_off_by_default_and_follow_enabled() {
+        assert_eq!(Config::default().notification_hub(), None);
+        let on = Config::default()
+            .with_args(InitArgs {
+                notifications: Some(notifications(Some("https://note.b3pay.net/settings"))),
+                ..Default::default()
+            })
+            .unwrap();
+        assert!(on.notification_hub().is_some());
+        let off = on
+            .with_args(InitArgs {
+                notifications: Some(NotificationConfig {
+                    enabled: false,
+                    ..notifications(None)
+                }),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(off.notification_hub(), None);
+        // Other arguments leave it as it is.
+        let kept = on
+            .with_args(InitArgs {
+                ai_enabled: Some(true),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(kept.notifications, on.notifications);
+    }
+
+    #[test]
+    fn rejects_a_notification_url_that_cannot_be_an_app_page() {
+        for url in [
+            "http://note.b3pay.net/",
+            "note.b3pay.net",
+            "https://note.b3pay.net/a b",
+            &format!(
+                "https://note.b3pay.net/{}",
+                "a".repeat(MAX_NOTIFICATION_URL_BYTES)
+            ),
+        ] {
+            let err = Config::default()
+                .with_args(InitArgs {
+                    notifications: Some(notifications(Some(url))),
+                    ..Default::default()
+                })
+                .unwrap_err();
+            assert!(err.contains("notification url"), "{url}: {err}");
+        }
+        let err = Config::default()
+            .with_args(InitArgs {
+                notifications: Some(NotificationConfig {
+                    hub_canister: candid::Principal::anonymous(),
+                    ..notifications(None)
+                }),
+                ..Default::default()
+            })
+            .unwrap_err();
+        assert!(err.contains("hub_canister"), "{err}");
     }
 
     #[test]

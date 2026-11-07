@@ -28,6 +28,8 @@ export type InternetIdentityLike = Pick<
 > & {
   signIn(options?: { maxTimeToLive?: bigint }): Promise<unknown>
   signOut(): Promise<unknown>
+  requestNotificationConsent(): Promise<{ granted: boolean }>
+  getNotificationConsentStatus(): Promise<{ granted: boolean }>
 }
 
 export interface KeyValueStorage {
@@ -161,6 +163,27 @@ export class SessionAuth implements AuthLike {
     const identity: Identity & { getDelegation?: () => { publicKey: Uint8Array } } =
       await this.#ii.getIdentity()
     return identity.getDelegation ? toBytes(identity.getDelegation().publicKey) : null
+  }
+
+  /**
+   * Asks the user, in Internet Identity, whether B3Note may notify them, and
+   * returns their answer. It opens Internet Identity, so call it from a click
+   * and before anything else is awaited. A refusal is `false`, not an error;
+   * `NotificationsUnsupportedError` means this Internet Identity sends none.
+   * Internet Identity accounts only: guests have nobody to notify.
+   */
+  async requestNotificationConsent(): Promise<boolean> {
+    if (this.kind !== "ii") throw new Error("Notifications need an Internet Identity account.")
+    return (await this.#ii.requestNotificationConsent()).granted
+  }
+
+  /**
+   * Whether Internet Identity may notify this account (`false` for guests).
+   * A query, so show the answer rather than gate on it.
+   */
+  async notificationConsent(): Promise<boolean> {
+    if (this.kind !== "ii") return false
+    return (await this.#ii.getNotificationConsentStatus()).granted
   }
 
   /** The guest seed stored in this browser, if any. */

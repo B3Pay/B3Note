@@ -67,7 +67,8 @@ Then open the `frontend` URL that `icp deploy` prints.
   canister can see
 - **[Development](docs/development.md):** repository layout, hot reload, UI work without icp-cli, the AI
   locally, and tests
-- **[Operations](docs/operations.md):** deploying to mainnet, limits and costs, and the custom domain
+- **[Operations](docs/operations.md):** deploying to mainnet, limits and costs, the custom domain, and
+  notifications through the B3Pay hub
 - **[B3Note v2](docs/v2.md):** what v2 fixed in v1, and how mainnet moved to v2
 
 The same pages are at [b3pay.net/docs/b3note](https://b3pay.net/docs/b3note/). The

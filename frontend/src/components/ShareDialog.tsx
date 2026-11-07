@@ -15,6 +15,7 @@ import type { NoteContent } from "../lib/note"
 import { prepareShare, shareLink } from "../lib/share"
 import { backendOf, sessionAuth, type Backend } from "../reactor"
 import { Dialog } from "./Dialog"
+import { ShareOpenedOffer } from "./Notifications"
 import { Button, Notice, Select } from "./ui"
 
 const VIEW_CHOICES = [
@@ -136,6 +137,7 @@ export function ShareDialog({
             Anyone with this link can open it. The part after <code>#</code> is the key: it never reaches the
             canister, and this is the only time you can copy it.
           </Notice>
+          <ShareOpenedOffer />
           <div className="flex justify-end">
             <Button variant="ghost" onClick={() => setLink(null)}>
               Create another link

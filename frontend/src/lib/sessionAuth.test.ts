@@ -24,6 +24,10 @@ class FakeInternetIdentity implements InternetIdentityLike {
   outcome: "complete" | "cancel" = "complete"
   readonly listeners = new Set<() => void>()
   maxTimeToLive?: bigint
+  /** The user's answer to the next consent request, and what is recorded. */
+  consentAnswer = true
+  consent = false
+  consentRequests = 0
 
   getPrincipal() {
     return this.state === "signed-out" ? undefined : this.identity.getPrincipal()
@@ -45,6 +49,14 @@ class FakeInternetIdentity implements InternetIdentityLike {
   }
   async signOut() {
     this.set("signed-out")
+  }
+  async requestNotificationConsent() {
+    this.consentRequests += 1
+    this.consent = this.consentAnswer
+    return { granted: this.consent }
+  }
+  async getNotificationConsentStatus() {
+    return { granted: this.consent }
   }
   set(state: IiState) {
     this.state = state
@@ -217,5 +229,25 @@ describe("SessionAuth", () => {
     } finally {
       client.dispose()
     }
+  })
+
+  it("asks Internet Identity for notification consent only for an Internet Identity account", async () => {
+    const { ii, session } = setup()
+    await expect(session.requestNotificationConsent()).rejects.toThrow("Internet Identity account")
+    expect(await session.notificationConsent()).toBe(false)
+
+    await session.signIn({ method: "guest" })
+    await expect(session.requestNotificationConsent()).rejects.toThrow("Internet Identity account")
+    expect(await session.notificationConsent()).toBe(false)
+    expect(ii.consentRequests).toBe(0)
+
+    await session.signIn({ method: "ii" })
+    ii.consentAnswer = false
+    expect(await session.requestNotificationConsent()).toBe(false)
+    expect(await session.notificationConsent()).toBe(false)
+    ii.consentAnswer = true
+    expect(await session.requestNotificationConsent()).toBe(true)
+    expect(await session.notificationConsent()).toBe(true)
+    expect(ii.consentRequests).toBe(2)
   })
 })

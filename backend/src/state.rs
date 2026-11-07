@@ -48,6 +48,9 @@ pub struct UserRecord {
     pub note_count: u32,
     pub note_bytes: u64,
     pub share_count: u32,
+    /// Tell the user when someone opens a link they shared. `None` (every
+    /// record stored before this existed) is no.
+    pub notify_share_opened: Option<bool>,
 }
 
 /// Values that do not fit the user maps: the config and the cached public keys.
@@ -189,4 +192,77 @@ pub fn update_user<R>(principal: Principal, now: u64, f: impl FnOnce(&mut UserRe
 /// Inclusive key range covering every id of one principal.
 pub fn owner_range(owner: Principal) -> std::ops::RangeInclusive<(Principal, Id)> {
     (owner, [0u8; 16])..=(owner, [0xffu8; 16])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{Limits, NotificationConfig};
+
+    /// `Config` and `UserRecord` as the release before notifications stored them.
+    #[derive(CandidType)]
+    struct ConfigBefore {
+        vetkd_key_name: String,
+        ai_enabled: bool,
+        llm_canister: Option<Principal>,
+        llm_model: String,
+        llm_cycles_per_call: u64,
+        limits: Limits,
+    }
+
+    #[derive(CandidType)]
+    struct SettingsBefore {
+        config: ConfigBefore,
+        public_keys: Option<CachedPublicKeys>,
+    }
+
+    #[derive(CandidType)]
+    struct UserRecordBefore {
+        created_at: u64,
+        note_count: u32,
+        note_bytes: u64,
+        share_count: u32,
+    }
+
+    #[test]
+    fn records_stored_before_notifications_still_decode() {
+        let before = SettingsBefore {
+            config: ConfigBefore {
+                vetkd_key_name: "key_1".into(),
+                ai_enabled: true,
+                llm_canister: None,
+                llm_model: "llama3.1:8b".into(),
+                llm_cycles_per_call: 0,
+                limits: Limits::default(),
+            },
+            public_keys: None,
+        };
+        let settings = Settings::from_bytes(Cow::Owned(Encode!(&before).unwrap()));
+        assert!(settings.config.ai_enabled);
+        assert_eq!(settings.config.notifications, None);
+
+        let user = UserRecord::from_bytes(Cow::Owned(
+            Encode!(&UserRecordBefore {
+                created_at: 5,
+                note_count: 2,
+                note_bytes: 300,
+                share_count: 1,
+            })
+            .unwrap(),
+        ));
+        assert_eq!(user.share_count, 1);
+        assert_eq!(user.notify_share_opened, None);
+    }
+
+    #[test]
+    fn notification_settings_round_trip() {
+        let mut settings = Settings::default();
+        settings.config.notifications = Some(NotificationConfig {
+            enabled: true,
+            hub_canister: Principal::from_text("vi4fr-7aaaa-aaaay-aadwq-cai").unwrap(),
+            url: Some("https://note.b3pay.net/settings".into()),
+        });
+        let decoded = Settings::from_bytes(settings.to_bytes());
+        assert_eq!(decoded.config, settings.config);
+    }
 }

@@ -75,3 +75,53 @@ A browser keeps two things per origin, so they do not follow a user to the new a
 (in localStorage; a guest signs in there by importing their recovery key), and the cached vault key (in
 IndexedDB; an Internet Identity user's first unlock there derives it again, which counts toward the
 per-user vetKD limit).
+
+## Notifications
+
+A user who turns it on in Settings, or from the offer under a new share link, is told when someone opens
+a link they shared. B3Note sends nothing itself: after a successful `open_share` the backend asks the
+B3Pay hub (`vi4fr-7aaaa-aaaay-aadwq-cai`) to `notify` the owner, and the hub sends through Internet
+Identity for every B3Pay app. The notification says how many views are left and never which note; the
+backend only has ciphertext anyway. It goes out only when all three agree:
+
+- the deployment: `notifications` in the backend's config, off until a controller sets it;
+- the owner, in B3Note: `set_notify_share_opened`, which the app calls only after Internet Identity
+  asked them;
+- the owner, in Internet Identity: their consent for this origin, which Internet Identity keeps.
+
+The call to the hub runs in a timer of its own, so a reader never waits for it, and a hub that refuses or
+fails cannot fail the open (`integration_tests/tests/notifications.rs`).
+
+Internet Identity takes notifications for `https://4lidq-zqaaa-aaaap-abkbq-cai.icp0.io`, the origin
+principals derive from (also on `note.b3pay.net`, which signs in for it), and only from a sender listed in
+`/.well-known/ii-notification-senders` there. `/.well-known/ii-app-metadata` gives the name and logo shown
+on the sign-in screen and on each notification. `.ic-assets.json5` serves both, and the logo, with CORS.
+
+To turn it on, once this backend and frontend are deployed:
+
+```bash
+# At the hub (controllers): B3Note's backend may notify for the b3note app, and the
+# hub sends for B3Note's sign-in origin. upsert_app replaces the name, origins,
+# canisters and access with the ones passed (the hub's README, "Register B3Note"), so pass
+# them all; ai_policy = null keeps the AI policy.
+icp canister call hub upsert_app '(record {
+  id = "b3note";
+  name = "B3Note";
+  origins = vec { "https://4lidq-zqaaa-aaaap-abkbq-cai.icp0.io"; "https://note.b3pay.net" };
+  frontend_canisters = vec { principal "4lidq-zqaaa-aaaap-abkbq-cai" };
+  backend_canisters = vec { principal "xeka7-ryaaa-aaaal-qb57a-cai" };
+  access = variant { Open };
+  ai_policy = null;
+})' -e production
+icp canister call hub set_notification_origin '("b3note", opt "https://4lidq-zqaaa-aaaap-abkbq-cai.icp0.io")' -e production
+
+# At B3Note (controllers): name the hub, and the page a notification opens.
+icp canister call backend update_config '(record { notifications = opt record {
+  enabled = true;
+  hub_canister = principal "vi4fr-7aaaa-aaaay-aadwq-cai";
+  url = opt "https://note.b3pay.net/settings";
+} })' -e production
+```
+
+The hub refuses a `url` that is not on one of the app's origins there. To stop sending, set the same
+record with `enabled = false`.

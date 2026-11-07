@@ -1,0 +1,15 @@
+[package]
+name = "mock_hub"
+version = "0.1.0"
+description = "Test double of the B3Pay hub's notify endpoint, used by the PocketIC tests"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+candid.workspace = true
+ic-cdk.workspace = true
+serde.workspace = true

@@ -32,7 +32,7 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Clippy
         run: |
-          cargo clippy --locked --target wasm32-unknown-unknown -p backend -p mock_llm -- -D warnings
+          cargo clippy --locked --target wasm32-unknown-unknown -p backend -p mock_llm -p mock_hub -- -D warnings
           cargo clippy --locked -p backend -p integration_tests --tests -- -D warnings
       - name: Install PocketIC
         run: |
@@ -47,6 +47,7 @@ jobs:
           path: |
             target/wasm32-unknown-unknown/release/backend.wasm
             target/wasm32-unknown-unknown/release/mock_llm.wasm
+            target/wasm32-unknown-unknown/release/mock_hub.wasm
 
   frontend:
     name: Frontend

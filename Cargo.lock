@@ -1528,6 +1528,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mock_hub"
+version = "0.1.0"
+dependencies = [
+ "candid",
+ "ic-cdk",
+ "serde",
+]
+
+[[package]]
 name = "mock_llm"
 version = "0.1.0"
 dependencies = [

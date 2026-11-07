@@ -11,6 +11,8 @@
 //!   link. Only Internet Identity accounts can create them, because every
 //!   vetKD derivation costs this canister cycles.
 //! - `ai_assist` sends text the user chose to the on-chain LLM canister.
+//! - A share's owner who asked for it is told when someone opens their link,
+//!   through the B3Pay hub (`notify`).
 
 use std::time::Duration;
 
@@ -24,6 +26,7 @@ mod identity;
 mod ids;
 mod keys;
 mod notes;
+mod notify;
 mod rate_limit;
 mod shares;
 mod state;
@@ -180,6 +183,7 @@ fn get_account() -> Result<Account> {
     let caller = authenticated()?;
     let config = state::config();
     let user = state::user(&caller).unwrap_or_default();
+    let notifications_available = config.notification_hub().is_some();
     Ok(Account {
         principal: caller,
         created_at: user.created_at,
@@ -189,7 +193,21 @@ fn get_account() -> Result<Account> {
         limits: config.limits,
         ai_enabled: config.ai_enabled,
         ai_model: config.llm_model,
+        notifications_available,
+        notify_share_opened: user.notify_share_opened.unwrap_or(false),
     })
+}
+
+/// Whether to tell the caller when someone opens a link they shared. The app
+/// asks Internet Identity for the caller's consent first; this only records
+/// their choice, which `get_account` reports.
+#[update]
+fn set_notify_share_opened(enabled: bool) -> Result<()> {
+    let caller = authenticated()?;
+    state::update_user(caller, now(), |user| {
+        user.notify_share_opened = Some(enabled)
+    });
+    Ok(())
 }
 
 /// Deletes every note and share of the caller.
@@ -350,7 +368,8 @@ async fn open_share(args: OpenShareArgs) -> Result<OpenedShare> {
     .await;
     match derived {
         Ok(encrypted_key) => {
-            shares::finish_open(&pending.id, &args.transport_public_key, true);
+            let views_left_now = shares::finish_open(&pending.id, &args.transport_public_key, true);
+            notify::after_share_opened(pending.owner, &pending.id, views_left_now, now());
             Ok(OpenedShare {
                 ciphertext: pending.ciphertext,
                 encrypted_key: ByteBuf::from(encrypted_key),

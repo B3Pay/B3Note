@@ -172,6 +172,7 @@ beforeAll(async () => {
     llm_model: null,
     llm_cycles_per_call: null,
     limits: null,
+    notifications: null,
   })
   if (!arg.ok) throw new Error(`Cannot encode the install argument: ${JSON.stringify(arg.issues)}`)
   canisterId = await pic.createCanister({ targetSubnetId: appSubnet.id, cycles: 100_000_000_000_000n })

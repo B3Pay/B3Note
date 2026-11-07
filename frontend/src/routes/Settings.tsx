@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router"
 import {
   AlertTriangle,
+  Bell,
   Copy,
   Download,
   Eye,
@@ -16,12 +17,14 @@ import {
 import { useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 import { useAiEnabled, useLocalAi } from "../app/features"
+import { useShareOpenedNotifications } from "../app/notifications"
 import { signOut, useSession } from "../app/session"
 import { forgetVaultKey } from "../app/vault"
 import { useWorkspace } from "../app/workspace"
 import { SheetMark } from "../components/brand"
 import { Dialog } from "../components/Dialog"
 import { LocalAiSetup } from "../components/LocalAi"
+import { ShareOpenedSetting } from "../components/Notifications"
 import { Button, Card, Input, Notice, Spinner, cn } from "../components/ui"
 import { hasAiConsent, setAiConsent } from "../lib/ai"
 import { newId } from "../lib/bytes"
@@ -82,6 +85,7 @@ export function SettingsPage() {
   const [aiConsent, setConsentState] = useState(hasAiConsent())
   const aiEnabled = useAiEnabled()
   const localAi = useLocalAi()
+  const notifications = useShareOpenedNotifications()
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmText, setConfirmText] = useState("")
@@ -341,6 +345,12 @@ export function SettingsPage() {
           />
         </div>
       </Section>
+
+      {notifications.available ? (
+        <Section icon={<Bell className="h-5 w-5" />} title="Notifications">
+          <ShareOpenedSetting notifications={notifications} />
+        </Section>
+      ) : null}
 
       <Section icon={<Link2 className="h-5 w-5" />} title="Active share links">
         {shares.isPending ? (

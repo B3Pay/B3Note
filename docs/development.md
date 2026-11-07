@@ -6,6 +6,7 @@
 backend/            Rust canister (ic-cdk 0.20, ic-stable-structures 0.7, vetKD, ic-llm)
   backend.did       Candid interface (checked by a unit test, see below)
 mock_llm/           Test double of the LLM canister's v1_chat endpoint
+mock_hub/           Test double of the B3Pay hub's notify endpoint
 integration_tests/  PocketIC tests with real vetKD (keys verified with the ic-vetkeys crate)
 frontend/           Vite + React 19 + Tailwind v4 app on ic-reactor 4 (beta) and @icp-sdk/*
   src/canisters/    Generated from backend.did by @ic-reactor/vite-plugin (candid-core)
