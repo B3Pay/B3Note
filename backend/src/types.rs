@@ -78,6 +78,23 @@ pub struct Config {
     /// Cycles attached to each LLM call (0 for the free models).
     pub llm_cycles_per_call: u64,
     pub limits: Limits,
+    /// Notifications through the B3Pay hub. Null (the default) sends none.
+    /// An `opt` so a config stored before it existed still decodes.
+    pub notifications: Option<NotificationConfig>,
+}
+
+/// How the backend tells a share's owner that someone opened it: it asks the
+/// B3Pay hub to notify them through Internet Identity.
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct NotificationConfig {
+    /// Off keeps the rest, so turning it back on needs nothing else.
+    pub enabled: bool,
+    /// The hub canister. It must list this backend for the `b3note` app.
+    pub hub_canister: Principal,
+    /// The page a notification opens, on one of the app's origins (the hub
+    /// checks which), such as `https://note.b3pay.net/settings`. Null
+    /// opens none.
+    pub url: Option<String>,
 }
 
 /// Install and upgrade arguments. Every field is optional; `None` keeps the
@@ -90,6 +107,9 @@ pub struct InitArgs {
     pub llm_model: Option<String>,
     pub llm_cycles_per_call: Option<u64>,
     pub limits: Option<Limits>,
+    /// Replaces the whole notification config. To stop sending, pass it with
+    /// `enabled = false`.
+    pub notifications: Option<NotificationConfig>,
 }
 
 /// An encrypted note as stored by the canister.
@@ -221,6 +241,10 @@ pub struct Account {
     pub limits: Limits,
     pub ai_enabled: bool,
     pub ai_model: String,
+    /// Whether this deployment can notify anyone at all.
+    pub notifications_available: bool,
+    /// Whether the caller asked to be told when someone opens a link they shared.
+    pub notify_share_opened: bool,
 }
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]

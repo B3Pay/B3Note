@@ -40,4 +40,19 @@
     match: ".well-known/ii-alternative-origins",
     headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
   },
+  // Internet Identity's notification files (docs/operations.md, "Notifications"): the canisters
+  // allowed to notify B3Note's users, and the name and logo shown on its sign-in screen and on
+  // each notification. Read from another origin, so they need CORS, the logo too.
+  {
+    match: ".well-known/ii-notification-senders",
+    headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+  },
+  {
+    match: ".well-known/ii-app-metadata",
+    headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+  },
+  {
+    match: "android-chrome-512x512.png",
+    headers: { "Access-Control-Allow-Origin": "*" },
+  },
 ]

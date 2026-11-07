@@ -56,6 +56,7 @@ await pic.installCode({
       llm_model: null,
       llm_cycles_per_call: null,
       limits: null,
+      notifications: null,
     }),
   ),
 })

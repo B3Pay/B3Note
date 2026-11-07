@@ -21,6 +21,7 @@ use ic_vetkeys::{
 use pocket_ic::{PocketIc, PocketIcBuilder, RejectResponse};
 use rand::{rngs::OsRng, RngCore};
 use serde::de::DeserializeOwned;
+use serde::Deserialize;
 use serde_bytes::ByteBuf;
 use vetkeys_management_canister::{VetKDCurve, VetKDKeyId};
 
@@ -49,6 +50,10 @@ pub fn backend_wasm() -> Vec<u8> {
 
 pub fn mock_llm_wasm() -> Vec<u8> {
     wasm("mock_llm", "MOCK_LLM_WASM")
+}
+
+pub fn mock_hub_wasm() -> Vec<u8> {
+    wasm("mock_hub", "MOCK_HUB_WASM")
 }
 
 /// Internet Identity's canister id.
@@ -115,6 +120,9 @@ pub struct TestEnv {
     pub pic: PocketIc,
     pub backend: Principal,
     pub llm: Principal,
+    /// The stand-in B3Pay hub. The backend notifies through it only when
+    /// `InitArgs.notifications` names it.
+    pub hub: Principal,
     pub controller: Principal,
 }
 
@@ -150,6 +158,15 @@ impl TestEnv {
             Some(controller),
         );
 
+        let hub = pic.create_canister_on_subnet(Some(controller), None, app_subnet);
+        pic.add_cycles(hub, 10_000_000_000_000);
+        pic.install_canister(
+            hub,
+            mock_hub_wasm(),
+            encode_args(()).unwrap(),
+            Some(controller),
+        );
+
         let backend = pic.create_canister_on_subnet(Some(controller), None, app_subnet);
         pic.add_cycles(backend, 100_000_000_000_000);
         if args.vetkd_key_name.is_none() {
@@ -168,6 +185,7 @@ impl TestEnv {
             pic,
             backend,
             llm,
+            hub,
             controller,
         };
         // Let the init timer fetch the public keys.
@@ -429,6 +447,61 @@ impl TestEnv {
             .unwrap();
         decode_one(&bytes).unwrap()
     }
+
+    // -- notifications ---------------------------------------------------
+
+    /// The page notifications open in these tests.
+    pub const NOTIFICATION_URL: &'static str = "https://note.b3pay.net/settings";
+
+    /// Has the backend notify through the stand-in hub.
+    pub fn notifications_on(&self) -> Config {
+        self.set_notifications(true)
+    }
+
+    pub fn set_notifications(&self, enabled: bool) -> Config {
+        let config: Result<Config> = self.update(
+            self.controller,
+            "update_config",
+            (InitArgs {
+                notifications: Some(NotificationConfig {
+                    enabled,
+                    hub_canister: self.hub,
+                    url: Some(Self::NOTIFICATION_URL.to_string()),
+                }),
+                ..Default::default()
+            },),
+        );
+        config.expect("update_config")
+    }
+
+    pub fn set_notify_share_opened(&self, caller: Principal, enabled: bool) -> Result<()> {
+        self.update(caller, "set_notify_share_opened", (enabled,))
+    }
+
+    /// What the backend asked the hub to send, oldest first.
+    pub fn notified(&self) -> Vec<Notified> {
+        let bytes = self
+            .pic
+            .query_call(
+                self.hub,
+                Principal::anonymous(),
+                "notified",
+                encode_args(()).unwrap(),
+            )
+            .unwrap();
+        decode_one(&bytes).unwrap()
+    }
+
+    pub fn set_hub_answer(&self, answer: HubAnswer) {
+        self.pic
+            .update_call(
+                self.hub,
+                self.controller,
+                "set_answer",
+                encode_one(answer).unwrap(),
+            )
+            .unwrap();
+    }
 }
 
 pub fn transport_key() -> TransportSecretKey {
@@ -453,4 +526,39 @@ pub fn decrypt_note(vetkey: &VetKey, note: &Note) -> std::result::Result<String,
         .decrypt_message(&note.ciphertext, NOTE_DOMAIN, &id)
         .map(|bytes| String::from_utf8(bytes).unwrap())
         .map_err(|e| format!("{e:?}"))
+}
+
+/// The stand-in hub's view of a `notify` call.
+#[derive(CandidType, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub enum HubUrgency {
+    VeryLow,
+    Low,
+    Normal,
+    High,
+}
+
+#[derive(CandidType, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct HubNotification {
+    pub title: String,
+    pub body: String,
+    pub url: Option<String>,
+    pub key: Option<String>,
+    pub urgency: Option<HubUrgency>,
+    pub expires_at_ns: Option<u64>,
+}
+
+#[derive(CandidType, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Notified {
+    pub caller: Principal,
+    pub app_id: String,
+    pub user: Principal,
+    pub notification: HubNotification,
+}
+
+/// How the stand-in hub answers `notify`.
+#[derive(CandidType, Clone, Copy, Debug)]
+pub enum HubAnswer {
+    Accept,
+    Refuse,
+    Trap,
 }

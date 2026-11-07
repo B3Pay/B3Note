@@ -2,7 +2,11 @@ type Account = record {
   "principal" : principal;
   share_count : nat32;
   ai_enabled : bool;
+  // Whether the caller asked to be told when someone opens a link they shared.
+  notify_share_opened : bool;
   created_at : nat64;
+  // Whether this deployment can notify anyone at all.
+  notifications_available : bool;
   note_count : nat32;
   storage_bytes : nat64;
   ai_model : text;
@@ -36,6 +40,9 @@ type AiTask = variant {
 // The canister configuration.
 type Config = record {
   ai_enabled : bool;
+  // Notifications through the B3Pay hub. Null (the default) sends none.
+  // An `opt` so a config stored before it existed still decodes.
+  notifications : opt NotificationConfig;
   // Cycles attached to each LLM call (0 for the free models).
   llm_cycles_per_call : nat64;
   llm_model : text;
@@ -106,6 +113,9 @@ type Error = variant {
 // current (or default) value.
 type InitArgs = record {
   ai_enabled : opt bool;
+  // Replaces the whole notification config. To stop sending, pass it with
+  // `enabled = false`.
+  notifications : opt NotificationConfig;
   llm_cycles_per_call : opt nat64;
   llm_model : opt text;
   llm_canister : opt principal;
@@ -148,6 +158,18 @@ type Note = record {
   expires_at : opt nat64;
 };
 type NotePage = record { notes : vec Note; next_cursor : opt text };
+// How the backend tells a share's owner that someone opened it: it asks the
+// B3Pay hub to notify them through Internet Identity.
+type NotificationConfig = record {
+  // The page a notification opens, on one of the app's origins (the hub
+  // checks which), such as `https://note.b3pay.net/settings`. Null
+  // opens none.
+  url : opt text;
+  // The hub canister. It must list this backend for the `b3note` app.
+  hub_canister : principal;
+  // Off keeps the rest, so turning it back on needs nothing else.
+  enabled : bool;
+};
 type OpenShareArgs = record {
   id : text;
   // Ed25519 signature over `SHARE_OPEN_DOMAIN || id bytes || transport_public_key`.
@@ -250,6 +272,10 @@ service : (opt InitArgs) -> {
   // may call this; signing in is not required.
   open_share : (OpenShareArgs) -> (Result_11);
   revoke_share : (text) -> (Result_4);
+  // Whether to tell the caller when someone opens a link they shared. The app
+  // asks Internet Identity for the caller's consent first; this only records
+  // their choice, which `get_account` reports.
+  set_notify_share_opened : (bool) -> (Result_4);
   // Changes the configuration. Controllers only.
   update_config : (InitArgs) -> (Result_12);
   update_note : (UpdateNoteArgs) -> (Result_1);

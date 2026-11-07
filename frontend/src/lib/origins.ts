@@ -19,6 +19,12 @@ export const PRODUCTION = {
   backend: "xeka7-ryaaa-aaaal-qb57a-cai",
   /** Also listed in `public/.well-known/ic-domains` and `ii-alternative-origins`. */
   customDomains: ["https://note.b3pay.net"],
+  /**
+   * The B3Pay hub, which sends B3Note's notifications through Internet
+   * Identity. The only sender `public/.well-known/ii-notification-senders`
+   * names; Internet Identity refuses notifications from anyone else.
+   */
+  notificationSender: "vi4fr-7aaaa-aaaay-aadwq-cai",
 } as const
 
 export interface CustomDomain {

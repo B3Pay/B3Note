@@ -173,6 +173,7 @@ pub fn revoke(owner: Principal, id: &str) -> Result<(), Error> {
 /// vetKD derivation.
 pub struct PendingOpen {
     pub id: Id,
+    pub owner: Principal,
     pub ciphertext: ByteBuf,
     pub views_left: u32,
     pub expires_at: u64,
@@ -222,6 +223,7 @@ pub fn begin_open(
         .push(ByteBuf::from(transport_public_key.to_vec()));
     let pending = PendingOpen {
         id,
+        owner: share.owner,
         ciphertext: share.ciphertext.clone(),
         views_left: share.views_left,
         expires_at: share.expires_at,
